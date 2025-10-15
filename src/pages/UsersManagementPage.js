@@ -38,7 +38,6 @@ import { useCache } from '../contexts/CacheContext';
 import UserDialog from '../components/UserDialog';
 import PrintPreviewDialog from '../components/PrintPreviewDialog';
 import UserAdActionsMenu from '../components/UserAdActionsMenu';
-import { AD_GROUPS, AD_GROUP_NAMES } from '../constants';
 
 const debounce = (func, wait) => {
     let timeout;
@@ -47,18 +46,17 @@ const debounce = (func, wait) => {
 
 // --- SOUS-COMPOSANTS AMÉLIORÉS ---
 
-const AdGroupChip = memo(({ groupName, isMember, username, onMembershipChange }) => {
+const AdGroupChip = memo(({ groupKey, groupConfig, isMember, username, onMembershipChange }) => {
     const { showNotification } = useApp();
     const [isUpdating, setIsUpdating] = useState(false);
 
     const handleToggle = async () => {
         setIsUpdating(true);
         const action = isMember ? 'removeUserFromGroup' : 'addUserToGroup';
-        const group = groupName === AD_GROUP_NAMES[AD_GROUPS.VPN] ? AD_GROUPS.VPN : AD_GROUPS.INTERNET;
         try {
-            const result = await window.electronAPI[action]({ username, groupName: group });
+            const result = await window.electronAPI[action]({ username, groupName: groupKey });
             if (result.success) {
-                showNotification('success', `Utilisateur ${isMember ? 'retiré de' : 'ajouté à'} ${groupName}.`);
+                showNotification('success', `Utilisateur ${isMember ? 'retiré de' : 'ajouté à'} ${groupConfig.description}.`);
                 if (onMembershipChange) onMembershipChange();
             } else { throw new Error(result.error); }
         } catch (error) { showNotification('error', `Erreur: ${error.message}`); } 
@@ -66,10 +64,10 @@ const AdGroupChip = memo(({ groupName, isMember, username, onMembershipChange })
     };
 
     return (
-        <Tooltip title={isMember ? `Retirer de ${groupName}` : `Ajouter à ${groupName}`}>
+        <Tooltip title={isMember ? `Retirer de ${groupConfig.description}` : `Ajouter à ${groupConfig.description}`}>
             <Chip
-                icon={isUpdating ? <CircularProgress size={16} /> : (groupName === 'VPN' ? <VpnKeyIcon /> : <LanguageIcon />)}
-                label={groupName}
+                icon={isUpdating ? <CircularProgress size={16} /> : (groupKey === 'VPN' ? <VpnKeyIcon /> : <LanguageIcon />)}
+                label={groupKey === 'Sortants_responsables' ? 'Internet' : groupKey}
                 color={isMember ? 'success' : 'default'}
                 onClick={handleToggle}
                 disabled={isUpdating}
@@ -80,7 +78,7 @@ const AdGroupChip = memo(({ groupName, isMember, username, onMembershipChange })
     );
 });
 
-const UserRow = memo(({ user, style, isOdd, onEdit, onDelete, onConnect, onPrint, onOpenAdMenu, isVpnMember, isInternetMember, onMembershipChange }) => (
+const UserRow = memo(({ user, style, isOdd, onEdit, onDelete, onConnect, onPrint, onOpenAdMenu, adGroupsConfig, vpnMembers, internetMembers, onMembershipChange }) => (
     <Box 
         style={style} 
         sx={{ 
@@ -106,8 +104,16 @@ const UserRow = memo(({ user, style, isOdd, onEdit, onDelete, onConnect, onPrint
             <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>Office: ••••••••</Typography>
         </Box>
         <Box sx={{ width: '17%', display: 'flex', gap: 1, alignItems: 'center', pr: 2, minWidth: 180 }}>
-            <AdGroupChip groupName={AD_GROUP_NAMES[AD_GROUPS.VPN]} isMember={isVpnMember} username={user.username} onMembershipChange={onMembershipChange} />
-            <AdGroupChip groupName={AD_GROUP_NAMES[AD_GROUPS.INTERNET]} isMember={isInternetMember} username={user.username} onMembershipChange={onMembershipChange} />
+            {Object.entries(adGroupsConfig).map(([key, config]) => (
+                <AdGroupChip
+                    key={key}
+                    groupKey={key}
+                    groupConfig={config}
+                    isMember={key === 'VPN' ? vpnMembers.has(user.username) : internetMembers.has(user.username)}
+                    username={user.username}
+                    onMembershipChange={onMembershipChange}
+                />
+            ))}
         </Box>
         <Box sx={{ width: '20%', display: 'flex', gap: 0.5, justifyContent: 'flex-end', alignItems: 'center' }}>
             <Tooltip title="Modifier (Excel)"><IconButton size="small" onClick={() => onEdit(user)}><EditIcon fontSize="small" /></IconButton></Tooltip>
@@ -131,7 +137,7 @@ const TableHeader = memo(() => (
 ));
 
 const UsersManagementPage = () => {
-    const { showNotification } = useApp();
+    const { config, showNotification } = useApp();
     const { fetchWithCache, invalidate } = useCache();
     const [users, setUsers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -148,6 +154,8 @@ const UsersManagementPage = () => {
     const [adMenuAnchor, setAdMenuAnchor] = useState(null);
     const [selectedUserForMenu, setSelectedUserForMenu] = useState(null);
 
+    const adGroupsConfig = useMemo(() => config?.ad_groups || {}, [config]);
+
     const { servers, departments } = useMemo(() => ({
         servers: [...new Set(users.map(u => u.server).filter(Boolean))].sort(),
         departments: [...new Set(users.map(u => u.department).filter(Boolean))].sort()
@@ -156,8 +164,8 @@ const UsersManagementPage = () => {
     const loadGroupMembers = useCallback(async (force = false) => {
         try {
             const [vpnResult, internetResult] = await Promise.all([
-                fetchWithCache('adGroup:VPN', () => window.electronAPI.getAdGroupMembers(AD_GROUPS.VPN), { force }),
-                fetchWithCache('adGroup:Internet', () => window.electronAPI.getAdGroupMembers(AD_GROUPS.INTERNET), { force })
+                fetchWithCache('adGroup:VPN', () => window.electronAPI.getAdGroupMembers('VPN'), { force }),
+                fetchWithCache('adGroup:Sortants_responsables', () => window.electronAPI.getAdGroupMembers('Sortants_responsables'), { force })
             ]);
             const vpnData = vpnResult.data || [];
             const internetData = internetResult.data || [];
@@ -234,8 +242,8 @@ const UsersManagementPage = () => {
     const Row = useCallback(({ index, style }) => {
         const user = filteredUsers[index];
         if (!user) return null;
-        return <UserRow user={user} style={style} isOdd={index % 2 === 1} onEdit={(u) => { setSelectedUser(u); setUserDialogOpen(true); }} onDelete={handleDeleteUser} onConnect={handleConnectUser} onPrint={handlePrintUser} onOpenAdMenu={handleOpenAdMenu} isVpnMember={vpnMembers.has(user.username)} isInternetMember={internetMembers.has(user.username)} onMembershipChange={() => loadGroupMembers(true)} />;
-    }, [filteredUsers, vpnMembers, internetMembers, loadGroupMembers]);
+        return <UserRow user={user} style={style} isOdd={index % 2 === 1} onEdit={(u) => { setSelectedUser(u); setUserDialogOpen(true); }} onDelete={handleDeleteUser} onConnect={handleConnectUser} onPrint={handlePrintUser} onOpenAdMenu={handleOpenAdMenu} adGroupsConfig={adGroupsConfig} vpnMembers={vpnMembers} internetMembers={internetMembers} onMembershipChange={() => loadGroupMembers(true)} />;
+    }, [filteredUsers, vpnMembers, internetMembers, adGroupsConfig, loadGroupMembers]);
 
     return (
         <Box sx={{ p: 2, height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
