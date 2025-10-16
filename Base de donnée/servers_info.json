@@ -1,0 +1,51 @@
+{
+  "SRV-RDS-1": {
+    "name": "SRV-RDS-1",
+    "ip": "192.168.1.214",
+    "description": "Serveur RDS principal - Production",
+    "username": "Administrator",
+    "password": "MotDePasseSecurise123!",
+    "port": 3389,
+    "notes": "Serveur principal pour les sessions utilisateurs. Monitoring actif 24/7.",
+    "updatedAt": "2025-09-12T08:56:10.720Z"
+  },
+  "SRV-RDS-2": {
+    "name": "SRV-RDS-2",
+    "ip": "192.168.1.215",
+    "description": "Serveur RDS secondaire - Production",
+    "username": "Administrator",
+    "password": "MotDePasseSecurise456!",
+    "port": 3389,
+    "notes": "Serveur de secours et répartition de charge",
+    "updatedAt": "2025-09-12T08:56:19.032Z"
+  },
+  "SRV-AD-1": {
+    "name": "SRV-AD-1",
+    "ip": "192.168.1.5",
+    "description": "Contrôleur de domaine principal",
+    "username": "admin_anecoop",
+    "password": "vCQhNZ2aY2v!",
+    "port": 3389,
+    "notes": "DC principal - Ne pas redémarrer sans validation",
+    "updatedAt": "2025-09-26T13:50:01.381Z",
+    "updatedBy": "Macha ANTON"
+  },
+  "SRV-DATA": {
+    "ip": "192.168.1.100",
+    "description": "Serveur de fichiers et données",
+    "username": "svc_backup",
+    "password": "BackupSecure2024!",
+    "port": 3389,
+    "notes": "Serveur de stockage principal. Sauvegarde quotidienne à 2h00.",
+    "updatedAt": "2024-02-01T10:00:00.000Z"
+  },
+  "SRV-QLIKVIEW": {
+    "ip": "192.168.1.150",
+    "description": "Serveur Business Intelligence QlikView",
+    "username": "qlikservice",
+    "password": "QlikBI2024!",
+    "port": 3389,
+    "notes": "Serveur dédié aux tableaux de bord. Maintenance le dimanche.",
+    "updatedAt": "2024-02-01T10:00:00.000Z"
+  }
+}

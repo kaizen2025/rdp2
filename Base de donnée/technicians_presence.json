@@ -1,0 +1,42 @@
+{
+  "macha_anton": {
+    "id": "macha_anton",
+    "name": "Macha ANTON",
+    "position": "Alternante informatique",
+    "email": "macha.anton@anecoop.fr",
+    "phone": "",
+    "isActive": true,
+    "permissions": [
+      "loans",
+      "users",
+      "reports"
+    ],
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "avatar": "MA",
+    "lastActivity": "2025-10-16T12:51:38.614Z",
+    "status": "online",
+    "hostname": "SRV-RDS-4"
+  },
+  "kevin_bivia": {
+    "id": "kevin_bivia",
+    "name": "Kevin BIVIA",
+    "position": "Chef de projet",
+    "email": "kevin.bivia@anecoop.fr",
+    "phone": "",
+    "isActive": true,
+    "permissions": [
+      "admin",
+      "loans",
+      "users",
+      "servers",
+      "reports",
+      "config"
+    ],
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "avatar": "KB",
+    "lastActivity": "2025-10-16T12:52:26.487Z",
+    "status": "online",
+    "hostname": "Kevin-PC",
+    "loginTime": "2025-10-16T12:51:26.469Z"
+  }
+}

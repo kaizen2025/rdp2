@@ -1,0 +1,144 @@
+{
+  "loans": [
+    {
+      "computerId": "pc-anecoop-20",
+      "userName": "kbivia",
+      "userDisplayName": "Kevin BIVIA",
+      "itStaff": "Kevin",
+      "loanDate": "2025-10-01T10:03:43.000Z",
+      "expectedReturnDate": "2025-10-02T10:03:43.000Z",
+      "notes": "test",
+      "status": "returned",
+      "id": "mgaog17fkxrfg8c1q",
+      "createdAt": "2025-10-03T10:04:08.091Z",
+      "createdBy": "Kevin BIVIA",
+      "createdById": "kevin_bivia",
+      "extensionCount": 0,
+      "notificationsSent": [],
+      "history": [
+        {
+          "event": "created",
+          "date": "2025-10-03T10:04:08.091Z",
+          "by": "Kevin BIVIA",
+          "byId": "kevin_bivia",
+          "details": {
+            "loanDate": "2025-10-01T10:03:43.000Z",
+            "expectedReturnDate": "2025-10-02T10:03:43.000Z"
+          }
+        },
+        {
+          "event": "returned",
+          "date": "2025-10-03T10:10:33.453Z",
+          "by": "Kevin BIVIA",
+          "byId": "kevin_bivia",
+          "details": {
+            "daysLate": 2,
+            "returnNotes": ""
+          }
+        }
+      ],
+      "actualReturnDate": "2025-10-03T10:10:33.453Z",
+      "returnedBy": "Kevin BIVIA",
+      "returnedById": "kevin_bivia",
+      "returnNotes": "",
+      "daysLate": 2,
+      "computerName": "PC-ANECOOP-20"
+    },
+    {
+      "computerId": "pc-anecoop-20",
+      "userName": "kbivia",
+      "userDisplayName": "Kevin BIVIA",
+      "itStaff": "Kevin",
+      "loanDate": "2025-10-03T14:12:06.585Z",
+      "expectedReturnDate": "2025-10-10T14:12:06.585Z",
+      "notes": "sss",
+      "status": "returned",
+      "id": "mgaxb33nj33jspc9i",
+      "createdAt": "2025-10-03T14:12:13.811Z",
+      "createdBy": "Kevin BIVIA",
+      "createdById": "kevin_bivia",
+      "extensionCount": 0,
+      "notificationsSent": [
+        "mgaxb33nj33jspc9i_7"
+      ],
+      "history": [
+        {
+          "event": "created",
+          "date": "2025-10-03T14:12:13.811Z",
+          "by": "Kevin BIVIA",
+          "byId": "kevin_bivia",
+          "details": {
+            "loanDate": "2025-10-03T14:12:06.585Z",
+            "expectedReturnDate": "2025-10-10T14:12:06.585Z"
+          }
+        },
+        {
+          "event": "returned",
+          "date": "2025-10-07T13:47:32.404Z",
+          "by": "Kevin BIVIA",
+          "byId": "kevin_bivia",
+          "details": {
+            "daysLate": 0,
+            "returnNotes": ""
+          }
+        }
+      ],
+      "actualReturnDate": "2025-10-07T13:47:32.404Z",
+      "returnedBy": "Kevin BIVIA",
+      "returnedById": "kevin_bivia",
+      "returnNotes": "",
+      "daysLate": 0,
+      "computerName": "PC-ANECOOP-20"
+    },
+    {
+      "computerId": "pc-anecoop-02",
+      "userName": "mbenhass",
+      "userDisplayName": "Meher BENHASSINE",
+      "itStaff": "Kevin BIVIA",
+      "loanDate": "2025-10-10T15:02:53.993Z",
+      "expectedReturnDate": "2025-10-17T15:02:53.993Z",
+      "notes": "Test",
+      "status": "active",
+      "computerName": "PC-ANECOOP-02",
+      "id": "mgkz7uhh75d9qhxci",
+      "createdAt": "2025-10-10T15:03:23.669Z",
+      "createdBy": "Macha ANTON",
+      "createdById": "macha_anton",
+      "extensionCount": 0,
+      "notificationsSent": [
+        "mgkz7uhh75d9qhxci_7",
+        "mgkz7uhh75d9qhxci_3"
+      ],
+      "history": [
+        {
+          "event": "created",
+          "date": "2025-10-10T15:03:23.669Z",
+          "by": "Macha ANTON",
+          "byId": "macha_anton",
+          "details": {
+            "loanDate": "2025-10-10T15:02:53.993Z",
+            "expectedReturnDate": "2025-10-17T15:02:53.993Z"
+          }
+        }
+      ]
+    }
+  ],
+  "settings": {
+    "maxLoanDays": 90,
+    "maxExtensions": 3,
+    "reminderDaysBefore": [
+      7,
+      3,
+      1
+    ],
+    "overdueReminderDays": [
+      1,
+      3,
+      7,
+      14
+    ],
+    "autoNotifications": true,
+    "defaultLoanDays": 7,
+    "requireApprovalForExtension": false
+  }
+}

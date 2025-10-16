@@ -1,0 +1,148 @@
+{
+  "notifications": [
+    {
+      "id": "mgrtnlxgrqveuex8m",
+      "loanId": "mgkz7uhh75d9qhxci",
+      "computerId": "pc-anecoop-02",
+      "computerName": "PC-ANECOOP-02",
+      "userName": "mbenhass",
+      "userDisplayName": "Meher BENHASSINE",
+      "type": "reminder_before",
+      "date": "2025-10-15T10:02:04.612Z",
+      "read": false,
+      "details": {
+        "daysUntilReturn": 3,
+        "daysOverdue": 0,
+        "expectedReturnDate": "2025-10-17T15:02:53.993Z",
+        "loanDate": "2025-10-10T15:02:53.993Z",
+        "itStaff": "Kevin BIVIA"
+      }
+    },
+    {
+      "id": "mgkzgkgyjc5wa0pmb",
+      "loanId": "mgkz7uhh75d9qhxci",
+      "computerId": "pc-anecoop-02",
+      "computerName": "PC-ANECOOP-02",
+      "userName": "mbenhass",
+      "userDisplayName": "Meher BENHASSINE",
+      "type": "reminder_before",
+      "date": "2025-10-10T15:10:10.594Z",
+      "read": false,
+      "details": {
+        "daysUntilReturn": 7,
+        "daysOverdue": 0,
+        "expectedReturnDate": "2025-10-17T15:02:53.993Z",
+        "loanDate": "2025-10-10T15:02:53.993Z",
+        "itStaff": "Kevin BIVIA"
+      }
+    },
+    {
+      "id": "mgay282t35kbykesh",
+      "loanId": "mgaxb33nj33jspc9i",
+      "computerId": "pc-anecoop-20",
+      "userName": "kbivia",
+      "userDisplayName": "Kevin BIVIA",
+      "type": "reminder_before",
+      "date": "2025-10-03T14:33:19.973Z",
+      "read": true,
+      "details": {
+        "daysUntilReturn": 7,
+        "daysOverdue": 0,
+        "expectedReturnDate": "2025-10-10T14:12:06.585Z",
+        "loanDate": "2025-10-03T14:12:06.585Z",
+        "itStaff": "Kevin"
+      },
+      "readAt": "2025-10-07T13:50:09.749Z"
+    },
+    {
+      "id": "mgaxxmiz102731hie",
+      "loanId": "mgaxb33nj33jspc9i",
+      "computerId": "pc-anecoop-20",
+      "userName": "kbivia",
+      "userDisplayName": "Kevin BIVIA",
+      "type": "reminder_before",
+      "date": "2025-10-03T14:29:45.419Z",
+      "read": true,
+      "details": {
+        "daysUntilReturn": 7,
+        "daysOverdue": 0,
+        "expectedReturnDate": "2025-10-10T14:12:06.585Z",
+        "loanDate": "2025-10-03T14:12:06.585Z",
+        "itStaff": "Kevin"
+      },
+      "readAt": "2025-10-07T13:50:09.749Z"
+    },
+    {
+      "id": "mgaxlrv73dinffbo2",
+      "loanId": "mgaxb33nj33jspc9i",
+      "computerId": "pc-anecoop-20",
+      "userName": "kbivia",
+      "userDisplayName": "Kevin BIVIA",
+      "type": "reminder_before",
+      "date": "2025-10-03T14:20:32.467Z",
+      "read": true,
+      "details": {
+        "daysUntilReturn": 7,
+        "daysOverdue": 0,
+        "expectedReturnDate": "2025-10-10T14:12:06.585Z",
+        "loanDate": "2025-10-03T14:12:06.585Z",
+        "itStaff": "Kevin"
+      },
+      "readAt": "2025-10-07T13:50:09.749Z"
+    },
+    {
+      "id": "mgaxeyrx810z0bnrz",
+      "loanId": "mgaxb33nj33jspc9i",
+      "computerId": "pc-anecoop-20",
+      "userName": "kbivia",
+      "userDisplayName": "Kevin BIVIA",
+      "type": "reminder_before",
+      "date": "2025-10-03T14:15:14.829Z",
+      "read": true,
+      "details": {
+        "daysUntilReturn": 7,
+        "daysOverdue": 0,
+        "expectedReturnDate": "2025-10-10T14:12:06.585Z",
+        "loanDate": "2025-10-03T14:12:06.585Z",
+        "itStaff": "Kevin"
+      },
+      "readAt": "2025-10-07T13:50:09.749Z"
+    },
+    {
+      "id": "mgaone8dpz8xn65og",
+      "loanId": "mgaog17fkxrfg8c1q",
+      "computerId": "pc-anecoop-20",
+      "userName": "kbivia",
+      "userDisplayName": "Kevin BIVIA",
+      "type": "overdue",
+      "date": "2025-10-03T10:09:51.565Z",
+      "read": true,
+      "details": {
+        "daysUntilReturn": -1,
+        "daysOverdue": 1,
+        "expectedReturnDate": "2025-10-02T10:03:43.000Z",
+        "loanDate": "2025-10-01T10:03:43.000Z",
+        "itStaff": "Kevin"
+      },
+      "readAt": "2025-10-07T13:50:09.749Z"
+    },
+    {
+      "id": "mgaolte88f837zl90",
+      "loanId": "mgaog17fkxrfg8c1q",
+      "computerId": "pc-anecoop-20",
+      "userName": "kbivia",
+      "userDisplayName": "Kevin BIVIA",
+      "type": "overdue",
+      "date": "2025-10-03T10:08:37.904Z",
+      "read": true,
+      "details": {
+        "daysUntilReturn": -1,
+        "daysOverdue": 1,
+        "expectedReturnDate": "2025-10-02T10:03:43.000Z",
+        "loanDate": "2025-10-01T10:03:43.000Z",
+        "itStaff": "Kevin"
+      },
+      "readAt": "2025-10-07T13:50:09.749Z"
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "channels": [
+    {
+      "id": "general",
+      "name": "Général",
+      "description": "Canal de discussion principal."
+    },
+    {
+      "id": "maintenance",
+      "name": "Annonces Maintenance",
+      "description": "Annonces importantes."
+    }
+  ],
+  "messages": {
+    "general": [],
+    "maintenance": []
+  },
+  "dms": {
+    "kevin_bivia--macha_anton": [
+      {
+        "id": "mg7z2q7tbpfqh5g2d",
+        "text": "test",
+        "authorId": "kevin_bivia",
+        "authorName": "Kevin BIVIA",
+        "authorAvatar": "KB",
+        "timestamp": "2025-10-01T12:38:24.569Z"
+      },
+      {
+        "id": "mgayjfnpqv7oetch4",
+        "text": "fff",
+        "authorId": "kevin_bivia",
+        "authorName": "Kevin BIVIA",
+        "authorAvatar": "KB",
+        "timestamp": "2025-10-03T14:46:42.949Z",
+        "edited": false
+      },
+      {
+        "id": "mgb02f4gnod3ovfj4",
+        "text": "😂",
+        "authorId": "kevin_bivia",
+        "authorName": "Kevin BIVIA",
+        "authorAvatar": "KB",
+        "timestamp": "2025-10-03T15:29:28.336Z",
+        "edited": false
+      },
+      {
+        "id": "mgkz13eoj5xoe3u4q",
+        "text": "excellent",
+        "authorId": "macha_anton",
+        "authorName": "Macha ANTON",
+        "authorAvatar": "MA",
+        "timestamp": "2025-10-10T14:58:08.640Z",
+        "edited": false
+      }
+    ]
+  },
+  "files": {},
+  "reactions": {},
+  "lastRead": {
+    "kevin_bivia": {
+      "general": 1760609926829,
+      "macha_anton": 1760538648139,
+      "christelle_moles": 1760532257824,
+      "meher_benhassine": 1760532347174,
+      "maintenance": 1759505358795
+    },
+    "macha_anton": {
+      "general": 1760108280424,
+      "kevin_bivia": 1760108288689
+    }
+  }
+}

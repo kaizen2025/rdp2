@@ -1,0 +1,387 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "derniere_modification": "2024-12-19T10:30:00.000Z",
+    "modifie_par": "Christelle MOLES",
+    "modifie_par_id": "christelle_moles",
+    "machine_origine": "ANECOOP-TECH-01",
+    "commentaire": "Base de données principale des ordinateurs et prêts - Version réseau partagée"
+  },
+  "configuration": {
+    "statuts_ordinateurs": {
+      "disponible": {
+        "libelle": "Disponible",
+        "couleur": "success",
+        "icone": "CheckCircle",
+        "description": "Prêt à être utilisé"
+      },
+      "prete": {
+        "libelle": "Prêté",
+        "couleur": "warning", 
+        "icone": "Assignment",
+        "description": "Actuellement en prêt"
+      },
+      "reserve": {
+        "libelle": "Réservé",
+        "couleur": "info",
+        "icone": "Event",
+        "description": "Réservé pour un utilisateur"
+      },
+      "maintenance": {
+        "libelle": "En maintenance",
+        "couleur": "error",
+        "icone": "Build",
+        "description": "En cours de réparation"
+      },
+      "retire": {
+        "libelle": "Retiré du service",
+        "couleur": "default",
+        "icone": "Archive", 
+        "description": "Plus utilisable"
+      }
+    },
+    "etats_physiques": {
+      "tres_bon": {
+        "libelle": "Très bon",
+        "couleur": "success"
+      },
+      "bon": {
+        "libelle": "Bon", 
+        "couleur": "info"
+      },
+      "lent": {
+        "libelle": "Lent",
+        "couleur": "warning"
+      },
+      "tres_lent": {
+        "libelle": "Très lent",
+        "couleur": "warning"
+      },
+      "mediocre": {
+        "libelle": "Médiocre",
+        "couleur": "error"
+      },
+      "hors_service": {
+        "libelle": "Hors service",
+        "couleur": "error"
+      },
+      "inconnu": {
+        "libelle": "Non évalué",
+        "couleur": "default"
+      }
+    },
+    "statuts_prets": {
+      "actif": {
+        "libelle": "Prêt en cours",
+        "couleur": "success"
+      },
+      "retourne": {
+        "libelle": "Retourné",
+        "couleur": "default"
+      },
+      "en_retard": {
+        "libelle": "En retard",
+        "couleur": "error"
+      },
+      "reserve": {
+        "libelle": "Réservé",
+        "couleur": "info"
+      },
+      "annule": {
+        "libelle": "Annulé",
+        "couleur": "warning"
+      },
+      "prolonge": {
+        "libelle": "Prolongé",
+        "couleur": "primary"
+      }
+    },
+    "durees_pret_defaut": {
+      "courte": 7,
+      "normale": 14, 
+      "longue": 30,
+      "formation": 5
+    }
+  },
+  "ordinateurs": [
+    {
+      "id": "PC-ANECOOP-02",
+      "nom": "PC-ANECOOP-02",
+      "marque": "Lenovo",
+      "modele": "Moyen",
+      "numero_serie": "PC-ANECOOP-02",
+      "statut": "disponible",
+      "etat_physique": "tres_bon",
+      "emplacement": "étagère 3 à droite",
+      "caracteristiques": {
+        "processeur": "Intel Core i5",
+        "memoire": "4 Go",
+        "systeme": "Windows 10",
+        "stockage": "256 Go SSD",
+        "ecran": "15.6 pouces",
+        "carte_graphique": "Intégrée"
+      },
+      "informations_achat": {
+        "date_achat": null,
+        "prix": null,
+        "fournisseur": null,
+        "garantie_fin": null
+      },
+      "historique_maintenance": [],
+      "pret_actuel_id": null,
+      "notes": "Ordinateur portable standard pour bureautique",
+      "etiquette_inventaire": "INV-2024-002",
+      "categorie": "portable",
+      "date_creation": "2024-01-15T10:00:00.000Z",
+      "cree_par": "Migration Excel",
+      "cree_par_id": "migration",
+      "derniere_modification": "2024-01-15T10:00:00.000Z",
+      "modifie_par": "Migration Excel",
+      "modifie_par_id": "migration",
+      "active": true
+    },
+    {
+      "id": "PC-ANECOOP-20",
+      "nom": "PC-ANECOOP-20", 
+      "marque": "Dell",
+      "modele": "Petit",
+      "numero_serie": "PC-ANECOOP-20",
+      "statut": "disponible",
+      "etat_physique": "tres_bon",
+      "emplacement": "étagère 3 à droite",
+      "caracteristiques": {
+        "processeur": "Intel Core i5",
+        "memoire": "8 Go",
+        "systeme": "Windows 10 Pro",
+        "stockage": "512 Go SSD",
+        "ecran": "14 pouces",
+        "carte_graphique": "Intégrée"
+      },
+      "informations_achat": {
+        "date_achat": null,
+        "prix": null,
+        "fournisseur": null,
+        "garantie_fin": null
+      },
+      "historique_maintenance": [],
+      "pret_actuel_id": null,
+      "notes": "Ordinateur portable compact et performant",
+      "etiquette_inventaire": "INV-2024-020",
+      "categorie": "portable",
+      "date_creation": "2024-01-15T10:00:00.000Z",
+      "cree_par": "Migration Excel",
+      "cree_par_id": "migration",
+      "derniere_modification": "2024-01-15T10:00:00.000Z",
+      "modifie_par": "Migration Excel", 
+      "modifie_par_id": "migration",
+      "active": true
+    },
+    {
+      "id": "PC-ANECOOP-21",
+      "nom": "PC-ANECOOP-21",
+      "marque": "HP",
+      "modele": "Petit",
+      "numero_serie": "PC-ANECOOP-21",
+      "statut": "retire",
+      "etat_physique": "hors_service",
+      "emplacement": "étagère 3 à droite",
+      "caracteristiques": {
+        "processeur": "Intel Pentium Silver",
+        "memoire": "4 Go",
+        "systeme": "Windows 11",
+        "stockage": "128 Go eMMC",
+        "ecran": "14 pouces",
+        "carte_graphique": "Intégrée"
+      },
+      "informations_achat": {
+        "date_achat": null,
+        "prix": null,
+        "fournisseur": null,
+        "garantie_fin": null
+      },
+      "historique_maintenance": [
+        {
+          "date": "2024-01-10T14:30:00.000Z",
+          "type": "diagnostic",
+          "description": "Carte mère défaillante - non réparable économiquement",
+          "technicien": "Kevin BIVIA",
+          "statut": "irreparable"
+        }
+      ],
+      "pret_actuel_id": null,
+      "notes": "Hors service - Carte mère défaillante",
+      "etiquette_inventaire": "INV-2024-021",
+      "categorie": "portable",
+      "date_creation": "2024-01-15T10:00:00.000Z",
+      "cree_par": "Migration Excel",
+      "cree_par_id": "migration",
+      "derniere_modification": "2024-01-10T15:00:00.000Z",
+      "modifie_par": "Kevin BIVIA",
+      "modifie_par_id": "kevin_bivia",
+      "active": false
+    }
+  ],
+  "prets": [
+    {
+      "id": "pret_2024_001",
+      "numero_pret": "P2024-001",
+      "ordinateur_id": "PC-ANECOOP-10",
+      "ordinateur_nom": "PC-ANECOOP-10",
+      "utilisateur": {
+        "identifiant": "jdupont",
+        "nom_complet": "Jean DUPONT",
+        "service": "Commercial",
+        "email": "jean.dupont@anecoop.fr",
+        "telephone": "01.23.45.67.89"
+      },
+      "technicien_responsable": {
+        "id": "kevin_bivia",
+        "nom": "Kevin BIVIA",
+        "service": "Informatique"
+      },
+      "dates": {
+        "debut_pret": "2024-12-01T08:00:00.000Z",
+        "fin_prevue": "2024-12-15T17:00:00.000Z",
+        "fin_reelle": null,
+        "prolongations": []
+      },
+      "statut": "actif",
+      "motif": "Mission commerciale Lyon",
+      "accessoires": [
+        "Chargeur",
+        "Souris USB",
+        "Sacoche de transport"
+      ],
+      "notes": "Client important - formation logiciel terrain",
+      "conditions_retour": "Retour impératif avant inventaire",
+      "signature_electronique": {
+        "utilisateur_accepte": true,
+        "date_acceptation": "2024-12-01T08:00:00.000Z",
+        "ip_acceptation": "192.168.1.150",
+        "conditions_version": "v1.0"
+      },
+      "historique": [
+        {
+          "date": "2024-12-01T08:00:00.000Z",
+          "action": "creation_pret",
+          "utilisateur": "Kevin BIVIA",
+          "details": "Création du prêt - Mission commerciale"
+        }
+      ],
+      "date_creation": "2024-12-01T08:00:00.000Z",
+      "cree_par": "Kevin BIVIA",
+      "cree_par_id": "kevin_bivia",
+      "derniere_modification": "2024-12-01T08:00:00.000Z",
+      "modifie_par": "Kevin BIVIA",
+      "modifie_par_id": "kevin_bivia"
+    },
+    {
+      "id": "pret_2024_002",
+      "numero_pret": "P2024-002", 
+      "ordinateur_id": "PC-ANECOOP-04",
+      "ordinateur_nom": "PC-ANECOOP-04",
+      "utilisateur": {
+        "identifiant": "mmartin",
+        "nom_complet": "Marie MARTIN",
+        "service": "Comptabilité", 
+        "email": "marie.martin@anecoop.fr",
+        "telephone": "01.23.45.67.90"
+      },
+      "technicien_responsable": {
+        "id": "meher_benhassine",
+        "nom": "Meher BENHASSINE",
+        "service": "Informatique"
+      },
+      "dates": {
+        "debut_pret": "2024-11-15T09:00:00.000Z",
+        "fin_prevue": "2024-11-29T17:00:00.000Z",
+        "fin_reelle": "2024-11-28T16:30:00.000Z",
+        "prolongations": []
+      },
+      "statut": "retourne",
+      "motif": "Télétravail temporaire",
+      "accessoires": [
+        "Chargeur",
+        "Clavier externe",
+        "Souris"
+      ],
+      "notes": "Retour anticipé - mission terminée plus tôt",
+      "conditions_retour": "Vérification état et nettoyage effectués",
+      "signature_electronique": {
+        "utilisateur_accepte": true,
+        "date_acceptation": "2024-11-15T09:00:00.000Z",
+        "ip_acceptation": "192.168.1.151",
+        "conditions_version": "v1.0"
+      },
+      "evaluation_retour": {
+        "etat_materiel": "bon",
+        "problemes_signales": [],
+        "satisfaction_utilisateur": 9,
+        "commentaires": "Très satisfaite de la performance"
+      },
+      "historique": [
+        {
+          "date": "2024-11-15T09:00:00.000Z",
+          "action": "creation_pret",
+          "utilisateur": "Meher BENHASSINE",
+          "details": "Création du prêt - Télétravail"
+        },
+        {
+          "date": "2024-11-28T16:30:00.000Z",
+          "action": "retour_materiel",
+          "utilisateur": "Meher BENHASSINE",
+          "details": "Retour anticipé - mission terminée"
+        }
+      ],
+      "date_creation": "2024-11-15T09:00:00.000Z",
+      "cree_par": "Meher BENHASSINE",
+      "cree_par_id": "meher_benhassine",
+      "derniere_modification": "2024-11-28T16:30:00.000Z",
+      "modifie_par": "Meher BENHASSINE",
+      "modifie_par_id": "meher_benhassine"
+    }
+  ],
+  "statistiques": {
+    "totaux": {
+      "ordinateurs": 26,
+      "ordinateurs_actifs": 24,
+      "prets_actifs": 1,
+      "prets_total": 2,
+      "utilisateurs_uniques": 2
+    },
+    "par_statut": {
+      "disponible": 23,
+      "prete": 1,
+      "reserve": 0,
+      "maintenance": 0,
+      "retire": 2
+    },
+    "par_etat": {
+      "tres_bon": 20,
+      "bon": 2,
+      "lent": 1,
+      "tres_lent": 1,
+      "mediocre": 1,
+      "hors_service": 1
+    },
+    "performance": {
+      "duree_moyenne_pret": 14,
+      "taux_retour_temps": 95,
+      "satisfaction_moyenne": 9.2
+    },
+    "derniere_mise_a_jour": "2024-12-19T10:30:00.000Z"
+  },
+  "logs_activite": [
+    {
+      "id": "log_001",
+      "timestamp": "2024-12-19T10:30:00.000Z",
+      "type": "modification",
+      "utilisateur": "Christelle MOLES",
+      "utilisateur_id": "christelle_moles",
+      "action": "creation_base_donnees",
+      "details": "Initialisation de la base de données réseau partagée",
+      "adresse_ip": "192.168.1.100",
+      "machine": "ANECOOP-TECH-01"
+    }
+  ]
+}
