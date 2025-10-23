@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState, useLayoutEffect } from 'react';
 import Guacamole from 'guacamole-common-js';
-import { Box, Typography, CircularProgress, Alert, IconButton, Tooltip } from '@mui/material';
+import { Box, Typography, CircularProgress, Alert, IconButton, Tooltip, Button } from '@mui/material';
 
 // Icons
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
@@ -17,7 +17,8 @@ const GuacamoleViewer = ({ token, url }) => {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [retryCount, setRetryCount] = useState(0);
 
-    const guacLoaded = !!window.Guacamole;
+    // Vérifier que Guacamole est bien importé
+    const guacLoaded = !!Guacamole;
 
     useLayoutEffect(() => {
         if (!guacLoaded || !token || !url || !displayRef.current) return;

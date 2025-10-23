@@ -16,6 +16,7 @@ import Alert from '@mui/material/Alert';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Button from '@mui/material/Button';
+import DialogContent from '@mui/material/DialogContent';
 
 // Icons
 import NotificationsIcon from '@mui/icons-material/Notifications';
