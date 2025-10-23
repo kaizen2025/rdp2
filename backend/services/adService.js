@@ -85,33 +85,46 @@ async function installAdModule() {
 
 async function searchAdUsers(searchTerm) {
     const psScript = `
-        try {
-            Import-Module ActiveDirectory -ErrorAction Stop
-            $users = Get-ADUser -Filter "SamAccountName -like '*${searchTerm}*' -or DisplayName -like '*${searchTerm}*'" -Properties DisplayName,EmailAddress,Enabled |
-                Select-Object -First 10 SamAccountName,DisplayName,EmailAddress,Enabled
-            if ($users) { $users | ConvertTo-Json -Compress } else { '[]' }
-        } catch { '[]' }
+        Import-Module ActiveDirectory -ErrorAction Stop
+        $users = Get-ADUser -Filter "SamAccountName -like '*${searchTerm}*' -or DisplayName -like '*${searchTerm}*'" -Properties DisplayName,EmailAddress,Enabled |
+            Select-Object -First 10 SamAccountName,DisplayName,EmailAddress,Enabled
+        if ($users) { $users | ConvertTo-Json -Compress } else { '[]' }
     `;
     try {
         const jsonOutput = await executeEncodedPowerShell(psScript, 10000);
         const users = JSON.parse(jsonOutput || '[]');
         return Array.isArray(users) ? users : [users];
     } catch (e) {
-        console.warn('Erreur recherche AD:', parseAdError(e.message));
+        console.error(`Erreur lors de la recherche d'utilisateurs AD pour '${searchTerm}':`, parseAdError(e.message));
         return [];
     }
 }
 
 async function getAdGroupMembers(groupName) {
     const psScript = `
-        try {
-            Import-Module ActiveDirectory -ErrorAction Stop
-            $members = Get-ADGroupMember -Identity "${groupName}" -Recursive |
-                Where-Object { $_.objectClass -eq 'user' } |
-                Get-ADUser -Properties DisplayName |
-                Select-Object SamAccountName, Name, DisplayName
-            if ($members) { $members | ConvertTo-Json -Compress } else { '[]' }
-        } catch { '[]' }
+        Import-Module ActiveDirectory -ErrorAction Stop
+        $groupName = "${groupName}"
+
+        # Étape 1 : Vérifier si le groupe existe.
+        $group = Get-ADGroup -Identity $groupName -ErrorAction SilentlyContinue
+        if (-not $group) {
+            # Si le groupe n'est pas trouvé, renvoyer une erreur explicite.
+            # Le 'throw' arrêtera le script et sera capturé par le '.catch' dans Node.js.
+            throw "Le groupe '$groupName' est introuvable dans Active Directory."
+        }
+
+        # Étape 2 : Si le groupe existe, récupérer les membres.
+        $members = Get-ADGroupMember -Identity $groupName -Recursive |
+            Where-Object { $_.objectClass -eq 'user' } |
+            Get-ADUser -Properties DisplayName |
+            Select-Object SamAccountName, Name, DisplayName
+
+        # Renvoyer les membres (ou un tableau vide si aucun membre n'est trouvé).
+        if ($members) {
+            $members | ConvertTo-Json -Compress
+        } else {
+            '[]'
+        }
     `;
     try {
         const jsonOutput = await executeEncodedPowerShell(psScript, 15000);
@@ -119,7 +132,9 @@ async function getAdGroupMembers(groupName) {
         const membersArray = Array.isArray(members) ? members : [members];
         return membersArray.map(m => ({ ...m, sam: m.SamAccountName, name: m.Name || m.DisplayName }));
     } catch (e) {
-        console.warn(`Erreur membres groupe ${groupName}:`, parseAdError(e.message));
+        // Grâce au 'throw' dans PowerShell, l'erreur sera maintenant claire et informative.
+        console.error(`Erreur lors de la récupération des membres du groupe AD '${groupName}':`, parseAdError(e.message));
+        // On renvoie un tableau vide, mais l'erreur est désormais tracée dans les logs du serveur.
         return [];
     }
 }

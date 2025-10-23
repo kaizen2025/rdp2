@@ -45,10 +45,20 @@ const GroupedUserRow = memo(({ user, sessions, onSendMessage, onShowInfo, onShad
             <TableCell>{oldestSession ? new Date(oldestSession.logonTime).toLocaleString('fr-FR') : 'N/A'}</TableCell>
             <TableCell>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Tooltip title="Shadow - Prise en main directe"><span><IconButton size="small" onClick={() => onShadow(mainSession, userInfo)} color="primary" disabled={!isActive}><ScreenShareIcon /></IconButton></span></Tooltip>
-                    <Tooltip title="Connexion RDP directe"><span><IconButton size="small" onClick={() => onConnect(mainSession, userInfo)} color="success"><ComputerIcon /></IconButton></span></Tooltip>
-                    <Tooltip title="Envoyer un message"><span><IconButton size="small" onClick={() => onSendMessage(mainSession)} color="info" disabled={!isActive}><MessageIcon /></IconButton></span></Tooltip>
-                    {userInfo && (<Tooltip title="Fiche utilisateur"><IconButton size="small" onClick={() => onShowInfo(mainSession, userInfo)} color="secondary"><InfoIcon /></IconButton></Tooltip>)}
+                    <Tooltip title={isActive ? "Shadow - Prise en main directe" : "Session inactive"}>
+                        <span><IconButton size="small" onClick={() => onShadow(mainSession, userInfo)} color="primary" disabled={!isActive}><ScreenShareIcon /></IconButton></span>
+                    </Tooltip>
+                    <Tooltip title="Connexion RDP directe">
+                        <span><IconButton size="small" onClick={() => onConnect(mainSession, userInfo)} color="success"><ComputerIcon /></IconButton></span>
+                    </Tooltip>
+                    <Tooltip title={isActive ? "Envoyer un message" : "Session inactive"}>
+                        <span><IconButton size="small" onClick={() => onSendMessage(mainSession)} color="info" disabled={!isActive}><MessageIcon /></IconButton></span>
+                    </Tooltip>
+                    {userInfo && (
+                        <Tooltip title="Fiche utilisateur">
+                            <IconButton size="small" onClick={() => onShowInfo(mainSession, userInfo)} color="secondary"><InfoIcon /></IconButton>
+                        </Tooltip>
+                    )}
                 </Box>
             </TableCell>
         </TableRow>

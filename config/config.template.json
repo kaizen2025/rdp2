@@ -1,0 +1,22 @@
+{
+  "databasePath": "C:\\ProgramData\\RDS_Viewer_Group\\rds_viewer_data.sqlite",
+  "excelFilePath": "CHEMIN\\VERS\\Data_utilisateur_partage.xlsx",
+  "rds_servers": [
+    "SRV-RDS-1",
+    "SRV-RDS-2"
+  ],
+  "domain": "VOTRE_DOMAINE.local",
+  "username": "VOTRE_USER_ADMIN",
+  "password": "VOTRE_MOT_DE_PASSE_ADMIN",
+  "ad_groups": [
+    { "name": "VPN", "displayName": "Accès VPN" },
+    { "name": "INTERNET", "displayName": "Accès Internet" }
+  ],
+  "guacamole": {
+    "url": "http://localhost:8080/guacamole",
+    "secretKey": "VOTRE_CLE_SECRETE_GUACAMOLE_DOIT_ETRE_IDENTIQUE_A_CELLE_DANS_GUACAMOLE.PROPERTIES"
+  },
+  "it_technicians": [
+    { "id": "login_technicien", "name": "Prénom NOM", "role": "Administrateur" }
+  ]
+}

@@ -16,7 +16,14 @@ async function generateConnectionToken(connectionDetails) {
         throw new Error("La 'secretKey' est manquante dans la section 'guacamole' de votre config.json. Elle est requise pour cette méthode d'authentification.");
     }
 
-    console.log(`🥑 Génération du token JWT pour Guacamole pour ${username}@${server}`);
+    // Log détaillé pour le débogage
+    console.log(`🥑 Génération du token JWT pour Guacamole...`, {
+        server,
+        username,
+        sessionId: sessionId || 'N/A',
+        multiScreen,
+        shadowConnect: !!sessionId,
+    });
 
     // Construction de l'objet de connexion dynamique
     const connectionConfig = {
