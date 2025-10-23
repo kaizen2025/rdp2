@@ -1,7 +1,7 @@
-// backend/services/configService.js - VERSION AVEC VALIDATION STRICTE
+// backend/services/configService.js - VERSION FINALE AVEC RÉTROCOMPATIBILITÉ
 
 const fs = require('fs').promises;
-const path =require('path');
+const path = require('path');
 
 const CONFIG_PATH = path.join(__dirname, '..', '..', 'config', 'config.json');
 const TEMPLATE_CONFIG_PATH = path.join(__dirname, '..', '..', 'config', 'config.template.json');
@@ -10,45 +10,36 @@ let appConfig = null;
 let isConfigValid = false;
 
 /**
- * Valide que la configuration chargée contient les clés essentielles
- * et que celles-ci n'ont pas de valeurs placeholders.
- * @param {object} config - L'objet de configuration à valider.
- * @returns {{isValid: boolean, errors: string[]}} Un objet indiquant si la config est valide et les erreurs trouvées.
+ * Normalise la configuration en mémoire pour assurer la rétrocompatibilité.
+ * Si 'defaultExcelPath' existe, sa valeur est copiée dans 'excelFilePath'.
+ * @param {object} config - L'objet de configuration.
  */
+function normalizeConfig(config) {
+    if (config.defaultExcelPath && !config.excelFilePath) {
+        console.log("🔧 Clé de configuration obsolète 'defaultExcelPath' détectée. Utilisation de sa valeur pour 'excelFilePath'.");
+        config.excelFilePath = config.defaultExcelPath;
+    }
+    // On pourrait ajouter d'autres normalisations ici à l'avenir.
+}
+
 function validateConfig(config) {
     const errors = [];
     const requiredKeys = {
         'databasePath': 'Le chemin vers la base de données SQLite.',
-        'excelFilePath': 'Le chemin vers le fichier Excel des utilisateurs.',
+        'excelFilePath': 'Le chemin vers le fichier Excel des utilisateurs (ou defaultExcelPath).',
         'guacamole.url': 'L\'URL de votre serveur Guacamole.',
-        'guacamole.secretKey': 'La clé secrète pour l\'authentification Guacamole (doit correspondre à guacamole.properties).',
+        'guacamole.secretKey': 'La clé secrète pour l\'authentification Guacamole.',
     };
 
     for (const [key, description] of Object.entries(requiredKeys)) {
-        const keys = key.split('.');
-        let value = config;
-        for (const k of keys) {
-            value = value ? value[k] : undefined;
-        }
-
+        const value = key.split('.').reduce((o, i) => o?.[i], config);
         if (!value) {
             errors.push(`Clé manquante: '${key}'. Description: ${description}`);
         } else if (typeof value === 'string' && (value.includes('VOTRE_') || value.includes('CHEMIN\\VERS'))) {
-            errors.push(`Valeur placeholder détectée pour '${key}'. Veuillez la remplacer par une valeur réelle.`);
+            errors.push(`Valeur placeholder détectée pour '${key}'. Veuillez la remplacer.`);
         }
     }
-
     return { isValid: errors.length === 0, errors };
-}
-
-
-async function loadTemplateConfig() {
-    try {
-        const templateData = await fs.readFile(TEMPLATE_CONFIG_PATH, 'utf-8');
-        return JSON.parse(templateData);
-    } catch (error) {
-        throw new Error("Fichier de configuration template (config.template.json) introuvable ou invalide.");
-    }
 }
 
 async function loadConfigAsync() {
@@ -56,24 +47,26 @@ async function loadConfigAsync() {
         const data = await fs.readFile(CONFIG_PATH, 'utf-8');
         appConfig = JSON.parse(data);
     } catch (error) {
-        console.error(`⚠️  Impossible de lire ou parser config.json (${error.message}).`);
-        console.log("-> Tentative de démarrage avec une configuration minimale pour permettre le diagnostic.");
-        appConfig = await loadTemplateConfig();
-        isConfigValid = false; // Marquer comme invalide car c'est un fallback
-        return; // Sortir pour ne pas valider une config de template
+        console.error(`⚠️ Impossible de lire config.json (${error.message}). Utilisation de la configuration template comme fallback.`);
+        appConfig = await fs.readFile(TEMPLATE_CONFIG_PATH, 'utf-8').then(JSON.parse).catch(() => {
+            throw new Error("ERREUR CRITIQUE: config.json et config.template.json sont tous deux illisibles.");
+        });
+        isConfigValid = false;
+        return;
     }
 
+    // **ÉTAPE DE NORMALISATION**
+    normalizeConfig(appConfig);
+
     const { isValid, errors } = validateConfig(appConfig);
+    isConfigValid = isValid;
+
     if (!isValid) {
         console.error("====================== ERREUR DE CONFIGURATION ======================");
-        console.error("Le fichier de configuration (config.json) est invalide. L'application ne peut pas démarrer correctement.");
+        console.error("Le fichier de configuration est invalide. Le serveur démarre en mode dégradé.");
         errors.forEach(err => console.error(`- ${err}`));
         console.error("=====================================================================");
-        // On ne lance pas d'erreur pour permettre à l'API de santé de répondre,
-        // mais on marque la configuration comme invalide.
-        isConfigValid = false;
     } else {
-        isConfigValid = true;
         console.log("✅ Configuration chargée et validée avec succès.");
     }
 }
@@ -90,8 +83,9 @@ async function saveConfig(newConfig) {
     try {
         await fs.writeFile(CONFIG_PATH, JSON.stringify(newConfig, null, 4), 'utf-8');
         appConfig = newConfig;
+        normalizeConfig(appConfig); // Normaliser après sauvegarde aussi
         const { isValid, errors } = validateConfig(appConfig);
-        isConfigValid = isValid; // Mettre à jour l'état de validité
+        isConfigValid = isValid;
         if (!isValid) {
             console.warn("Configuration sauvegardée, mais elle contient des erreurs:", errors);
         }
