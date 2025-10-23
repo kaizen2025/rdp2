@@ -1,4 +1,4 @@
-// src/components/GuacamoleViewer.js - VERSION FINALE CORRIGÉE (RÈGLES DES HOOKS)
+// src/components/GuacamoleViewer.js - VERSION CORRIGÉE SANS ERREUR isReady()
 
 import React, { useEffect, useRef, useState, useLayoutEffect } from 'react';
 import Guacamole from 'guacamole-common-js';
@@ -25,11 +25,11 @@ const GuacamoleViewer = ({ token, url }) => {
 
         console.log('🔌 Initialisation Guacamole Viewer...');
         const displayElement = displayRef.current;
-        
+
         const wsUrl = new URL(url);
         wsUrl.protocol = wsUrl.protocol === 'https:' ? 'wss:' : 'ws:';
         wsUrl.pathname += (wsUrl.pathname.endsWith('/') ? '' : '/') + 'websocket-tunnel';
-        
+
         const tunnel = new Guacamole.WebSocketTunnel(wsUrl.toString());
         const client = new Guacamole.Client(tunnel);
         guacClientRef.current = client;
@@ -45,15 +45,29 @@ const GuacamoleViewer = ({ token, url }) => {
 
         tunnel.onerror = handleError;
         client.onerror = handleError;
-        
+
         displayElement.innerHTML = '';
         displayElement.appendChild(client.getDisplay().getElement());
 
         client.connect(`token=${encodeURIComponent(token)}`);
-        
+
+        // Gestion des changements d'état
         client.onstatechange = (state) => {
             const states = { 0: 'IDLE', 1: 'CONNECTING', 2: 'WAITING', 3: 'CONNECTED', 4: 'DISCONNECTING', 5: 'DISCONNECTED' };
-            setStatus(states[state] || 'UNKNOWN');
+            const statusName = states[state] || 'UNKNOWN';
+            setStatus(statusName);
+
+            // Envoyer la taille du display quand la connexion est établie
+            if (state === 3) { // CONNECTED
+                setTimeout(() => {
+                    try {
+                        client.sendSize(displayElement.clientWidth, displayElement.clientHeight);
+                        console.log('✅ Taille du display envoyée au serveur Guacamole');
+                    } catch (e) {
+                        console.warn('⚠️ Erreur lors de l\'envoi de la taille:', e);
+                    }
+                }, 100);
+            }
         };
 
         const keyboard = new Guacamole.Keyboard(document);
@@ -62,10 +76,16 @@ const GuacamoleViewer = ({ token, url }) => {
 
         const mouse = new Guacamole.Mouse(client.getDisplay().getElement());
         mouse.onmousedown = mouse.onmouseup = mouse.onmousemove = (state) => client.sendMouseState(state);
-        
+
+        // Observer le redimensionnement de la fenêtre
         const resizeObserver = new ResizeObserver(() => {
-            if (client.getDisplay()?.isReady()) {
-                client.sendSize(displayElement.clientWidth, displayElement.clientHeight);
+            // Envoyer la nouvelle taille uniquement si connecté
+            if (guacClientRef.current && client) {
+                try {
+                    client.sendSize(displayElement.clientWidth, displayElement.clientHeight);
+                } catch (e) {
+                    // Ignorer les erreurs si pas encore connecté
+                }
             }
         });
         resizeObserver.observe(displayElement);

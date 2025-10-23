@@ -13,7 +13,6 @@ import { fr } from 'date-fns/locale';
 // Import des nouveaux contextes et services
 import { AppProvider } from './contexts/AppContext';
 import { CacheProvider } from './contexts/CacheContext';
-import apiService from './services/apiService'; // Bien que non utilisé directement ici, il est bon de savoir qu'il existe
 
 // Import des pages et layouts
 import LoginPage from './pages/LoginPage';

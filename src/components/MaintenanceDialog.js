@@ -23,7 +23,6 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { addMonths } from 'date-fns';
 
 import BuildIcon from '@mui/icons-material/Build';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningIcon from '@mui/icons-material/Warning';
 import InfoIcon from '@mui/icons-material/Info';
 
