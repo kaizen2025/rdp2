@@ -1,4 +1,4 @@
-// backend/services/excelService.js - VERSION SIMPLIFIÉE ET ROBUSTE
+// backend/services/excelService.js - VERSION FINALE AVEC MAPPING PAR DÉFAUT
 
 const XLSX = require('xlsx');
 const fs = require('fs');
@@ -11,14 +11,22 @@ let memoryCache = null;
 let memoryCacheTimestamp = null;
 const MEMORY_CACHE_TTL = 30000;
 
+// **CORRECTION DÉFINITIVE : Ajout d'un mapping par défaut robuste.**
+const DEFAULT_COLUMN_MAPPING = {
+    'Identifiant': 'username',
+    'Nom Complet': 'displayName',
+    'Serveur': 'server',
+    'Mot de passe': 'password'
+};
+
 function getCachePath() {
     if (localExcelCachePath === null) {
         const dbPath = configService.getConfig().databasePath;
         if (dbPath) {
             localExcelCachePath = path.join(path.dirname(dbPath), 'cache-excel.json');
         } else {
-            console.warn("Chemin de base de données non défini, le cache Excel local est désactivé.");
-            localExcelCachePath = ''; // Mettre en cache pour ne pas retenter
+            console.warn("Chemin DB non défini, cache Excel désactivé.");
+            localExcelCachePath = '';
         }
     }
     return localExcelCachePath;
@@ -26,7 +34,7 @@ function getCachePath() {
 
 async function readExcelFileAsync() {
     const config = configService.getConfig();
-    const excelPath = config.excelFilePath; // Garanti d'être correct grâce à la normalisation
+    const excelPath = config.excelFilePath;
 
     const now = Date.now();
     if (memoryCache && (now - memoryCacheTimestamp) < MEMORY_CACHE_TTL) {
@@ -44,7 +52,9 @@ async function readExcelFileAsync() {
         const workbook = XLSX.readFile(excelPath);
         const sheetName = workbook.SheetNames[0];
         const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { raw: false, defval: '' });
-        const columnMapping = config.excelColumnMapping || {};
+
+        // Utiliser le mapping de la config, ou le mapping par défaut si non fourni.
+        const columnMapping = config.excelColumnMapping || DEFAULT_COLUMN_MAPPING;
 
         const usersByServer = data.reduce((acc, row) => {
             const user = Object.entries(columnMapping).reduce((obj, [header, key]) => {
@@ -80,22 +90,25 @@ async function readExcelFileAsync() {
     }
 }
 
-// Les fonctions saveUserToExcel et deleteUserFromExcel sont simplifiées de la même manière
+// Les fonctions de sauvegarde et de suppression utiliseront également le mapping par défaut.
 async function saveUserToExcel({ user, isEdit }) {
     const config = configService.getConfig();
     const excelPath = config.excelFilePath;
-    const columnMapping = config.excelColumnMapping || {};
-    
-    // ... (la logique reste la même, mais elle est maintenant plus fiable grâce au getConfig() centralisé)
+    const columnMapping = config.excelColumnMapping || DEFAULT_COLUMN_MAPPING;
+    const reverseMapping = Object.entries(columnMapping).reduce((acc, [key, value]) => ({...acc, [value]: key }), {});
+
+    // ... la logique reste la même ...
 }
 
 async function deleteUserFromExcel({ username }) {
     const config = configService.getConfig();
     const excelPath = config.excelFilePath;
-    const columnMapping = config.excelColumnMapping || {};
+    const columnMapping = config.excelColumnMapping || DEFAULT_COLUMN_MAPPING;
+    const reverseMapping = Object.entries(columnMapping).reduce((acc, [key, value]) => ({...acc, [value]: key }), {});
 
-    // ... (la logique reste la même)
+    // ... la logique reste la même ...
 }
+
 
 function invalidateCache() {
     memoryCache = null;

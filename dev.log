@@ -1,0 +1,3 @@
+
+> rds-viewer-anecoop-web@3.0.0 dev
+> concurrently "npm run server:dev" "npm start"
