@@ -82,15 +82,30 @@ const SessionsPage = () => {
         if (isRefresh) setIsRefreshing(true); else setIsLoading(true);
         setError('');
         try {
-            const [sessionsData, usersData] = await Promise.all([
-                apiService.getRdsSessions(),
-                apiService.getExcelUsers().catch(() => ({ success: false, users: {} }))
-            ]);
+            const sessionsData = await apiService.getRdsSessions();
             setSessions(Array.isArray(sessionsData) ? sessionsData : []);
-            if (usersData.success) setUsers(usersData.users || {});
+
+            // Charger les données Excel séparément pour mieux gérer les erreurs
+            try {
+                const usersData = await apiService.getExcelUsers();
+                if (usersData.success) {
+                    setUsers(usersData.users || {});
+                } else {
+                    // Si le backend signale une erreur (ex: fichier non trouvé), l'afficher.
+                    const excelError = usersData.error || "Le fichier Excel n'a pas pu être chargé.";
+                    setError(`Erreur de données utilisateur : ${excelError}`);
+                    showNotification('warning', excelError);
+                    setUsers({}); // S'assurer que les anciennes données sont effacées.
+                }
+            } catch (excelErr) {
+                setError(`Erreur critique lors du chargement des données Excel: ${excelErr.message}`);
+                showNotification('error', `Erreur Excel: ${excelErr.message}`);
+                setUsers({});
+            }
+
         } catch (err) {
-            setError(`Erreur de chargement : ${err.message}`);
-            showNotification('error', `Erreur: ${err.message}`);
+            setError(`Erreur de chargement des sessions : ${err.message}`);
+            showNotification('error', `Erreur sessions: ${err.message}`);
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);

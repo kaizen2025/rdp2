@@ -28,6 +28,20 @@ module.exports = (getBroadcast) => {
             res.status(500).json({ error: 'Erreur interne du serveur.', details: error.message });
         });
 
+    // --- DIAGNOSTIC ET SANTÉ ---
+    router.get('/health', asyncHandler(async (req, res) => {
+        const configValid = configService.isConfigurationValid();
+        if (!configValid) {
+            // Si la config n'est pas valide, on renvoie une erreur avec un message explicite.
+            return res.status(503).json({
+                status: 'error',
+                message: 'Le serveur est démarré en mode dégradé en raison d"une configuration invalide. Veuillez consulter les logs du serveur pour plus de détails.',
+                details: 'Les fonctionnalités principales sont désactivées jusqu\'à ce que la configuration soit corrigée.'
+            });
+        }
+        res.json({ status: 'ok', message: 'Le serveur est opérationnel.' });
+    }));
+
     // --- CONFIG & AUTH ---
     router.get('/config', asyncHandler(async (req, res) => res.json(configService.getConfig())));
     router.post('/config', asyncHandler(async (req, res) => {
@@ -35,6 +49,23 @@ module.exports = (getBroadcast) => {
         getBroadcast()({ type: 'config_updated' });
         res.json(result);
     }));
+
+    // Si la configuration n'est pas valide, on bloque toutes les autres routes.
+    // C'est une sécurité pour éviter que l'application ne tente d'exécuter
+    // des opérations avec une configuration incomplète ou incorrecte.
+    if (!configService.isConfigurationValid()) {
+        router.use((req, res, next) => {
+            // Autorise uniquement la route de santé à passer.
+            if (req.path === '/health') {
+                return next();
+            }
+            res.status(503).json({
+                error: 'Service Indisponible',
+                message: 'Le serveur est en mode dégradé car la configuration est invalide. Seul le diagnostic est possible.'
+            });
+        });
+        return router; // On retourne le router avec seulement la route de santé effective.
+    }
 
     // --- TECHNICIENS ---
     router.get('/technicians/connected', asyncHandler(async (req, res) => res.json(await technicianService.getConnectedTechnicians())));

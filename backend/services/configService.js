@@ -1,83 +1,111 @@
-// backend/services/configService.js - VERSION AMÉLIORÉE AVEC FALLBACK
+// backend/services/configService.js - VERSION AVEC VALIDATION STRICTE
 
 const fs = require('fs').promises;
-const path = require('path');
+const path =require('path');
 
 const CONFIG_PATH = path.join(__dirname, '..', '..', 'config', 'config.json');
 const TEMPLATE_CONFIG_PATH = path.join(__dirname, '..', '..', 'config', 'config.template.json');
 
 let appConfig = null;
+let isConfigValid = false;
 
 /**
- * Charge la configuration depuis le fichier template.
- * C'est une mesure de sécurité pour s'assurer que l'application a toujours une configuration de base pour démarrer.
- * @returns {Promise<object>} La configuration par défaut.
+ * Valide que la configuration chargée contient les clés essentielles
+ * et que celles-ci n'ont pas de valeurs placeholders.
+ * @param {object} config - L'objet de configuration à valider.
+ * @returns {{isValid: boolean, errors: string[]}} Un objet indiquant si la config est valide et les erreurs trouvées.
  */
+function validateConfig(config) {
+    const errors = [];
+    const requiredKeys = {
+        'databasePath': 'Le chemin vers la base de données SQLite.',
+        'excelFilePath': 'Le chemin vers le fichier Excel des utilisateurs.',
+        'guacamole.url': 'L\'URL de votre serveur Guacamole.',
+        'guacamole.secretKey': 'La clé secrète pour l\'authentification Guacamole (doit correspondre à guacamole.properties).',
+    };
+
+    for (const [key, description] of Object.entries(requiredKeys)) {
+        const keys = key.split('.');
+        let value = config;
+        for (const k of keys) {
+            value = value ? value[k] : undefined;
+        }
+
+        if (!value) {
+            errors.push(`Clé manquante: '${key}'. Description: ${description}`);
+        } else if (typeof value === 'string' && (value.includes('VOTRE_') || value.includes('CHEMIN\\VERS'))) {
+            errors.push(`Valeur placeholder détectée pour '${key}'. Veuillez la remplacer par une valeur réelle.`);
+        }
+    }
+
+    return { isValid: errors.length === 0, errors };
+}
+
+
 async function loadTemplateConfig() {
     try {
-        console.warn("🔧 Chargement de la configuration depuis le template (config.template.json).");
         const templateData = await fs.readFile(TEMPLATE_CONFIG_PATH, 'utf-8');
         return JSON.parse(templateData);
     } catch (error) {
-        console.error("❌ ERREUR CRITIQUE: Impossible de charger même la configuration du template.", error);
-        // Si même le template est manquant, on lance une erreur fatale car l'application ne peut pas fonctionner.
-        throw new Error("Fichier de configuration template introuvable ou invalide.");
+        throw new Error("Fichier de configuration template (config.template.json) introuvable ou invalide.");
     }
 }
 
-/**
- * Charge la configuration de manière asynchrone depuis config.json.
- * Si le fichier est introuvable ou invalide, il se rabat sur la configuration du template.
- */
 async function loadConfigAsync() {
     try {
-        console.log(`🔍 Tentative de chargement de la configuration depuis : ${CONFIG_PATH}`);
         const data = await fs.readFile(CONFIG_PATH, 'utf-8');
         appConfig = JSON.parse(data);
-        console.log("✅ Configuration chargée avec succès.");
     } catch (error) {
-        console.error(`⚠️  Échec du chargement de config.json (${error.message}). Utilisation du fallback.`);
+        console.error(`⚠️  Impossible de lire ou parser config.json (${error.message}).`);
+        console.log("-> Tentative de démarrage avec une configuration minimale pour permettre le diagnostic.");
         appConfig = await loadTemplateConfig();
+        isConfigValid = false; // Marquer comme invalide car c'est un fallback
+        return; // Sortir pour ne pas valider une config de template
+    }
+
+    const { isValid, errors } = validateConfig(appConfig);
+    if (!isValid) {
+        console.error("====================== ERREUR DE CONFIGURATION ======================");
+        console.error("Le fichier de configuration (config.json) est invalide. L'application ne peut pas démarrer correctement.");
+        errors.forEach(err => console.error(`- ${err}`));
+        console.error("=====================================================================");
+        // On ne lance pas d'erreur pour permettre à l'API de santé de répondre,
+        // mais on marque la configuration comme invalide.
+        isConfigValid = false;
+    } else {
+        isConfigValid = true;
+        console.log("✅ Configuration chargée et validée avec succès.");
     }
 }
 
-/**
- * Retourne la configuration actuellement chargée.
- * @returns {object} La configuration de l'application.
- */
 function getConfig() {
-    if (!appConfig) {
-        // C'est une sécurité supplémentaire au cas où getConfig serait appelé avant loadConfigAsync.
-        // Dans un flux normal, cela ne devrait pas arriver.
-        console.warn("Configuration demandée avant son chargement complet.");
-        return {};
-    }
-    return appConfig;
+    return appConfig || {};
 }
 
-/**
- * Sauvegarde une nouvelle configuration dans config.json.
- * @param {object} newConfig - Le nouvel objet de configuration à sauvegarder.
- * @returns {Promise<{success: boolean, message: string}>} Un objet indiquant le succès ou l'échec.
- */
+function isConfigurationValid() {
+    return isConfigValid;
+}
+
 async function saveConfig(newConfig) {
     try {
-        const configJson = JSON.stringify(newConfig, null, 4);
-        await fs.writeFile(CONFIG_PATH, configJson, 'utf-8');
-        appConfig = newConfig; // Mettre à jour la configuration en mémoire.
-        console.log("✅ Configuration sauvegardée avec succès.");
+        await fs.writeFile(CONFIG_PATH, JSON.stringify(newConfig, null, 4), 'utf-8');
+        appConfig = newConfig;
+        const { isValid, errors } = validateConfig(appConfig);
+        isConfigValid = isValid; // Mettre à jour l'état de validité
+        if (!isValid) {
+            console.warn("Configuration sauvegardée, mais elle contient des erreurs:", errors);
+        }
         return { success: true, message: "Configuration sauvegardée." };
     } catch (error) {
-        console.error("❌ Erreur lors de la sauvegarde de la configuration:", error);
         return { success: false, message: `Erreur: ${error.message}` };
     }
 }
 
-// Exposer appConfig pour un accès direct si nécessaire (pratique pour les services qui en dépendent).
 module.exports = {
     loadConfigAsync,
     getConfig,
     saveConfig,
+    isConfigurationValid,
     get appConfig() {
         return appConfig;
     },

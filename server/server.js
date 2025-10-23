@@ -116,7 +116,22 @@ function startBackgroundTasks() {
 async function startServer() {
     try {
         await configService.loadConfigAsync();
-        console.log('✅ Configuration chargée.');
+
+        // La validation se fait maintenant à l'intérieur de loadConfigAsync.
+        // On vérifie simplement l'état après le chargement.
+        if (!configService.isConfigurationValid()) {
+            console.error("\n❌ Démarrage interrompu en raison d'une configuration invalide. Veuillez corriger les erreurs listées ci-dessus et redémarrer le serveur.");
+
+            // On expose quand même un endpoint de santé pour que le frontend puisse afficher un message clair.
+            app.use('/api', apiRoutes(() => broadcast));
+            server.listen(API_PORT, () => {
+                console.log(`\n📡 Serveur démarré en mode dégradé sur http://localhost:${API_PORT}`);
+                console.log("   Seul le diagnostic de configuration est actif.");
+            });
+            return; // Arrêter le processus de démarrage normal ici.
+        }
+
+        console.log('✅ Configuration chargée et validée.');
 
         databaseService.connect();
         console.log('✅ Base de données connectée.');

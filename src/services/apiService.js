@@ -42,6 +42,9 @@ class ApiService {
         console.log('👤 Technicien actuel défini:', technicianId);
     }
 
+    // SANTÉ DU SERVEUR
+    checkServerHealth = async () => this.request('/health')
+
     // AUTH & TECHNICIENS
     login = async (technicianData) => {
         this.setCurrentTechnician(technicianData.id);
