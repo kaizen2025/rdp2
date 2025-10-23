@@ -1,4 +1,4 @@
-// electron/services/excelService.js - Version optimisée avec mise à jour mots de passe
+// backend/services/excelService.js - VERSION CORRIGÉE POUR ÉVITER LE CRASH AU DÉMARRAGE
 
 const XLSX = require('xlsx');
 const fs = require('fs');
@@ -6,15 +6,35 @@ const path = require('path');
 const configService = require('./configService');
 const { safeReadJsonFile, safeWriteJsonFile } = require('./fileService');
 
-const LOCAL_EXCEL_CACHE_PATH = path.join(configService.userDataPath, 'cache-excel.json');
+// Le chemin du cache ne sera plus défini à l'initialisation, mais dynamiquement.
+let localExcelCachePath = null;
 
 // Cache en mémoire pour éviter les lectures répétées
 let memoryCache = null;
 let memoryCacheTimestamp = null;
 const MEMORY_CACHE_TTL = 30000; // 30 secondes
 
-async function readExcelFileAsync(excelPath) {
-    const finalPath = excelPath || configService.appConfig?.defaultExcelPath;
+/**
+ * Récupère le chemin du cache local de manière dynamique.
+ * S'assure que la configuration est chargée avant de construire le chemin.
+ * @returns {string|null} Le chemin du fichier cache ou null si la configuration n'est pas prête.
+ */
+function getCachePath() {
+    if (!localExcelCachePath) {
+        const dbPath = configService.getConfig().databasePath;
+        if (dbPath) {
+            // Place 'cache-excel.json' dans le même répertoire que la base de données pour la cohérence.
+            localExcelCachePath = path.join(path.dirname(dbPath), 'cache-excel.json');
+        } else {
+            console.warn("Le chemin de la base de données n'est pas défini, le cache Excel local est désactivé.");
+        }
+    }
+    return localExcelCachePath;
+}
+
+async function readExcelFileAsync() {
+    // Récupérer le chemin principal depuis la config au moment de l'appel
+    const excelPath = configService.getConfig().excelFilePath;
 
     // Vérifier le cache mémoire d'abord
     const now = Date.now();
@@ -23,46 +43,33 @@ async function readExcelFileAsync(excelPath) {
         return { success: true, users: memoryCache, fromMemoryCache: true };
     }
 
+    const currentCachePath = getCachePath();
+
     try {
-        if (!finalPath || !fs.existsSync(finalPath)) {
-            throw new Error(`Fichier Excel introuvable: ${finalPath || 'chemin non configuré'}`);
+        if (!excelPath || !fs.existsSync(excelPath)) {
+            throw new Error(`Fichier Excel introuvable: ${excelPath || 'chemin non configuré'}`);
         }
 
-        // Lecture optimisée avec options
-        const workbook = XLSX.readFile(finalPath, {
-            cellDates: true,
-            cellNF: false,
-            cellStyles: false,
-        });
-
+        const workbook = XLSX.readFile(excelPath, { cellDates: true, cellNF: false, cellStyles: false });
         const sheetName = workbook.SheetNames[0];
-        const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
-            raw: false,
-            defval: '',
-        });
+        const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { raw: false, defval: '' });
 
-        const usersByServer = {};
-        
-        // Traitement optimisé
-        for (const row of data) {
-            const user = {};
-            for (const [excelHeader, userKey] of Object.entries(configService.EXCEL_CONFIG.columnMapping)) {
-                if (row[excelHeader] !== undefined) {
-                    user[userKey] = String(row[excelHeader]).trim();
-                }
-            }
+        const usersByServer = data.reduce((acc, row) => {
+            const user = Object.entries(configService.getConfig().excelColumnMapping || {}).reduce((obj, [excelHeader, userKey]) => {
+                if (row[excelHeader] !== undefined) obj[userKey] = String(row[excelHeader]).trim();
+                return obj;
+            }, {});
 
             if (user.username) {
-                const server = user.server || 'SRV-RDS-1';
-                if (!usersByServer[server]) {
-                    usersByServer[server] = [];
-                }
-                usersByServer[server].push(user);
+                const server = user.server || configService.getConfig().rds_servers[0] || 'default';
+                (acc[server] = acc[server] || []).push(user);
             }
-        }
+            return acc;
+        }, {});
 
-        // Mettre en cache (fichier et mémoire)
-        await safeWriteJsonFile(LOCAL_EXCEL_CACHE_PATH, usersByServer);
+        if (currentCachePath) {
+            await safeWriteJsonFile(currentCachePath, usersByServer);
+        }
         memoryCache = usersByServer;
         memoryCacheTimestamp = now;
 
@@ -72,147 +79,100 @@ async function readExcelFileAsync(excelPath) {
     } catch (error) {
         console.warn('⚠️ Erreur lecture Excel, utilisation du cache:', error.message);
         
-        // Essayer le cache fichier
-        const cachedData = await safeReadJsonFile(LOCAL_EXCEL_CACHE_PATH, {});
-        
-        if (Object.keys(cachedData).length > 0) {
-            memoryCache = cachedData;
-            memoryCacheTimestamp = now;
-            return { success: true, users: cachedData, fromCache: true };
+        if (currentCachePath) {
+            const cachedData = await safeReadJsonFile(currentCachePath, {});
+            if (Object.keys(cachedData).length > 0) {
+                memoryCache = cachedData;
+                memoryCacheTimestamp = now;
+                return { success: true, users: cachedData, fromCache: true };
+            }
         }
         
         return { success: false, error: error.message, users: {} };
     }
 }
 
-/**
- * Sauvegarde ou met à jour un utilisateur dans Excel
- * @param {Object} options - { user, isEdit }
- * @returns {Promise}
- */
-async function saveUserToExcel({ user, isEdit, excelPath }) {
-    const finalPath = excelPath || configService.appConfig?.defaultExcelPath;
+async function saveUserToExcel({ user, isEdit }) {
+    const excelPath = configService.getConfig().excelFilePath;
     
     try {
-        if (!finalPath) {
-            throw new Error('Chemin Excel non configuré');
-        }
+        if (!excelPath || !fs.existsSync(excelPath)) throw new Error(`Fichier introuvable: ${excelPath}`);
 
-        if (!fs.existsSync(finalPath)) {
-            throw new Error(`Fichier introuvable: ${finalPath}`);
-        }
-
-        const workbook = XLSX.readFile(finalPath);
+        const workbook = XLSX.readFile(excelPath);
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         const data = XLSX.utils.sheet_to_json(worksheet);
 
-        // Mapper les propriétés de l'utilisateur vers les colonnes Excel
-        // En inverse : userKey => excelHeader
-        const reverseMapping = {};
-        for (const [excelHeader, userKey] of Object.entries(configService.EXCEL_CONFIG.columnMapping)) {
-            reverseMapping[userKey] = excelHeader;
-        }
+        const reverseMapping = Object.entries(configService.getConfig().excelColumnMapping).reduce((acc, [key, value]) => ({ ...acc, [value]: key }), {});
 
-        const excelRow = {};
-        for (const [userKey, userValue] of Object.entries(user)) {
-            const excelHeader = reverseMapping[userKey];
-            if (excelHeader) {
-                excelRow[excelHeader] = userValue;
-            }
-        }
+        const excelRow = Object.entries(user).reduce((acc, [key, value]) => {
+            if (reverseMapping[key]) acc[reverseMapping[key]] = value;
+            return acc;
+        }, {});
 
-        // Trouver l'utilisateur dans Excel
-        const excelUsername = user.username;
-        const index = data.findIndex(row => {
-            const rowUsername = row[reverseMapping.username] || row['Identifiant'];
-            return rowUsername === excelUsername;
-        });
+        const usernameColumn = reverseMapping.username || 'Identifiant';
+        const index = data.findIndex(row => row[usernameColumn] === user.username);
         
         if (isEdit && index !== -1) {
-            // Mettre à jour la ligne existante
             data[index] = { ...data[index], ...excelRow };
-            console.log(`✅ Utilisateur ${excelUsername} mis à jour dans Excel`);
         } else if (!isEdit) {
-            // Ajouter une nouvelle ligne
             data.push(excelRow);
-            console.log(`✅ Utilisateur ${excelUsername} ajouté dans Excel`);
         } else {
-            throw new Error(`Utilisateur ${excelUsername} non trouvé dans Excel`);
+            throw new Error(`Utilisateur ${user.username} non trouvé`);
         }
 
-        // Écrire dans le fichier Excel
-        const newWb = XLSX.utils.book_new();
         const newWs = XLSX.utils.json_to_sheet(data);
+        const newWb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(newWb, newWs, sheetName);
-        XLSX.writeFile(newWb, finalPath);
+        XLSX.writeFile(newWb, excelPath);
 
-        // Invalider les caches
         invalidateCache();
-
-        return { success: true, message: `${isEdit ? 'Mis à jour' : 'Ajouté'} avec succès` };
+        return { success: true, message: `Utilisateur ${isEdit ? 'mis à jour' : 'ajouté'}` };
 
     } catch (error) {
         console.error('❌ Erreur sauvegarde Excel:', error.message);
-        return { success: false, error: `Erreur sauvegarde Excel: ${error.message}` };
+        return { success: false, error: error.message };
     }
 }
 
-/**
- * Supprime un utilisateur du fichier Excel
- * @param {Object} options - { username, excelPath }
- * @returns {Promise}
- */
-async function deleteUserFromExcel({ username, excelPath }) {
-    const finalPath = excelPath || configService.appConfig?.defaultExcelPath;
-    
+async function deleteUserFromExcel({ username }) {
+    const excelPath = configService.getConfig().excelFilePath;
+
     try {
-        if (!finalPath) {
-            throw new Error('Chemin Excel non configuré');
-        }
+        if (!excelPath || !fs.existsSync(excelPath)) throw new Error(`Fichier introuvable: ${excelPath}`);
 
-        if (!fs.existsSync(finalPath)) {
-            throw new Error(`Fichier introuvable: ${finalPath}`);
-        }
-
-        const workbook = XLSX.readFile(finalPath);
+        const workbook = XLSX.readFile(excelPath);
         const sheetName = workbook.SheetNames[0];
         const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-        const reverseMapping = {};
-        for (const [excelHeader, userKey] of Object.entries(configService.EXCEL_CONFIG.columnMapping)) {
-            reverseMapping[userKey] = excelHeader;
-        }
-
+        const reverseMapping = Object.entries(configService.getConfig().excelColumnMapping).reduce((acc, [key, value]) => ({ ...acc, [value]: key }), {});
         const usernameColumn = reverseMapping.username || 'Identifiant';
+
         const updatedData = data.filter(row => row[usernameColumn] !== username);
 
-        if (updatedData.length === data.length) {
-            throw new Error(`Utilisateur ${username} non trouvé`);
-        }
+        if (updatedData.length === data.length) throw new Error(`Utilisateur ${username} non trouvé`);
 
-        const newWb = XLSX.utils.book_new();
         const newWs = XLSX.utils.json_to_sheet(updatedData);
+        const newWb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(newWb, newWs, sheetName);
-        XLSX.writeFile(newWb, finalPath);
+        XLSX.writeFile(newWb, excelPath);
 
         invalidateCache();
-
-        console.log(`✅ Utilisateur ${username} supprimé d'Excel`);
-        return { success: true, message: 'Supprimé avec succès' };
-
+        return { success: true, message: 'Utilisateur supprimé' };
     } catch (error) {
         console.error('❌ Erreur suppression Excel:', error.message);
-        return { success: false, error: `Erreur suppression Excel: ${error.message}` };
+        return { success: false, error: error.message };
     }
 }
 
-/**
- * Invalide les caches en mémoire et fichier
- */
 function invalidateCache() {
     memoryCache = null;
     memoryCacheTimestamp = null;
+    const currentCachePath = getCachePath();
+    if (currentCachePath && fs.existsSync(currentCachePath)) {
+        fs.unlinkSync(currentCachePath); // Supprimer le cache fichier
+    }
+    console.log("🧹 Cache Excel invalidé.");
 }
 
 module.exports = {
