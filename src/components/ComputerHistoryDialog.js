@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -56,20 +56,15 @@ const ComputerHistoryDialog = ({ open, onClose, computer }) => {
     const [maintenanceHistory, setMaintenanceHistory] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        if (open && computer) {
-            loadHistory();
-        }
-    }, [open, computer]);
-
-    const loadHistory = async () => {
+    const loadHistory = useCallback(async () => {
+        if (!computer) return;
         setIsLoading(true);
         try {
-            const history = await window.electronAPI.getLoanHistory({ 
+            const history = await window.electronAPI.getLoanHistory({
                 computerId: computer.id,
                 limit: 500
             });
-            
+
             setLoanHistory(history);
             setMaintenanceHistory(computer.maintenanceHistory || []);
         } catch (error) {
@@ -77,7 +72,13 @@ const ComputerHistoryDialog = ({ open, onClose, computer }) => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [computer]);
+
+    useEffect(() => {
+        if (open && computer) {
+            loadHistory();
+        }
+    }, [open, computer, loadHistory]);
 
     if (!computer) return null;
 

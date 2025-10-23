@@ -279,7 +279,7 @@ const UsersManagementPage = () => {
             vpnMembers={vpnMembers} internetMembers={internetMembers}
             onMembershipChange={() => handleRefresh(true)}
         />
-    ), [filteredUsers, vpnMembers, internetMembers, handleRefresh]);
+    ), [filteredUsers, vpnMembers, internetMembers, handleRefresh, handleDeleteUser, handleConnectUser]);
 
     return (
         <Box sx={{ p: 2, height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', position: 'relative' }}>

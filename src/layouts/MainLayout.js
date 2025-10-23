@@ -74,7 +74,7 @@ function MainLayout({ onLogout, currentTechnician }) {
     const [chatOpen, setChatOpen] = useState(false);
     const [notificationsPanelOpen, setNotificationsPanelOpen] = useState(false);
     const [onlineTechnicians, setOnlineTechnicians] = useState([]);
-    const [unreadChatCount, setUnreadChatCount] = useState(0); // Logique à implémenter
+    const unreadChatCount = 0; // Logique à implémenter plus tard
     const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
     const [activeSessionsCount, setActiveSessionsCount] = useState(0);
     const [settingsOpen, setSettingsOpen] = useState(false);

@@ -23,8 +23,6 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import BlockIcon from '@mui/icons-material/Block';
 import LockResetIcon from '@mui/icons-material/LockReset';
 import GroupIcon from '@mui/icons-material/Group';
-import EventIcon from '@mui/icons-material/Event';
-import UpdateIcon from '@mui/icons-material/Update';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import Visibility from '@mui/icons-material/Visibility';

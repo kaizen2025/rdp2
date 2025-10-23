@@ -89,7 +89,7 @@ const AccessoriesManagement = () => {
 
         try {
             // CORRECTION: Utilisation de apiService
-            const result = await apiService.saveAccessory(formData);
+            await apiService.saveAccessory(formData);
             showNotification('success', `Accessoire ${editingAccessory ? 'modifié' : 'ajouté'} avec succès.`);
             handleCloseDialog();
             await loadAccessories();

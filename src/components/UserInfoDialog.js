@@ -9,16 +9,11 @@ import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Grid from '@mui/material/Grid';
-import Chip from '@mui/material/Chip';
 
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import PersonIcon from '@mui/icons-material/Person';
-import VpnKeyIcon from '@mui/icons-material/VpnKey';
-import EmailIcon from '@mui/icons-material/Email';
-import BusinessIcon from '@mui/icons-material/Business';
-import DnsIcon from '@mui/icons-material/Dns';
 
 const InfoRow = ({ label, value, isPassword = false }) => {
   const [showPassword, setShowPassword] = useState(false);

@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-    Box, Paper, Typography, IconButton, Chip, Tooltip, List, ListItem,
-    ListItemText, Avatar, ButtonGroup, Button, Card, CardContent, Dialog,
-    DialogTitle, DialogContent, DialogActions, Alert
+    Box, Paper, Typography, IconButton, Chip, Tooltip, ButtonGroup, Button, Card, CardContent, Dialog,
+    DialogTitle, DialogContent, DialogActions, Alert, List, ListItem, ListItemText, Avatar
 } from '@mui/material';
 import {
     ChevronLeft, ChevronRight, Today, CalendarMonth, ViewWeek
@@ -32,7 +31,6 @@ const LoansCalendar = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [view, setView] = useState('month'); // 'month' ou 'week'
     const [loans, setLoans] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
     const [selectedDay, setSelectedDay] = useState(null);
     const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
@@ -44,23 +42,10 @@ const LoansCalendar = () => {
                 setLoans(data.filter(l => l.status !== 'returned' && l.status !== 'cancelled'));
             } catch (error) {
                 console.error('Erreur chargement prêts:', error);
-            } finally {
-                setIsLoading(false);
             }
         };
         loadLoans();
     }, []);
-
-    const loadLoans = async () => {
-        try {
-            const data = await window.electronAPI.getLoans();
-            setLoans(data.filter(l => l.status !== 'returned' && l.status !== 'cancelled'));
-        } catch (error) {
-            console.error('Erreur chargement prêts:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
     // Navigation
     const goToPreviousMonth = () => {
