@@ -1,6 +1,6 @@
-// src/hooks/useDataFetching.js - VERSION FINALE STABILISÉE
+// src/hooks/useDataFetching.js - VERSION CORRIGÉE SANS BOUCLE INFINIE
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../contexts/AppContext';
 
 const useDataFetching = (fetchFunction, options = {}) => {
@@ -10,12 +10,21 @@ const useDataFetching = (fetchFunction, options = {}) => {
     const [isLoading, setIsLoading] = useState(initialFetch);
     const [error, setError] = useState(null);
 
-    const fetchData = useCallback(async (isBackgroundRefresh = false) => {
+    // CORRECTION CRITIQUE: Utiliser useRef pour éviter la boucle infinie
+    // fetchFunction ne doit PAS être dans les dépendances de useEffect
+    const fetchFunctionRef = useRef(fetchFunction);
+
+    // Mettre à jour la référence si la fonction change
+    useEffect(() => {
+        fetchFunctionRef.current = fetchFunction;
+    }, [fetchFunction]);
+
+    const fetchData = async (isBackgroundRefresh = false) => {
         if (!isBackgroundRefresh) setIsLoading(true);
         setError(null);
-        
+
         try {
-            const result = await fetchFunction();
+            const result = await fetchFunctionRef.current();
             setData(result);
         } catch (err) {
             console.error(`Erreur lors du fetch de ${entityName || 'données'}:`, err);
@@ -23,7 +32,7 @@ const useDataFetching = (fetchFunction, options = {}) => {
         } finally {
             setIsLoading(false);
         }
-    }, [fetchFunction, entityName]);
+    };
 
     useEffect(() => {
         if (initialFetch) {
@@ -32,7 +41,10 @@ const useDataFetching = (fetchFunction, options = {}) => {
 
         const handleRefresh = () => fetchData(true);
 
+        // Rafraîchissement périodique
         let intervalId = refreshInterval ? setInterval(handleRefresh, refreshInterval) : null;
+
+        // Écoute des événements de mise à jour
         const unsubscribe = entityName ? events.on(`data_updated:${entityName}`, handleRefresh) : null;
         const forceRefreshUnsubscribe = events.on('force_refresh', handleRefresh);
 
@@ -41,7 +53,9 @@ const useDataFetching = (fetchFunction, options = {}) => {
             if (unsubscribe) unsubscribe();
             forceRefreshUnsubscribe();
         };
-    }, [fetchData, refreshInterval, entityName, events, initialFetch]);
+        // CORRECTION: Retirer fetchData des dépendances pour éviter la boucle
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [refreshInterval, entityName, events, initialFetch]);
 
     return { data, isLoading, error, refresh: () => fetchData(false) };
 };
