@@ -37,7 +37,24 @@ const GuacamoleViewer = ({ token, url }) => {
         const handleError = (error) => {
             console.error('❌ Erreur Guacamole:', error);
             let message = "Erreur de connexion RDP. Vérifiez que la session est active et que Guacamole est bien configuré.";
-            if (error?.code === 1006) message = "Connexion au serveur Guacamole refusée. Le service est-il démarré ?";
+
+            // Interpréter les codes d'erreur de Guacamole pour des messages plus clairs.
+            if (error?.code) {
+                switch (error.code) {
+                    case 768: // Upstream error
+                        message = "Erreur 768 : La connexion au serveur RDS distant a échoué. Vérifiez que le serveur est bien allumé et accessible sur le réseau depuis le serveur Guacamole.";
+                        break;
+                    case 1006: // WebSocket connection closed unexpectedly
+                        message = "Connexion au serveur Guacamole refusée. Le service est-il démarré sur le port 8080 ?";
+                        break;
+                    case 517: // Client forbidden
+                        message = "Erreur 517 : Accès refusé. Le token de connexion est peut-être invalide ou expiré.";
+                        break;
+                    default:
+                        message = `Erreur Guacamole non reconnue (Code: ${error.code}). Contactez un administrateur.`;
+                }
+            }
+
             setStatus('ERROR');
             setErrorMessage(message);
             client?.disconnect();
