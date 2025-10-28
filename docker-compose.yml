@@ -42,6 +42,9 @@ services:
       MYSQL_USER: guacamole_user
       MYSQL_PASSWORD: "guacamole_pass" # Doit correspondre à celui de la BDD
 
+      # Définir GUACAMOLE_HOME pour que les extensions soient chargées
+      GUACAMOLE_HOME: /etc/guacamole
+
       # --- CONFIGURATION DE L'AUTHENTIFICATION PAR TOKEN ---
       # Clé secrète pour signer les tokens (doit correspondre à celle dans config.json)
       JSON_SECRET_KEY: "PBWmJHC2mKfvSUtc7eG7/d/QpPmeBrTAq9L6EgQHy+w="
@@ -54,8 +57,7 @@ services:
 
     volumes:
       # Monter le dossier contenant le .jar de l'extension
-      # Assurez-vous que le fichier guacamole-auth-json-1.5.3.jar est dans ce dossier
-      - ./guacamole-extensions:/opt/guacamole/extensions
+      - ./guacamole-extensions:/etc/guacamole/extensions
     
     depends_on:
       - guacd
