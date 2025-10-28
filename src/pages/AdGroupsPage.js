@@ -39,6 +39,12 @@ import { useApp } from '../contexts/AppContext';
 import { useCache } from '../contexts/CacheContext';
 import apiService from '../services/apiService';
 
+// Nouveaux composants modernes
+import PageHeader from '../components/common/PageHeader';
+import SearchInput from '../components/common/SearchInput';
+import EmptyState from '../components/common/EmptyState';
+import LoadingScreen from '../components/common/LoadingScreen';
+
 const MemberRow = memo(({ member, style, isOdd, onRemove, groupName }) => (
     <Box style={style} sx={{ display: 'flex', alignItems: 'center', px: 2, backgroundColor: isOdd ? 'grey.50' : 'white', borderBottom: '1px solid', borderColor: 'divider', '&:hover': { backgroundColor: 'action.hover' } }}>
         <Box sx={{ flex: 1, pr: 2 }}>
@@ -140,31 +146,153 @@ const AdGroupsPage = () => {
         return (<MemberRow member={member} style={style} isOdd={index % 2 === 1} onRemove={handleRemoveUser} groupName={selectedGroup} />);
     };
 
+    // Données pour le PageHeader
+    const currentGroupData = useMemo(() => adGroups[selectedGroup] || {}, [adGroups, selectedGroup]);
+
     return (
-        <Box sx={{ p: 2, height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ p: 2 }}>
             {isRefreshing && <LinearProgress sx={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1300 }} />}
-            <Paper elevation={3} sx={{ p: 2, mb: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h5">Gestion des Groupes Active Directory</Typography>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Button variant="contained" startIcon={<PersonAddIcon />} onClick={() => setAddUserDialogOpen(true)}>Ajouter au groupe</Button>
-                        <Tooltip title="Actualiser"><IconButton onClick={() => loadGroupMembers(true)} disabled={isRefreshing}>{isRefreshing ? <CircularProgress size={24} /> : <RefreshIcon />}</IconButton></Tooltip>
+
+            {/* Header Moderne */}
+            <PageHeader
+                title="Groupes Active Directory"
+                subtitle={`Gestion des membres des groupes de sécurité et de distribution`}
+                icon={GroupIcon}
+                stats={[
+                    {
+                        label: 'Membres',
+                        value: members.length,
+                        icon: GroupIcon
+                    },
+                    {
+                        label: 'Groupes disponibles',
+                        value: groupKeys.length,
+                        icon: InfoIcon
+                    }
+                ]}
+                actions={
+                    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                        <Button
+                            variant="contained"
+                            startIcon={<PersonAddIcon />}
+                            onClick={() => setAddUserDialogOpen(true)}
+                            sx={{ borderRadius: 2 }}
+                        >
+                            Ajouter au groupe
+                        </Button>
+                        <Tooltip title="Actualiser">
+                            <span>
+                                <IconButton
+                                    onClick={() => loadGroupMembers(true)}
+                                    disabled={isRefreshing}
+                                    color="primary"
+                                    sx={{
+                                        bgcolor: 'primary.lighter',
+                                        '&:hover': { bgcolor: 'primary.light' }
+                                    }}
+                                >
+                                    {isRefreshing ? <CircularProgress size={24} /> : <RefreshIcon />}
+                                </IconButton>
+                            </span>
+                        </Tooltip>
                     </Box>
+                }
+            />
+
+            {/* Sélection de groupe et filtres */}
+            <Paper elevation={2} sx={{ p: 2.5, mb: 3, borderRadius: 2 }}>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-end', mb: 2 }}>
+                    <FormControl sx={{ minWidth: 300 }}>
+                        <InputLabel>Groupe</InputLabel>
+                        <Select
+                            value={selectedGroup}
+                            label="Groupe"
+                            onChange={(e) => setSelectedGroup(e.target.value)}
+                            sx={{ borderRadius: 2 }}
+                        >
+                            {Object.entries(adGroups).map(([key, group]) => (
+                                <MenuItem key={key} value={group.name}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <GroupIcon fontSize="small" />
+                                        {group.name}
+                                        <Chip label={group.type} size="small" variant="outlined" />
+                                    </Box>
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    <Box sx={{ flexGrow: 1 }}>
+                        <SearchInput
+                            value={searchTerm}
+                            onChange={setSearchTerm}
+                            placeholder="Rechercher un membre..."
+                            fullWidth
+                        />
+                    </Box>
+                    <Chip
+                        icon={<GroupIcon />}
+                        label={`${filteredMembers.length} membre(s)`}
+                        color="primary"
+                        variant="filled"
+                        sx={{ height: 40, fontSize: '0.875rem', fontWeight: 600 }}
+                    />
                 </Box>
-                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <FormControl sx={{ minWidth: 250 }}><InputLabel>Groupe</InputLabel><Select value={selectedGroup} label="Groupe" onChange={(e) => setSelectedGroup(e.target.value)}>{Object.entries(adGroups).map(([key, group]) => (<MenuItem key={key} value={group.name}><Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><GroupIcon fontSize="small" />{group.name}<Chip label={group.type} size="small" variant="outlined" /></Box></MenuItem>))}</Select></FormControl>
-                    <TextField size="small" placeholder="Rechercher un membre..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>), }} sx={{ flexGrow: 1, maxWidth: 400 }} />
-                    <Box sx={{ flexGrow: 1 }} />
-                    <Chip icon={<GroupIcon />} label={`${filteredMembers.length} membre(s)`} color="primary" variant="outlined" />
-                </Box>
-                {adGroups[selectedGroup] && <Box sx={{ mt: 2, p: 1.5, backgroundColor: 'info.lighter', borderRadius: 1, display: 'flex', gap: 1 }}><InfoIcon color="info" fontSize="small" /><Typography variant="body2" color="info.dark">{adGroups[selectedGroup].description}</Typography></Box>}
+                {currentGroupData.description && (
+                    <Box sx={{
+                        p: 1.5,
+                        backgroundColor: 'info.lighter',
+                        borderRadius: 1,
+                        display: 'flex',
+                        gap: 1
+                    }}>
+                        <InfoIcon color="info" fontSize="small" />
+                        <Typography variant="body2" color="info.dark">
+                            {currentGroupData.description}
+                        </Typography>
+                    </Box>
+                )}
             </Paper>
-            <Paper elevation={3} sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <TableHeader />
-                <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
-                    {isLoading ? (<Box sx={{ p: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}><CircularProgress /></Box>) : filteredMembers.length === 0 ? (<Box sx={{ p: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}><Typography color="text.secondary">{members.length === 0 ? 'Aucun membre dans ce groupe' : 'Aucun résultat'}</Typography></Box>) : (<AutoSizer>{({ height, width }) => (<FixedSizeList height={height} itemCount={filteredMembers.length} itemSize={60} width={width} overscanCount={10}>{Row}</FixedSizeList>)}</AutoSizer>)}
-                </Box>
-            </Paper>
+            {/* Liste des membres */}
+            {isLoading ? (
+                <LoadingScreen type="list" items={6} />
+            ) : filteredMembers.length === 0 ? (
+                <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
+                    <EmptyState
+                        type={searchTerm ? 'search' : 'empty'}
+                        title={searchTerm ? 'Aucun membre trouvé' : 'Aucun membre dans ce groupe'}
+                        description={
+                            searchTerm
+                                ? 'Essayez avec d\'autres termes de recherche'
+                                : `Le groupe "${selectedGroup}" ne contient pas encore de membres`
+                        }
+                        actionLabel={searchTerm ? 'Réinitialiser la recherche' : 'Ajouter un membre'}
+                        onAction={
+                            searchTerm
+                                ? () => setSearchTerm('')
+                                : () => setAddUserDialogOpen(true)
+                        }
+                    />
+                </Paper>
+            ) : (
+                <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: 2, minHeight: 500 }}>
+                    <TableHeader />
+                    <Box sx={{ flex: 1, overflow: 'hidden', minHeight: 400 }}>
+                        <AutoSizer>
+                            {({ height, width }) => (
+                                <FixedSizeList
+                                    height={height}
+                                    itemCount={filteredMembers.length}
+                                    itemSize={60}
+                                    width={width}
+                                    overscanCount={10}
+                                >
+                                    {Row}
+                                </FixedSizeList>
+                            )}
+                        </AutoSizer>
+                    </Box>
+                </Paper>
+            )}
             <Dialog open={addUserDialogOpen} onClose={() => setAddUserDialogOpen(false)} maxWidth="sm" fullWidth>
                 <DialogTitle>Ajouter un utilisateur au groupe {selectedGroup}</DialogTitle>
                 <DialogContent>

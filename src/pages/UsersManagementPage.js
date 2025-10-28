@@ -15,7 +15,8 @@ import {
     Clear as ClearIcon, ContentCopy as ContentCopyIcon, CheckCircle as CheckCircleIcon,
     Edit as EditIcon, Delete as DeleteIcon, Launch as LaunchIcon, Print as PrintIcon,
     Visibility, VisibilityOff, MoreVert as MoreVertIcon, VpnKey as VpnKeyIcon,
-    Language as LanguageIcon, Settings as SettingsIcon
+    Language as LanguageIcon, Settings as SettingsIcon, Person as PersonIcon,
+    Dns as DnsIcon, BusinessCenter as BusinessCenterIcon
 } from '@mui/icons-material';
 
 import { useApp } from '../contexts/AppContext';
@@ -27,10 +28,13 @@ import AdActionsDialog from '../components/AdActionsDialog';
 import PasswordCompact from '../components/PasswordCompact';
 import CopyableText from '../components/CopyableText';
 
-const debounce = (func, wait) => {
-    let timeout;
-    return (...args) => { clearTimeout(timeout); timeout = setTimeout(() => func(...args), wait); };
-};
+// Nouveaux composants modernes
+import PageHeader from '../components/common/PageHeader';
+import SearchInput from '../components/common/SearchInput';
+import EmptyState from '../components/common/EmptyState';
+import LoadingScreen from '../components/common/LoadingScreen';
+
+// Debounce function is now built-in to SearchInput component
 
 const AdGroupBadge = memo(({ groupName, isMember, onToggle, isLoading }) => {
     const isVpn = groupName === 'VPN';
@@ -109,7 +113,6 @@ const UsersManagementPage = () => {
     const [adMenuAnchor, setAdMenuAnchor] = useState(null);
     const [selectedUserForAd, setSelectedUserForAd] = useState(null);
     const [updateAvailable, setUpdateAvailable] = useState(false);
-    const searchInputRef = useRef(null);
 
     const { servers, departments } = useMemo(() => ({
         servers: [...new Set(users.map(u => u.server).filter(Boolean))].sort(),
@@ -189,7 +192,18 @@ const UsersManagementPage = () => {
         return result;
     }, [users, searchTerm, serverFilter, departmentFilter]);
 
-    const debouncedSetSearch = useMemo(() => debounce(setSearchTerm, 250), []);
+    // Statistiques pour le PageHeader
+    const stats = useMemo(() => {
+        const usersWithVpn = users.filter(u => vpnMembers.has(u.username)).length;
+        const usersWithInternet = users.filter(u => internetMembers.has(u.username)).length;
+        return {
+            totalUsers: users.length,
+            usersWithVpn,
+            usersWithInternet,
+            totalServers: servers.length,
+            totalDepartments: departments.length
+        };
+    }, [users, vpnMembers, internetMembers, servers.length, departments.length]);
     
     const handleSaveUser = async (userData) => {
         try {
@@ -232,37 +246,189 @@ const UsersManagementPage = () => {
     
     const clearFilters = () => {
         setSearchTerm('');
-        if (searchInputRef.current) searchInputRef.current.value = '';
         setServerFilter('all');
         setDepartmentFilter('all');
     };
 
     return (
-        <Box sx={{ p: 2, height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        <Box sx={{ p: 2 }}>
             {isRefreshing && <LinearProgress sx={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }} />}
-            <Paper elevation={2} sx={{ p: 2, mb: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h5" fontWeight="bold">Gestion des Utilisateurs</Typography>
-                    <Box sx={{ display: 'flex', gap: 1 }}><Button variant="contained" startIcon={<PersonAddIcon />} onClick={() => { setSelectedUser(null); setUserDialogOpen(true); }}>Ajouter</Button><Tooltip title="Actualiser les données (Excel + AD)"><span><IconButton onClick={() => handleRefresh(true)} disabled={isRefreshing}><RefreshIcon /></IconButton></span></Tooltip></Box>
-                </Box>
-                <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} sm={4}><TextField fullWidth size="small" placeholder="Rechercher (Nom, Identifiant, Email...)" onChange={e => debouncedSetSearch(e.target.value)} inputRef={searchInputRef} InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }} /></Grid>
-                    <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>Serveur</InputLabel><Select value={serverFilter} label="Serveur" onChange={e => setServerFilter(e.target.value)}><MenuItem value="all">Tous</MenuItem>{servers.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}</Select></FormControl></Grid>
-                    <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>Service</InputLabel><Select value={departmentFilter} label="Service" onChange={e => setDepartmentFilter(e.target.value)}><MenuItem value="all">Tous</MenuItem>{departments.map(d => <MenuItem key={d} value={d}>{d}</MenuItem>)}</Select></FormControl></Grid>
-                    <Grid item xs={12} sm={2}><Button fullWidth size="small" startIcon={<ClearIcon />} onClick={clearFilters}>Réinitialiser</Button></Grid>
-                    <Grid item xs={12} sm={2} sx={{ textAlign: 'right' }}><Typography variant="body2" color="text.secondary">{filteredUsers.length} / {users.length} affichés</Typography></Grid>
+
+            {/* Header Moderne */}
+            <PageHeader
+                title="Gestion des Utilisateurs"
+                subtitle={`Administration complète des comptes utilisateurs RDS et Active Directory`}
+                icon={PersonIcon}
+                stats={[
+                    {
+                        label: 'Total utilisateurs',
+                        value: stats.totalUsers,
+                        icon: PersonIcon
+                    },
+                    {
+                        label: 'Accès VPN',
+                        value: stats.usersWithVpn,
+                        icon: VpnKeyIcon
+                    },
+                    {
+                        label: 'Accès Internet',
+                        value: stats.usersWithInternet,
+                        icon: LanguageIcon
+                    },
+                    {
+                        label: 'Serveurs',
+                        value: stats.totalServers,
+                        icon: DnsIcon
+                    }
+                ]}
+                actions={
+                    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                        <Button
+                            variant="contained"
+                            startIcon={<PersonAddIcon />}
+                            onClick={() => {
+                                setSelectedUser(null);
+                                setUserDialogOpen(true);
+                            }}
+                            sx={{ borderRadius: 2 }}
+                        >
+                            Ajouter
+                        </Button>
+                        <Tooltip title="Actualiser les données (Excel + AD)">
+                            <span>
+                                <IconButton
+                                    onClick={() => handleRefresh(true)}
+                                    disabled={isRefreshing}
+                                    color="primary"
+                                    sx={{
+                                        bgcolor: 'primary.lighter',
+                                        '&:hover': { bgcolor: 'primary.light' }
+                                    }}
+                                >
+                                    <RefreshIcon />
+                                </IconButton>
+                            </span>
+                        </Tooltip>
+                    </Box>
+                }
+            />
+
+            {/* Filtres */}
+            <Paper elevation={2} sx={{ p: 2.5, mb: 3, borderRadius: 2 }}>
+                <Grid container spacing={2} alignItems="flex-end">
+                    <Grid item xs={12} sm={4}>
+                        <SearchInput
+                            value={searchTerm}
+                            onChange={setSearchTerm}
+                            placeholder="Rechercher (Nom, Identifiant, Email...)"
+                            fullWidth
+                        />
+                    </Grid>
+                    <Grid item xs={6} sm={2}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Serveur</InputLabel>
+                            <Select
+                                value={serverFilter}
+                                label="Serveur"
+                                onChange={e => setServerFilter(e.target.value)}
+                                sx={{ borderRadius: 2 }}
+                            >
+                                <MenuItem value="all">Tous</MenuItem>
+                                {servers.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid item xs={6} sm={2}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Service</InputLabel>
+                            <Select
+                                value={departmentFilter}
+                                label="Service"
+                                onChange={e => setDepartmentFilter(e.target.value)}
+                                sx={{ borderRadius: 2 }}
+                            >
+                                <MenuItem value="all">Tous</MenuItem>
+                                {departments.map(d => <MenuItem key={d} value={d}>{d}</MenuItem>)}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid item xs={6} sm={2}>
+                        <Button
+                            fullWidth
+                            size="small"
+                            startIcon={<ClearIcon />}
+                            onClick={clearFilters}
+                            sx={{ borderRadius: 2 }}
+                        >
+                            Réinitialiser
+                        </Button>
+                    </Grid>
+                    <Grid item xs={6} sm={2} sx={{ textAlign: 'right' }}>
+                        <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                            {filteredUsers.length} / {users.length} affichés
+                        </Typography>
+                    </Grid>
                 </Grid>
             </Paper>
-            <Paper elevation={2} sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <Box sx={{ px: 2, py: 1.5, backgroundColor: 'primary.main', color: 'white', display: 'flex', gap: 2, fontWeight: 'bold' }}>
-                    <Box sx={{ flex: '1 1 150px', minWidth: 120 }}>Utilisateur</Box><Box sx={{ flex: '0.8 1 100px', minWidth: 80 }}>Service</Box><Box sx={{ flex: '1.2 1 180px', minWidth: 150 }}>Email</Box><Box sx={{ flex: '1 1 160px', minWidth: 140 }}>Mots de passe</Box><Box sx={{ flex: '1 1 120px', minWidth: 100 }}>Groupes</Box><Box sx={{ flex: '0 0 auto', width: '180px' }}>Actions</Box>
-                </Box>
-                <Box sx={{ flex: 1, overflow: 'auto' }}>
-                    {isLoading ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box> :
-                     !filteredUsers.length ? <Typography sx={{ p: 4, textAlign: 'center' }}>Aucun utilisateur trouvé.</Typography> :
-                     <AutoSizer>{({ height, width }) => <List height={height} width={width} itemCount={filteredUsers.length} itemSize={80} itemKey={i => filteredUsers[i].username}>{Row}</List>}</AutoSizer>}
-                </Box>
-            </Paper>
+            {/* Table des utilisateurs */}
+            {isLoading ? (
+                <LoadingScreen type="list" items={8} />
+            ) : !filteredUsers.length ? (
+                <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
+                    <EmptyState
+                        type={searchTerm || serverFilter !== 'all' || departmentFilter !== 'all' ? 'search' : 'empty'}
+                        title={searchTerm || serverFilter !== 'all' || departmentFilter !== 'all' ? 'Aucun utilisateur trouvé' : 'Aucun utilisateur'}
+                        description={
+                            searchTerm || serverFilter !== 'all' || departmentFilter !== 'all'
+                                ? 'Essayez avec d\'autres critères de recherche'
+                                : 'Cliquez sur "Ajouter" pour créer votre premier utilisateur'
+                        }
+                        actionLabel={searchTerm || serverFilter !== 'all' || departmentFilter !== 'all' ? 'Réinitialiser les filtres' : 'Ajouter un utilisateur'}
+                        onAction={
+                            searchTerm || serverFilter !== 'all' || departmentFilter !== 'all'
+                                ? clearFilters
+                                : () => {
+                                      setSelectedUser(null);
+                                      setUserDialogOpen(true);
+                                  }
+                        }
+                    />
+                </Paper>
+            ) : (
+                <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: 2, minHeight: 500 }}>
+                    <Box sx={{
+                        px: 2,
+                        py: 1.5,
+                        backgroundColor: 'primary.main',
+                        color: 'white',
+                        display: 'flex',
+                        gap: 2,
+                        fontWeight: 600
+                    }}>
+                        <Box sx={{ flex: '1 1 150px', minWidth: 120 }}>Utilisateur</Box>
+                        <Box sx={{ flex: '0.8 1 100px', minWidth: 80 }}>Service</Box>
+                        <Box sx={{ flex: '1.2 1 180px', minWidth: 150 }}>Email</Box>
+                        <Box sx={{ flex: '1 1 160px', minWidth: 140 }}>Mots de passe</Box>
+                        <Box sx={{ flex: '1 1 120px', minWidth: 100 }}>Groupes</Box>
+                        <Box sx={{ flex: '0 0 auto', width: '180px' }}>Actions</Box>
+                    </Box>
+                    <Box sx={{ flex: 1, overflow: 'auto', minHeight: 400 }}>
+                        <AutoSizer>
+                            {({ height, width }) => (
+                                <List
+                                    height={height}
+                                    width={width}
+                                    itemCount={filteredUsers.length}
+                                    itemSize={80}
+                                    itemKey={i => filteredUsers[i].username}
+                                >
+                                    {Row}
+                                </List>
+                            )}
+                        </AutoSizer>
+                    </Box>
+                </Paper>
+            )}
             {userDialogOpen && <UserDialog open={userDialogOpen} onClose={() => setUserDialogOpen(false)} user={selectedUser} onSave={handleSaveUser} servers={servers} />}
             {printPreviewOpen && <PrintPreviewDialog open={printPreviewOpen} onClose={() => setPrintPreviewOpen(false)} user={userToPrint} />}
             <Menu anchorEl={adMenuAnchor} open={Boolean(adMenuAnchor)} onClose={() => setAdMenuAnchor(null)}><MenuItem onClick={() => { setAdDialogOpen(true); setAdMenuAnchor(null); }}><ListItemIcon><SettingsIcon fontSize="small" /></ListItemIcon><ListItemText>Gérer le compte AD</ListItemText></MenuItem></Menu>

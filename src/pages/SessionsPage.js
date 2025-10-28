@@ -1,14 +1,20 @@
-// src/pages/SessionsPage.js - VERSION FINALE AVEC LIAISON DONNÉES UTILISATEUR CORRIGÉE
+// src/pages/SessionsPage.js - VERSION MODERNISÉE AVEC NOUVEAUX COMPOSANTS
 
 import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
-import { Box, Paper, Typography, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Alert, TextField, Chip, Tooltip, IconButton, FormControl, InputLabel, Select, MenuItem, InputAdornment, Switch, FormControlLabel, LinearProgress } from '@mui/material';
-import { Person as PersonIcon, Dns as DnsIcon, Timer as TimerIcon, VpnKey as VpnKeyIcon, ScreenShare as ScreenShareIcon, Computer as ComputerIcon, Message as MessageIcon, Info as InfoIcon, Refresh as RefreshIcon, Announcement as AnnouncementIcon, CheckCircle as CheckCircleIcon, RadioButtonUnchecked as RadioButtonUncheckedIcon, Search as SearchIcon } from '@mui/icons-material';
+import { Box, Paper, Typography, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Alert, Chip, Tooltip, IconButton, FormControl, InputLabel, Select, MenuItem, Switch, FormControlLabel, LinearProgress } from '@mui/material';
+import { Person as PersonIcon, Dns as DnsIcon, Timer as TimerIcon, VpnKey as VpnKeyIcon, ScreenShare as ScreenShareIcon, Computer as ComputerIcon, Message as MessageIcon, Info as InfoIcon, Refresh as RefreshIcon, Announcement as AnnouncementIcon, CheckCircle as CheckCircleIcon, RadioButtonUnchecked as RadioButtonUncheckedIcon, Cancel as CancelIcon } from '@mui/icons-material';
 
 import { useApp } from '../contexts/AppContext';
 import apiService from '../services/apiService';
 import SendMessageDialog from '../components/SendMessageDialog';
 import UserInfoDialog from '../components/UserInfoDialog';
 import GlobalMessageDialog from '../components/GlobalMessageDialog';
+
+// Nouveaux composants modernes
+import PageHeader from '../components/common/PageHeader';
+import SearchInput from '../components/common/SearchInput';
+import EmptyState from '../components/common/EmptyState';
+import LoadingScreen from '../components/common/LoadingScreen';
 
 const GroupedUserRow = memo(({ user, sessions, onSendMessage, onShowInfo, onShadow, onConnect, getUserInfo }) => {
     const userInfo = useMemo(() => getUserInfo(user), [getUserInfo, user]);
@@ -127,6 +133,14 @@ const SessionsPage = () => {
         return Object.entries(grouped).filter(([user]) => !filter || user.toLowerCase().includes(filter.toLowerCase()) || (getUserInfo(user)?.displayName || '').toLowerCase().includes(filter.toLowerCase()));
     }, [sessions, filter, serverFilter, getUserInfo]);
 
+    // Statistiques pour le PageHeader
+    const stats = useMemo(() => {
+        const activeSessions = sessions.filter(s => s.isActive).length;
+        const disconnectedSessions = sessions.length - activeSessions;
+        const uniqueServers = [...new Set(sessions.map(s => s.server))].length;
+        return { activeSessions, disconnectedSessions, uniqueServers };
+    }, [sessions]);
+
     const handleLaunchShadow = async (session) => {
         if (!window.electronAPI?.launchRdp) {
             showNotification('warning', 'Le mode Shadow est uniquement disponible dans l\'application de bureau.');
@@ -157,40 +171,170 @@ const SessionsPage = () => {
     };
     
     return (
-        <Box sx={{ p: 2, height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ p: 2 }}>
             {isRefreshing && <LinearProgress sx={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }} />}
-            <Paper sx={{ p: 2, mb: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h5">Sessions RDS ({sessions.length})</Typography>
-                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                        <FormControlLabel control={<Switch checked={multiScreenMode} onChange={(e) => setMultiScreenMode(e.target.checked)} size="small" />} label="Multi-écrans" />
-                        <Button variant="outlined" startIcon={<AnnouncementIcon />} onClick={() => setDialogState({ type: 'globalMessage' })}>Message à tous</Button>
-                        <Tooltip title="Forcer le rafraîchissement"><span><IconButton onClick={() => loadData(true)} disabled={isRefreshing}>{isRefreshing ? <CircularProgress size={24} /> : <RefreshIcon />}</IconButton></span></Tooltip>
+
+            {/* Header Moderne */}
+            <PageHeader
+                title="Sessions RDS"
+                subtitle={`Surveillance en temps réel des sessions utilisateurs`}
+                icon={ComputerIcon}
+                stats={[
+                    {
+                        label: 'Sessions actives',
+                        value: stats.activeSessions,
+                        icon: CheckCircleIcon
+                    },
+                    {
+                        label: 'Déconnectées',
+                        value: stats.disconnectedSessions,
+                        icon: CancelIcon
+                    },
+                    {
+                        label: 'Serveurs',
+                        value: stats.uniqueServers,
+                        icon: DnsIcon
+                    },
+                    {
+                        label: 'Utilisateurs',
+                        value: groupedSessions.length,
+                        icon: PersonIcon
+                    }
+                ]}
+                actions={
+                    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={multiScreenMode}
+                                    onChange={(e) => setMultiScreenMode(e.target.checked)}
+                                    size="small"
+                                />
+                            }
+                            label="Multi-écrans"
+                        />
+                        <Button
+                            variant="contained"
+                            startIcon={<AnnouncementIcon />}
+                            onClick={() => setDialogState({ type: 'globalMessage' })}
+                            sx={{ borderRadius: 2 }}
+                        >
+                            Message à tous
+                        </Button>
+                        <Tooltip title="Forcer le rafraîchissement">
+                            <span>
+                                <IconButton
+                                    onClick={() => loadData(true)}
+                                    disabled={isRefreshing}
+                                    color="primary"
+                                    sx={{
+                                        bgcolor: 'primary.lighter',
+                                        '&:hover': { bgcolor: 'primary.light' }
+                                    }}
+                                >
+                                    {isRefreshing ? <CircularProgress size={24} /> : <RefreshIcon />}
+                                </IconButton>
+                            </span>
+                        </Tooltip>
                     </Box>
-                </Box>
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                    <TextField label="Rechercher..." size="small" value={filter} onChange={(e) => setFilter(e.target.value)} sx={{flexGrow: 1}} InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>) }} />
-                    <FormControl size="small" sx={{ minWidth: 200 }}>
+                }
+            />
+
+            {/* Filtres */}
+            <Paper elevation={2} sx={{ p: 2.5, mb: 3, borderRadius: 2 }}>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-end' }}>
+                    <Box sx={{ flexGrow: 1 }}>
+                        <SearchInput
+                            value={filter}
+                            onChange={setFilter}
+                            placeholder="Rechercher un utilisateur ou une session..."
+                            fullWidth
+                        />
+                    </Box>
+                    <FormControl size="small" sx={{ minWidth: 220 }}>
                         <InputLabel>Serveur</InputLabel>
-                        <Select value={serverFilter} label="Serveur" onChange={(e) => setServerFilter(e.target.value)}>
+                        <Select
+                            value={serverFilter}
+                            label="Serveur"
+                            onChange={(e) => setServerFilter(e.target.value)}
+                            sx={{ borderRadius: 2 }}
+                        >
                             <MenuItem value="all">Tous les serveurs</MenuItem>
-                            {(config?.rds_servers || []).map(server => (<MenuItem key={server} value={server}>{server}</MenuItem>))}
+                            {(config?.rds_servers || []).map(server => (
+                                <MenuItem key={server} value={server}>{server}</MenuItem>
+                            ))}
                         </Select>
                     </FormControl>
-                    <Typography variant="body2" color="text.secondary">{groupedSessions.length} utilisateur(s)</Typography>
                 </Box>
-                {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
+                {error && <Alert severity="error" sx={{ mt: 2, borderRadius: 1 }}>{error}</Alert>}
             </Paper>
-            <TableContainer component={Paper} sx={{ flex: 1, position: 'relative' }}>
-                {(isLoading && !isRefreshing) && <Box sx={{position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.5)', zIndex: 2}}><CircularProgress /></Box>}
-                <Table size="small" stickyHeader>
-                    <TableHead><TableRow><TableCell sx={{ width: '16%' }}><PersonIcon sx={{ verticalAlign: 'bottom', mr: 0.5 }}/>Nom Complet</TableCell><TableCell sx={{ width: '12%' }}><VpnKeyIcon sx={{ verticalAlign: 'bottom', mr: 0.5 }}/>Utilisateur</TableCell><TableCell sx={{ width: '13%' }}><DnsIcon sx={{ verticalAlign: 'bottom', mr: 0.5 }}/>Serveurs</TableCell><TableCell sx={{ width: '10%' }}>État</TableCell><TableCell sx={{ width: '11%' }}><TimerIcon sx={{ verticalAlign: 'bottom', mr: 0.5 }}/>Durée</TableCell><TableCell sx={{ width: '14%' }}>Heure Connexion</TableCell><TableCell sx={{ width: '14%' }}>Actions</TableCell></TableRow></TableHead>
-                    <TableBody>
-                         {groupedSessions.length === 0 && !isLoading ? (<TableRow><TableCell colSpan={7} align="center" sx={{ p: 4 }}><Typography color="text.secondary">Aucune session à afficher.</Typography></TableCell></TableRow>) :
-                         (groupedSessions.map(([user, userSessions]) => (<GroupedUserRow key={user} user={user} sessions={userSessions} onSendMessage={(s) => setDialogState({ type: 'sendMessage', data: s })} onShowInfo={(s, ui) => setDialogState({ type: 'userInfo', data: { ...s, userInfo: ui } })} onShadow={handleLaunchShadow} onConnect={handleLaunchConnect} getUserInfo={getUserInfo} />)))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+            {/* Table avec Loading et Empty States */}
+            {isLoading && !isRefreshing ? (
+                <LoadingScreen type="table" rows={10} columns={7} />
+            ) : groupedSessions.length === 0 ? (
+                <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
+                    <EmptyState
+                        type={filter || serverFilter !== 'all' ? 'search' : 'empty'}
+                        title={filter || serverFilter !== 'all' ? 'Aucune session trouvée' : 'Aucune session active'}
+                        description={
+                            filter || serverFilter !== 'all'
+                                ? 'Essayez avec d\'autres critères de recherche'
+                                : 'Les sessions RDS apparaîtront ici une fois les utilisateurs connectés'
+                        }
+                        actionLabel={filter || serverFilter !== 'all' ? 'Réinitialiser les filtres' : undefined}
+                        onAction={
+                            filter || serverFilter !== 'all'
+                                ? () => {
+                                      setFilter('');
+                                      setServerFilter('all');
+                                  }
+                                : undefined
+                        }
+                    />
+                </Paper>
+            ) : (
+                <TableContainer component={Paper} elevation={2} sx={{ borderRadius: 2 }}>
+                    <Table size="small" stickyHeader>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell sx={{ width: '16%', fontWeight: 600 }}>
+                                    <PersonIcon sx={{ verticalAlign: 'bottom', mr: 0.5 }} />
+                                    Nom Complet
+                                </TableCell>
+                                <TableCell sx={{ width: '12%', fontWeight: 600 }}>
+                                    <VpnKeyIcon sx={{ verticalAlign: 'bottom', mr: 0.5 }} />
+                                    Utilisateur
+                                </TableCell>
+                                <TableCell sx={{ width: '13%', fontWeight: 600 }}>
+                                    <DnsIcon sx={{ verticalAlign: 'bottom', mr: 0.5 }} />
+                                    Serveurs
+                                </TableCell>
+                                <TableCell sx={{ width: '10%', fontWeight: 600 }}>État</TableCell>
+                                <TableCell sx={{ width: '11%', fontWeight: 600 }}>
+                                    <TimerIcon sx={{ verticalAlign: 'bottom', mr: 0.5 }} />
+                                    Durée
+                                </TableCell>
+                                <TableCell sx={{ width: '14%', fontWeight: 600 }}>Heure Connexion</TableCell>
+                                <TableCell sx={{ width: '14%', fontWeight: 600 }}>Actions</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {groupedSessions.map(([user, userSessions]) => (
+                                <GroupedUserRow
+                                    key={user}
+                                    user={user}
+                                    sessions={userSessions}
+                                    onSendMessage={(s) => setDialogState({ type: 'sendMessage', data: s })}
+                                    onShowInfo={(s, ui) => setDialogState({ type: 'userInfo', data: { ...s, userInfo: ui } })}
+                                    onShadow={handleLaunchShadow}
+                                    onConnect={handleLaunchConnect}
+                                    getUserInfo={getUserInfo}
+                                />
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            )}
             {dialogState.type === 'sendMessage' && <SendMessageDialog open={true} onClose={() => setDialogState({ type: null })} selectedSessions={[`${dialogState.data.server}-${dialogState.data.sessionId}`]} sessions={sessions} />}
             {dialogState.type === 'userInfo' && <UserInfoDialog open={true} onClose={() => setDialogState({ type: null })} user={dialogState.data} />}
             {dialogState.type === 'globalMessage' && <GlobalMessageDialog open={true} onClose={() => setDialogState({ type: null })} servers={config?.rds_servers || []} />}

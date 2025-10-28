@@ -140,29 +140,50 @@ const ChatSettingsPanel = () => {
     };
 
     return (
-        <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h5"><ChatIcon sx={{ mb: -0.5, mr: 1 }} />Canaux de Discussion</Typography>
-                <Button startIcon={<AddIcon />} onClick={() => { setEditingChannel(null); setDialogOpen(true); }}>Ajouter</Button>
+        <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                <Box>
+                    <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center', fontWeight: 600, mb: 1 }}>
+                        <ChatIcon sx={{ mr: 1.5 }} />
+                        Canaux de Discussion
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Gérez les canaux de communication de l'équipe technique
+                    </Typography>
+                </Box>
+                <Button
+                    startIcon={<AddIcon />}
+                    onClick={() => { setEditingChannel(null); setDialogOpen(true); }}
+                    variant="contained"
+                    sx={{ borderRadius: 2 }}
+                >
+                    Ajouter
+                </Button>
             </Box>
             {loading ? <CircularProgress /> : (
                 <TableContainer>
                     <Table>
                         <TableHead>
                             <TableRow>
-                                <TableCell>Nom</TableCell>
-                                <TableCell>Description</TableCell>
-                                <TableCell>Actions</TableCell>
+                                <TableCell sx={{ fontWeight: 600 }}>Nom</TableCell>
+                                <TableCell sx={{ fontWeight: 600 }}>Description</TableCell>
+                                <TableCell sx={{ fontWeight: 600 }}>Actions</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {channels.map(c => (
-                                <TableRow key={c.id}>
+                                <TableRow key={c.id} hover>
                                     <TableCell>{c.name}</TableCell>
                                     <TableCell>{c.description}</TableCell>
                                     <TableCell>
-                                        <IconButton onClick={() => { setEditingChannel(c); setDialogOpen(true); }}><EditIcon /></IconButton>
-                                        {c.id !== 'general' && <IconButton onClick={() => handleDelete(c.id)}><DeleteIcon /></IconButton>}
+                                        <IconButton onClick={() => { setEditingChannel(c); setDialogOpen(true); }} size="small">
+                                            <EditIcon />
+                                        </IconButton>
+                                        {c.id !== 'general' && (
+                                            <IconButton onClick={() => handleDelete(c.id)} size="small" color="error">
+                                                <DeleteIcon />
+                                            </IconButton>
+                                        )}
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -345,22 +366,79 @@ const SettingsPage = ({ open, onClose }) => {
                 </Tabs>
                 <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
                     <TabPanel value={currentTab} index={0}>
-                        <Paper sx={{ p: 3 }}>
-                            <Typography variant="h6" gutterBottom><LockIcon sx={{ mb: -0.5, mr: 1 }} />Sécurité & Active Directory</Typography>
+                        <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+                            <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', fontWeight: 600 }}>
+                                <LockIcon sx={{ mr: 1.5 }} />
+                                Sécurité & Active Directory
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                                Configuration de l'authentification Active Directory et sécurité de l'application
+                            </Typography>
                             <Grid container spacing={2}>
-                                <Grid item xs={12} sm={6}><TextField label="Nouveau mot de passe App" type="password" fullWidth helperText="Laissez vide pour ne pas changer" /></Grid>
-                                <Grid item xs={12} sm={4}><TextField label="Domaine AD" name="domain" value={editedConfig.domain || ''} onChange={handleFieldChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={4}><TextField label="Utilisateur AD (Admin)" name="username" value={editedConfig.username || ''} onChange={handleFieldChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={4}><TextField label="Mot de passe AD" name="password" type="password" value={editedConfig.password || ''} onChange={handleFieldChange} fullWidth /></Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        label="Nouveau mot de passe App"
+                                        type="password"
+                                        fullWidth
+                                        helperText="Laissez vide pour ne pas changer"
+                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={4}>
+                                    <TextField
+                                        label="Domaine AD"
+                                        name="domain"
+                                        value={editedConfig.domain || ''}
+                                        onChange={handleFieldChange}
+                                        fullWidth
+                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={4}>
+                                    <TextField
+                                        label="Utilisateur AD (Admin)"
+                                        name="username"
+                                        value={editedConfig.username || ''}
+                                        onChange={handleFieldChange}
+                                        fullWidth
+                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={4}>
+                                    <TextField
+                                        label="Mot de passe AD"
+                                        name="password"
+                                        type="password"
+                                        value={editedConfig.password || ''}
+                                        onChange={handleFieldChange}
+                                        fullWidth
+                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                    />
+                                </Grid>
                             </Grid>
                         </Paper>
                     </TabPanel>
 
                     <TabPanel value={currentTab} index={1}>
-                        <Paper sx={{ p: 3 }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                                <Typography variant="h5"><PeopleIcon sx={{ mb: -0.5, mr: 1 }} />Gestion des Techniciens</Typography>
-                                <Button startIcon={<AddIcon />} onClick={() => setTechnicianDialog({ open: true, technician: null })}>Ajouter</Button>
+                        <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                                <Box>
+                                    <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center', fontWeight: 600, mb: 1 }}>
+                                        <PeopleIcon sx={{ mr: 1.5 }} />
+                                        Gestion des Techniciens
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                        Gérez les comptes et permissions des techniciens IT ayant accès à l'application
+                                    </Typography>
+                                </Box>
+                                <Button
+                                    startIcon={<AddIcon />}
+                                    onClick={() => setTechnicianDialog({ open: true, technician: null })}
+                                    variant="contained"
+                                    sx={{ borderRadius: 2 }}
+                                >
+                                    Ajouter
+                                </Button>
                             </Box>
                             <TableContainer>
                                 <Table>
@@ -400,22 +478,76 @@ const SettingsPage = ({ open, onClose }) => {
                     </TabPanel>
 
                     <TabPanel value={currentTab} index={2}>
-                        <Paper sx={{ p: 3, mb: 3 }}>
-                            <Typography variant="h5" gutterBottom><DnsIcon sx={{ mb: -0.5, mr: 1 }} />Serveurs RDS</Typography>
-                            <TextField label="Liste des serveurs (un par ligne)" name="rds_servers" value={editedConfig.rds_servers?.join('\n') || ''} onChange={e => setEditedConfig(p => ({ ...p, rds_servers: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) }))} multiline rows={8} fullWidth />
+                        <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+                            <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', fontWeight: 600 }}>
+                                <DnsIcon sx={{ mr: 1.5 }} />
+                                Serveurs RDS
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                                Liste des serveurs Remote Desktop Services à surveiller
+                            </Typography>
+                            <TextField
+                                label="Liste des serveurs (un par ligne)"
+                                name="rds_servers"
+                                value={editedConfig.rds_servers?.join('\n') || ''}
+                                onChange={e => setEditedConfig(p => ({ ...p, rds_servers: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) }))}
+                                multiline
+                                rows={8}
+                                fullWidth
+                                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                            />
                         </Paper>
                         <ChatSettingsPanel />
                     </TabPanel>
 
                     <TabPanel value={currentTab} index={3}>
-                        <Paper sx={{ p: 3 }}>
-                            <Typography variant="h5" gutterBottom><FolderSharedIcon sx={{ mb: -0.5, mr: 1 }} />Chemins d'Accès</Typography>
+                        <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+                            <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', fontWeight: 600 }}>
+                                <FolderSharedIcon sx={{ mr: 1.5 }} />
+                                Chemins d'Accès
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                                Configuration des chemins vers les fichiers de données et de configuration
+                            </Typography>
                             <Grid container spacing={2}>
                                 <Grid item xs={12}>
-                                    <TextField label="Fichier Excel Utilisateurs" name="defaultExcelPath" value={editedConfig.defaultExcelPath || ''} onChange={handleFieldChange} fullWidth InputProps={{ endAdornment: <InputAdornment position="end"><IconButton onClick={() => handleBrowse('defaultExcelPath')}><FolderOpenIcon /></IconButton></InputAdornment> }} />
+                                    <TextField
+                                        label="Fichier Excel Utilisateurs"
+                                        name="defaultExcelPath"
+                                        value={editedConfig.defaultExcelPath || ''}
+                                        onChange={handleFieldChange}
+                                        fullWidth
+                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                        InputProps={{
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    <IconButton onClick={() => handleBrowse('defaultExcelPath')}>
+                                                        <FolderOpenIcon />
+                                                    </IconButton>
+                                                </InputAdornment>
+                                            )
+                                        }}
+                                    />
                                 </Grid>
                                 <Grid item xs={12}>
-                                    <TextField label="Dossier des Données Partagées" name="computersDbPath" value={path.dirname(editedConfig.computersDbPath || '')} onChange={e => handleFieldChange({ target: { name: 'computersDbPath', value: path.join(e.target.value, 'computers_stock.json') } })} fullWidth helperText="Dossier contenant: computers_stock.json, loans.json, chat.json, etc." InputProps={{ endAdornment: <InputAdornment position="end"><IconButton onClick={() => handleBrowse('computersDbPath', false)}><FolderOpenIcon /></IconButton></InputAdornment> }} />
+                                    <TextField
+                                        label="Dossier des Données Partagées"
+                                        name="computersDbPath"
+                                        value={path.dirname(editedConfig.computersDbPath || '')}
+                                        onChange={e => handleFieldChange({ target: { name: 'computersDbPath', value: path.join(e.target.value, 'computers_stock.json') } })}
+                                        fullWidth
+                                        helperText="Dossier contenant: computers_stock.json, loans.json, chat.json, etc."
+                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                        InputProps={{
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    <IconButton onClick={() => handleBrowse('computersDbPath', false)}>
+                                                        <FolderOpenIcon />
+                                                    </IconButton>
+                                                </InputAdornment>
+                                            )
+                                        }}
+                                    />
                                 </Grid>
                             </Grid>
                         </Paper>

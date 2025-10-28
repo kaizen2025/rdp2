@@ -41,6 +41,12 @@ import ComputerHistoryDialog from '../components/ComputerHistoryDialog';
 import MaintenanceDialog from '../components/MaintenanceDialog';
 import LoanDialog from '../components/LoanDialog';
 
+// Nouveaux composants modernes
+import PageHeader from '../components/common/PageHeader';
+import SearchInput from '../components/common/SearchInput';
+import EmptyState from '../components/common/EmptyState';
+import LoadingScreen from '../components/common/LoadingScreen';
+
 const STATUS_CONFIG = {
     available: { label: 'Disponible', color: 'success', icon: CheckCircleIcon },
     loaned: { label: 'Prêté', color: 'info', icon: AssignmentIcon },
@@ -357,53 +363,82 @@ const ComputersPage = () => {
 
     return (
         <Box sx={{ p: 2 }}>
-            <Paper elevation={3} sx={{ p: 2, mb: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h5">Stock Ordinateurs</Typography>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
+            {/* Header Moderne */}
+            <PageHeader
+                title="Stock Ordinateurs"
+                subtitle={`Gestion complète du parc informatique et prêts d'équipements`}
+                icon={LaptopIcon}
+                stats={[
+                    {
+                        label: 'Total',
+                        value: stats.total,
+                        icon: LaptopIcon
+                    },
+                    {
+                        label: 'Disponibles',
+                        value: stats.available,
+                        icon: CheckCircleIcon
+                    },
+                    {
+                        label: 'Prêtés',
+                        value: stats.loaned,
+                        icon: AssignmentIcon
+                    },
+                    {
+                        label: 'En maintenance',
+                        value: stats.maintenance,
+                        icon: BuildIcon
+                    }
+                ]}
+                actions={
+                    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
                         <Button
                             variant="contained"
                             startIcon={<AddIcon />}
-                            onClick={() => { setSelectedComputer(null); setComputerDialogOpen(true); }}
+                            onClick={() => {
+                                setSelectedComputer(null);
+                                setComputerDialogOpen(true);
+                            }}
+                            sx={{ borderRadius: 2 }}
                         >
                             Ajouter
                         </Button>
                         <Tooltip title="Actualiser">
-                            <IconButton onClick={() => loadData()}>
+                            <IconButton
+                                onClick={() => loadData()}
+                                color="primary"
+                                sx={{
+                                    bgcolor: 'primary.lighter',
+                                    '&:hover': { bgcolor: 'primary.light' }
+                                }}
+                            >
                                 <RefreshIcon />
                             </IconButton>
                         </Tooltip>
                     </Box>
-                </Box>
+                }
+            />
 
-                {/* Statistiques rapides */}
-                <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-                    <Chip label={`Total: ${stats.total}`} />
-                    <Chip label={`Disponibles: ${stats.available}`} color="success" />
-                    <Chip label={`Prêtés: ${stats.loaned}`} color="info" />
-                    <Chip label={`Maintenance: ${stats.maintenance}`} color="warning" />
-                </Box>
-
-                {/* Filtres */}
-                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <TextField
-                        size="small"
-                        placeholder="Rechercher..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <SearchIcon />
-                                </InputAdornment>
-                            ),
-                        }}
-                        sx={{ minWidth: 300 }}
-                    />
+            {/* Filtres */}
+            <Paper elevation={2} sx={{ p: 2.5, mb: 3, borderRadius: 2 }}>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                    <Box sx={{ flexGrow: 1, minWidth: 300 }}>
+                        <SearchInput
+                            value={searchTerm}
+                            onChange={setSearchTerm}
+                            placeholder="Rechercher (nom, marque, modèle, S/N...)"
+                            fullWidth
+                        />
+                    </Box>
 
                     <FormControl size="small" sx={{ minWidth: 150 }}>
                         <InputLabel>Statut</InputLabel>
-                        <Select value={statusFilter} label="Statut" onChange={(e) => setStatusFilter(e.target.value)}>
+                        <Select
+                            value={statusFilter}
+                            label="Statut"
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            sx={{ borderRadius: 2 }}
+                        >
                             <MenuItem value="all">Tous</MenuItem>
                             {Object.entries(STATUS_CONFIG).map(([key, config]) => (
                                 <MenuItem key={key} value={key}>{config.label}</MenuItem>
@@ -413,7 +448,12 @@ const ComputersPage = () => {
 
                     <FormControl size="small" sx={{ minWidth: 150 }}>
                         <InputLabel>Localisation</InputLabel>
-                        <Select value={locationFilter} label="Localisation" onChange={(e) => setLocationFilter(e.target.value)}>
+                        <Select
+                            value={locationFilter}
+                            label="Localisation"
+                            onChange={(e) => setLocationFilter(e.target.value)}
+                            sx={{ borderRadius: 2 }}
+                        >
                             <MenuItem value="all">Toutes</MenuItem>
                             {locations.map(loc => (
                                 <MenuItem key={loc} value={loc}>{loc}</MenuItem>
@@ -423,7 +463,12 @@ const ComputersPage = () => {
 
                     <FormControl size="small" sx={{ minWidth: 150 }}>
                         <InputLabel>Marque</InputLabel>
-                        <Select value={brandFilter} label="Marque" onChange={(e) => setBrandFilter(e.target.value)}>
+                        <Select
+                            value={brandFilter}
+                            label="Marque"
+                            onChange={(e) => setBrandFilter(e.target.value)}
+                            sx={{ borderRadius: 2 }}
+                        >
                             <MenuItem value="all">Toutes</MenuItem>
                             {brands.map(brand => (
                                 <MenuItem key={brand} value={brand}>{brand}</MenuItem>
@@ -432,22 +477,47 @@ const ComputersPage = () => {
                     </FormControl>
 
                     {hasActiveFilters && (
-                        <Button size="small" onClick={clearFilters} startIcon={<FilterListIcon />}>
+                        <Button
+                            size="small"
+                            onClick={clearFilters}
+                            startIcon={<FilterListIcon />}
+                            sx={{ borderRadius: 2 }}
+                        >
                             Effacer filtres
                         </Button>
                     )}
 
-                    <Box sx={{ flexGrow: 1 }} />
-                    <Typography variant="body2" color="text.secondary">
+                    <Box sx={{ flexGrow: 0.1 }} />
+                    <Typography variant="body2" color="text.secondary" fontWeight={500}>
                         {filteredComputers.length} / {computers.length} affiché(s)
                     </Typography>
                 </Box>
             </Paper>
 
+            {/* Grille d'ordinateurs */}
             {isLoading ? (
-                <Box sx={{ p: 4, display: 'flex', justifyContent: 'center' }}>
-                    <CircularProgress />
-                </Box>
+                <LoadingScreen type="cards" count={8} />
+            ) : filteredComputers.length === 0 ? (
+                <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
+                    <EmptyState
+                        type={hasActiveFilters ? 'search' : 'empty'}
+                        title={hasActiveFilters ? 'Aucun ordinateur trouvé' : 'Aucun ordinateur en stock'}
+                        description={
+                            hasActiveFilters
+                                ? 'Essayez avec d\'autres critères de recherche'
+                                : 'Cliquez sur "Ajouter" pour enregistrer votre premier ordinateur'
+                        }
+                        actionLabel={hasActiveFilters ? 'Effacer les filtres' : 'Ajouter un ordinateur'}
+                        onAction={
+                            hasActiveFilters
+                                ? clearFilters
+                                : () => {
+                                      setSelectedComputer(null);
+                                      setComputerDialogOpen(true);
+                                  }
+                        }
+                    />
+                </Paper>
             ) : (
                 <Grid container spacing={2}>
                     {filteredComputers.map(computer => (
