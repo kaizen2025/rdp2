@@ -28,7 +28,8 @@ console.log(" Démarrage du serveur RDS Viewer...");
 console.log("=============================================");
 
 const allowedOrigins = [
-  'http://localhost:3000',
+  'http://localhost:3000',  // Port de développement React
+  `http://localhost:${API_PORT}`,  // Port de production
   `http://192.168.1.232:${API_PORT}`,
   `http://${os.hostname()}:${API_PORT}`,
 ];
