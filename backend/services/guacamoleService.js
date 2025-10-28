@@ -1,23 +1,23 @@
-// backend/services/guacamoleService.js - VERSION FINALE UTILISANT L'AUTHENTIFICATION PAR TOKEN JSON
+// backend/services/guacamoleService.js - VERSION CORRIGÉE POUR AUTH-JSON
 
-const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const configService = require('./configService');
 
 /**
- * Génère un token de connexion JWT signé pour une session RDP spécifique via Guacamole.
- * C'est la méthode la plus moderne et sécurisée pour les connexions ad-hoc.
- * PRÉREQUIS: Avoir installé l'extension "guacamole-auth-json" et configuré guacamole.properties avec la même secretKey.
+ * Génère un token de connexion au format auth-json pour Guacamole.
+ * Le format attendu est : JSON signé avec HMAC-SHA256, chiffré avec AES-128-CBC, encodé en base64.
+ * PRÉREQUIS: Avoir installé l'extension "guacamole-auth-json" et configuré avec la même secretKey.
  */
 async function generateConnectionToken(connectionDetails) {
     const { server, username, password, sessionId, multiScreen } = connectionDetails;
     const guacConfig = configService.appConfig.guacamole;
 
     if (!guacConfig || !guacConfig.secretKey) {
-        throw new Error("La 'secretKey' est manquante dans la section 'guacamole' de votre config.json. Elle est requise pour cette méthode d'authentification.");
+        throw new Error("La 'secretKey' est manquante dans la section 'guacamole' de votre config.json.");
     }
 
     // Log détaillé pour le débogage
-    console.log(`🥑 Génération du token JWT pour Guacamole...`, {
+    console.log(`🥑 Génération du token auth-json pour Guacamole...`, {
         server,
         username,
         sessionId: sessionId || 'N/A',
@@ -25,49 +25,74 @@ async function generateConnectionToken(connectionDetails) {
         shadowConnect: !!sessionId,
     });
 
-    // Construction de l'objet de connexion dynamique
-    const connectionConfig = {
-        protocol: 'rdp',
-        parameters: {
-            hostname: server,
-            port: '3389',
-            'ignore-cert': 'true',
-            'security': 'any',
-            'resize-method': 'display-update',
-            'enable-font-smoothing': 'true',
-            'enable-wallpaper': 'true',
-            'enable-theming': 'true',
-            'enable-desktop-composition': 'true',
-            'color-depth': '24',
-            ...(username && { username: username }),
-            ...(password && { password: password }),
-            ...(multiScreen && { 'use-multimon': 'true' }),
-            // Si c'est une session shadow, on utilise 'initial-program' pour lancer mstsc.
-            // On se connecte avec les identifiants admin du config.json pour avoir les droits.
-            ...(sessionId && {
-                'initial-program': `mstsc /shadow:${sessionId} /control`, // Avec consentement
-                'username': configService.appConfig.username,
-                'password': configService.appConfig.password,
-                'domain': configService.appConfig.domain
-            })
+    // Construction de l'objet de connexion au format Guacamole
+    const authData = {
+        username: username || 'rdp-user',
+        expires: Date.now() + 60000, // Expire dans 60 secondes
+        connections: {
+            [`rdp-${server}-${Date.now()}`]: {
+                protocol: 'rdp',
+                parameters: {
+                    hostname: server,
+                    port: '3389',
+                    'ignore-cert': 'true',
+                    'security': 'any',
+                    'resize-method': 'display-update',
+                    'enable-font-smoothing': 'true',
+                    'enable-wallpaper': 'true',
+                    'enable-theming': 'true',
+                    'enable-desktop-composition': 'true',
+                    'color-depth': '24',
+                    ...(username && { username: username }),
+                    ...(password && { password: password }),
+                    ...(multiScreen && { 'use-multimon': 'true' }),
+                    // Si c'est une session shadow, on utilise 'initial-program' pour lancer mstsc
+                    ...(sessionId && {
+                        'initial-program': `mstsc /shadow:${sessionId} /control`,
+                        'username': configService.appConfig.username,
+                        'password': configService.appConfig.password,
+                        'domain': configService.appConfig.domain
+                    })
+                }
+            }
         }
     };
 
-    // Création du payload JWT
-    const payload = {
-        // Le token est valide 60 secondes pour initier la connexion
-        exp: Math.floor(Date.now() / 1000) + 60,
-        connection: connectionConfig
-    };
-
     try {
-        // Signer le token avec la clé secrète partagée
-        const token = jwt.sign(payload, guacConfig.secretKey);
-        console.log(`✅ Token JWT pour Guacamole généré.`);
+        // Convertir la clé secrète de base64 en buffer
+        const secretKey = Buffer.from(guacConfig.secretKey, 'base64');
+
+        // Vérifier que la clé fait 32 bytes (256 bits) pour AES-256 ou 16 bytes (128 bits) pour AES-128
+        if (secretKey.length !== 32 && secretKey.length !== 16) {
+            throw new Error(`La clé secrète doit faire 16 ou 32 bytes. Taille actuelle: ${secretKey.length} bytes`);
+        }
+
+        // 1. Convertir authData en JSON
+        const jsonData = JSON.stringify(authData);
+        const jsonBuffer = Buffer.from(jsonData, 'utf8');
+
+        // 2. Signer avec HMAC-SHA256
+        const hmac = crypto.createHmac('sha256', secretKey);
+        hmac.update(jsonBuffer);
+        const signature = hmac.digest();
+
+        // 3. Préfixer la signature au JSON
+        const signedData = Buffer.concat([signature, jsonBuffer]);
+
+        // 4. Chiffrer avec AES en CBC mode (IV = zéros)
+        const algorithm = secretKey.length === 16 ? 'aes-128-cbc' : 'aes-256-cbc';
+        const iv = Buffer.alloc(16, 0); // IV de 16 bytes remplis de zéros
+        const cipher = crypto.createCipheriv(algorithm, secretKey, iv);
+        const encrypted = Buffer.concat([cipher.update(signedData), cipher.final()]);
+
+        // 5. Encoder en base64
+        const token = encrypted.toString('base64');
+
+        console.log(`✅ Token auth-json pour Guacamole généré (${token.length} caractères).`);
         return token;
     } catch (error) {
-        console.error("❌ Erreur lors de la signature du token JWT pour Guacamole:", error);
-        throw new Error("Échec de la création du token de connexion.");
+        console.error("❌ Erreur lors de la génération du token auth-json:", error);
+        throw new Error("Échec de la création du token de connexion: " + error.message);
     }
 }
 
