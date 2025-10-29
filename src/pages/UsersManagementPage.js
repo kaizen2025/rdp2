@@ -84,7 +84,11 @@ const UserRow = memo(({ user, style, isOdd, onEdit, onDelete, onConnect, onPrint
             </Box>
             <Box sx={{ flex: '1 1 120px', minWidth: 100, display: 'flex', gap: 1 }}><AdGroupBadge groupName="VPN" isMember={vpnMembers.has(user.username)} onToggle={() => toggleGroup('VPN', vpnMembers.has(user.username), setIsUpdatingVpn)} isLoading={isUpdatingVpn} /><AdGroupBadge groupName="Sortants_responsables" isMember={internetMembers.has(user.username)} onToggle={() => toggleGroup('Sortants_responsables', internetMembers.has(user.username), setIsUpdatingInternet)} isLoading={isUpdatingInternet} /></Box>
             <Box sx={{ flex: '0 0 auto', display: 'flex' }}>
-                <Tooltip title="Connexion RDP (app bureau)"><IconButton size="small" onClick={() => onConnect(user)} disabled={!window.electronAPI}><LaunchIcon /></IconButton></Tooltip>
+                <Tooltip title="Connexion RDP (app bureau)">
+                    <span>
+                        <IconButton size="small" onClick={() => onConnect(user)} disabled={!window.electronAPI}><LaunchIcon /></IconButton>
+                    </span>
+                </Tooltip>
                 <Tooltip title="Éditer (Excel)"><IconButton size="small" onClick={() => onEdit(user)}><EditIcon /></IconButton></Tooltip>
                 <Tooltip title="Imprimer Fiche"><IconButton size="small" onClick={() => onPrint(user)}><PrintIcon /></IconButton></Tooltip>
                 <Tooltip title="Actions AD"><IconButton size="small" onClick={(e) => onOpenAdMenu(e, user)}><MoreVertIcon /></IconButton></Tooltip>
@@ -133,13 +137,28 @@ const UsersManagementPage = () => {
     const loadUsers = useCallback(async (force = false) => {
         try {
             const data = await fetchWithCache('excel_users', apiService.getExcelUsers, { force });
-            if (data?.success && data?.users) {
-                setUsers(Object.values(data.users).flat());
+
+            // On vérifie si les données sont dans le format attendu { success: true, users: [...] }
+            // ou si c'est directement un tableau d'utilisateurs.
+            const usersArray = data?.success && Array.isArray(data.users)
+                ? data.users
+                : Array.isArray(data)
+                ? data
+                : [];
+
+            if (usersArray.length > 0) {
+                setUsers(usersArray);
             } else {
                 setUsers([]);
-                showNotification('error', data?.error || 'Impossible de charger les utilisateurs Excel.');
+                // On évite d'afficher une erreur si le backend renvoie simplement un tableau vide.
+                if (data && !data.success && data.error) {
+                    showNotification('error', data.error);
+                }
             }
-        } catch (error) { showNotification('error', `Erreur chargement utilisateurs: ${error.message}`); }
+        } catch (error) {
+            showNotification('error', `Erreur critique lors du chargement des utilisateurs: ${error.message}`);
+            setUsers([]); // Assurer un état propre en cas d'erreur
+        }
     }, [fetchWithCache, showNotification]);
 
     const handleRefresh = useCallback(async (force = true) => {
