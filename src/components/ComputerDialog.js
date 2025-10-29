@@ -13,6 +13,11 @@ import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import Slide from '@mui/material/Slide';
+
+const Transition = React.forwardRef(function Transition(props, ref) {
+    return <Slide direction="up" ref={ref} {...props} />;
+});
 
 const COMPUTER_STATUS = {
   AVAILABLE: 'available',
@@ -77,6 +82,8 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
         assignedTo: '',
         assetTag: ''
     });
+
+    const [errors, setErrors] = useState({});
 
     useEffect(() => {
         if (computer) {
@@ -160,8 +167,6 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
         }));
     };
 
-    const [errors, setErrors] = useState({});
-
     const validateField = (name, value) => {
         let error = '';
         switch (name) {
@@ -178,7 +183,7 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
                 break;
         }
         return error;
-    }
+    };
 
     const handleBlur = (e) => {
         const { name, value } = e.target;
@@ -197,6 +202,9 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
         } else {
             setFormData(prev => ({ ...prev, [name]: value }));
         }
+
+        const error = validateField(name, value);
+        setErrors(prev => ({ ...prev, [name]: error }));
     };
 
     const validate = () => {
@@ -228,6 +236,7 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
             onClose={onClose}
             maxWidth="lg"
             fullWidth
+            TransitionComponent={Transition}
             aria-labelledby="computer-dialog-title"
             aria-describedby="computer-dialog-description"
         >
@@ -510,7 +519,7 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
                     {computer ? 'Sauvegarder' : 'Ajouter'}
                 </Button>
             </DialogActions>
-        </Dialog>
+        </StyledDialog>
     );
 };
 
