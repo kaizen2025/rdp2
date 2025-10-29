@@ -83,6 +83,65 @@ npm run build:quick
 
 ---
 
+### 🔧 **Maintenance & Dépannage**
+
+#### Vérifier les Dépendances Natives
+```bash
+npm run check:deps
+```
+**Description** : Vérifie et recompile automatiquement `better-sqlite3` si nécessaire.
+
+**✨ Ce que fait cette commande** :
+1. 🔍 Teste si better-sqlite3 fonctionne
+2. 📋 Affiche les informations système (Node.js, plateforme, ABI)
+3. 🔨 Recompile automatiquement si incompatible
+4. ✅ Valide que tout fonctionne après rebuild
+
+**Quand l'utiliser** :
+- ❌ Erreur `NODE_MODULE_VERSION` au démarrage
+- 🔄 Après changement de version de Node.js
+- 📦 Après un `npm install` sur une nouvelle machine
+- 🆕 Après un `git pull` avec modifications de dépendances
+
+**Exemple de sortie** :
+```
+🔍 Vérification des dépendances natives...
+
+📋 Informations système:
+   • Node.js version     : v20.10.0
+   • Plateforme          : win32
+   • Architecture        : x64
+   • Module version (ABI): 127
+
+📦 Test de better-sqlite3...
+❌ better-sqlite3 ne fonctionne pas correctement
+   Erreur: was compiled against NODE_MODULE_VERSION 130
+
+⚠️  better-sqlite3 doit être recompilé pour votre version de Node.js
+
+🔨 Rebuild de better-sqlite3 en cours...
+   (Cela peut prendre 30-60 secondes)
+
+✅ better-sqlite3 recompilé avec succès
+✅ better-sqlite3 fonctionne maintenant correctement!
+```
+
+#### Rebuild Manuel des Modules Natifs
+```bash
+npm run rebuild:native
+```
+**Description** : Recompile manuellement better-sqlite3 (utilisé automatiquement par postinstall).
+
+#### Démarrage Direct du Serveur (Sans Vérification)
+```bash
+npm run server:start:direct
+```
+**Description** : Lance le serveur sans vérification des dépendances (utile pour debug).
+
+⚠️ **Attention** : Cette commande ne vérifie PAS better-sqlite3. Utilisez `server:start` normalement.
+
+---
+
 ### 🔨 **Développement**
 
 #### Développement Complet
@@ -131,10 +190,15 @@ npm run electron:dev
 ```bash
 npm run clean
 ```
-**Description** : Supprime les dossiers de build et cache.
-- `build/`
-- `dist/`
-- `node_modules/.cache`
+**Description** : Supprime les dossiers de build, cache et fichiers générés.
+
+**Fichiers/dossiers supprimés** :
+- `build/` : Build de production React
+- `dist/` : Exécutables Electron générés
+- `node_modules/.cache` : Cache de compilation
+- `.ports.json` : Configuration des ports (régénéré au démarrage)
+- `.env.local` : Variables d'environnement React (régénéré au démarrage)
+- `.rebuild-done` : Marqueur de rebuild (régénéré si nécessaire)
 
 ---
 

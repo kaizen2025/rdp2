@@ -1,22 +1,22 @@
-// src/pages/UsersManagementPage.js - VERSION FINALE, AMÉLIORÉE ET CORRIGÉE
+// src/pages/UsersManagementPage.js - VERSION MODERNISÉE ET OPTIMISÉE
 
-import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import {
-    Box, Paper, Typography, Button, TextField, IconButton, Tooltip, CircularProgress,
-    InputAdornment, FormControl, InputLabel, Select, MenuItem, Chip, Snackbar, Alert,
+    Box, Paper, Typography, Button, IconButton, Tooltip, CircularProgress,
+    FormControl, InputLabel, Select, MenuItem, Chip, Snackbar, Alert,
     Grid, LinearProgress, Menu, ListItemIcon, ListItemText
 } from '@mui/material';
 
 // Icons
 import {
-    PersonAdd as PersonAddIcon, Refresh as RefreshIcon, Search as SearchIcon,
-    Clear as ClearIcon, ContentCopy as ContentCopyIcon, CheckCircle as CheckCircleIcon,
+    PersonAdd as PersonAddIcon, Refresh as RefreshIcon,
+    Clear as ClearIcon,
     Edit as EditIcon, Delete as DeleteIcon, Launch as LaunchIcon, Print as PrintIcon,
-    Visibility, VisibilityOff, MoreVert as MoreVertIcon, VpnKey as VpnKeyIcon,
+    MoreVert as MoreVertIcon, VpnKey as VpnKeyIcon,
     Language as LanguageIcon, Settings as SettingsIcon, Person as PersonIcon,
-    Dns as DnsIcon, BusinessCenter as BusinessCenterIcon
+    Dns as DnsIcon
 } from '@mui/icons-material';
 
 import { useApp } from '../contexts/AppContext';
