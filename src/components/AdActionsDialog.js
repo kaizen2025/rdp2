@@ -1,7 +1,7 @@
 // src/components/AdActionsDialog.js - NOUVEAU COMPOSANT COMPLET
 
 import React, { useState, useEffect, useCallback } from 'react';
-import Dialog from '@mui/material/Dialog';
+import StyledDialog from './StyledDialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
@@ -82,7 +82,7 @@ const PasswordResetDialog = ({ user, onComplete, onClose }) => {
     };
 
     return (
-        <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
+        <StyledDialog open onClose={onClose} maxWidth="sm" fullWidth>
             <DialogTitle>Réinitialiser le mot de passe</DialogTitle>
             <DialogContent>
                 <Alert severity="info" sx={{ mb: 2 }}>
@@ -208,7 +208,7 @@ const AdActionsDialog = ({ open, onClose, user, onActionComplete }) => {
 
     return (
         <>
-            <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+            <StyledDialog open={open} onClose={onClose} maxWidth="md" fullWidth>
                 <DialogTitle>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                         <PersonIcon fontSize="large" />

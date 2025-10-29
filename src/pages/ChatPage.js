@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from '
 import Draggable from 'react-draggable';
 import {
     Box, Paper, Typography, TextField, IconButton, Button, Avatar, List,
-    ListItemText, ListItemAvatar, ListItemButton, Divider, Menu, MenuItem, Dialog,
+    ListItemText, ListItemAvatar, ListItemButton, Divider, Menu, MenuItem,
     DialogTitle, DialogContent, DialogActions, CircularProgress, ListSubheader,
     Stack, Chip, Popover, ListItemIcon, Badge, Tooltip
 } from '@mui/material';
@@ -26,6 +26,7 @@ import EmojiPicker from 'emoji-picker-react';
 import { useApp } from '../contexts/AppContext';
 import apiService from '../services/apiService';
 import { getDmChannelKey } from '../utils/chatUtils';
+import StyledDialog from '../components/StyledDialog';
 
 const EMOJI_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🎉'];
 
@@ -38,7 +39,7 @@ const DraggablePaper = (props) => {
     );
 };
 
-const AddChannelDialog = ({ open, onClose, onSave }) => {
+const AddChannelDialog = memo(({ open, onClose, onSave }) => {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     
@@ -51,7 +52,7 @@ const AddChannelDialog = ({ open, onClose, onSave }) => {
     };
     
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+        <StyledDialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
             <DialogTitle>Nouveau Canal</DialogTitle>
             <DialogContent>
                 <TextField autoFocus margin="dense" label="Nom du canal" fullWidth value={name} onChange={(e) => setName(e.target.value)} />
@@ -126,7 +127,7 @@ const ChatDialog = ({ open, onClose, onlineTechnicians = [] }) => {
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
     const [editingMessage, setEditingMessage] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [addChannelOpen, setAddChannelOpen] = useState(false);
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
@@ -136,7 +137,7 @@ const ChatDialog = ({ open, onClose, onlineTechnicians = [] }) => {
 
     const scrollToBottom = useCallback((behavior = 'auto') => { messagesEndRef.current?.scrollIntoView({ behavior }); }, []);
     const loadData = useCallback(async () => { try { const channelsData = await apiService.getChatChannels(); setChannels(channelsData || []); setTechnicians(config.it_technicians || []); } catch (error) { showNotification('error', 'Impossible de charger les données du chat.'); } }, [showNotification, config]);
-    const loadMessages = useCallback(async (channelId) => { if (!channelId || !currentTechnician?.id) return; setIsLoading(true); try { const msgs = await apiService.getChatMessages(channelId); setMessages(msgs || []); } catch (error) { showNotification('error', `Erreur chargement messages: ${error.message}`); } finally { setIsLoading(false); } }, [currentTechnician, showNotification]);
+    const loadMessages = useCallback(async (channelId) => { if (!channelId || !currentTechnician?.id) return; setIsLoading(true); setMessages([]); try { const msgs = await apiService.getChatMessages(channelId); setMessages(msgs || []); } catch (error) { showNotification('error', `Erreur chargement messages: ${error.message}`); setMessages([]); } finally { setIsLoading(false); } }, [currentTechnician, showNotification]);
     useEffect(() => { if (open) loadData(); }, [open, loadData]);
     useEffect(() => { if (open && currentChannel) loadMessages(currentChannel); }, [open, currentChannel, loadMessages]);
     useEffect(() => { const handleNewMessage = (msg) => { if (msg.channelId === currentChannel) setMessages(prev => [...prev, msg]); }; const handleUpdate = () => loadMessages(currentChannel); const unsubNew = events.on('chat_message_new', handleNewMessage); const unsubUpdate = events.on('chat_message_updated', handleUpdate); const unsubDelete = events.on('chat_message_deleted', handleUpdate); const unsubReaction = events.on('chat_reaction_toggled', handleUpdate); const unsubChannels = events.on('data_updated:chat_channels', loadData); return () => { unsubNew(); unsubUpdate(); unsubDelete(); unsubReaction(); unsubChannels(); }; }, [currentChannel, events, loadMessages, loadData]);
@@ -152,12 +153,12 @@ const ChatDialog = ({ open, onClose, onlineTechnicians = [] }) => {
     const onlineIds = useMemo(() => new Set(onlineTechnicians.map(t => t.id)), [onlineTechnicians]);
 
     return (
-        <Dialog open={open} onClose={onClose} PaperComponent={DraggablePaper} maxWidth="lg" PaperProps={{ sx: { height: '80vh', width: '80vw' } }}>
-            <DialogTitle sx={{ cursor: 'move', m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} id="draggable-dialog-title"><Typography variant="h6">Chat Équipe IT</Typography><IconButton onClick={onClose}><CloseIcon /></IconButton></DialogTitle>
+        <StyledDialog open={open} onClose={onClose} PaperComponent={DraggablePaper} maxWidth="lg" PaperProps={{ sx: { height: '80vh', width: '80vw' } }}>
+            <DialogTitle sx={{ cursor: 'move', m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} id="draggable-dialog-title"><Typography variant="h6">Chat Équipe IT</Typography><IconButton onClick={onClose} aria-label="Fermer"><CloseIcon /></IconButton></DialogTitle>
             <DialogContent dividers sx={{ p: 0, display: 'flex', overflow: 'hidden' }}>
                 <Box sx={{ width: 260, borderRight: 1, borderColor: 'divider', display: 'flex', flexDirection: 'column', bgcolor: 'grey.100' }}>
                     <Box sx={{ flex: 1, overflowY: 'auto' }}>
-                        <ListSubheader sx={{ bgcolor: 'grey.100' }}>Canaux <IconButton size="small" onClick={() => setAddChannelOpen(true)}><AddIcon fontSize="small" /></IconButton></ListSubheader>
+                        <ListSubheader sx={{ bgcolor: 'grey.100' }}>Canaux <IconButton size="small" onClick={() => setAddChannelOpen(true)} aria-label="Ajouter un canal"><AddIcon fontSize="small" /></IconButton></ListSubheader>
                         <List dense>{channels.map(c => <ListItemButton key={c.id} selected={currentChannel === c.id} onClick={() => setCurrentChannel(c.id)}><ListItemIcon sx={{ minWidth: 32 }}><TagIcon fontSize="small" /></ListItemIcon><ListItemText primary={c.name} /></ListItemButton>)}</List>
                         <ListSubheader sx={{ bgcolor: 'grey.100' }}>Messages Privés</ListSubheader>
                         <List dense>{technicians.filter(t => t.id !== currentTechnician?.id).map(t => { const dmId = getDmChannelKey(currentTechnician?.id, t.id); const isOnline = onlineIds.has(t.id); return <ListItemButton key={t.id} selected={currentChannel === dmId} onClick={() => setCurrentChannel(dmId)}><ListItemAvatar sx={{ minWidth: 36 }}><Badge color="success" variant="dot" invisible={!isOnline} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}><Avatar sx={{ width: 24, height: 24 }}>{t.avatar}</Avatar></Badge></ListItemAvatar><ListItemText primary={t.name} /></ListItemButton>; })}</List>
@@ -181,10 +182,10 @@ const ChatDialog = ({ open, onClose, onlineTechnicians = [] }) => {
                         {editingMessage && <Box sx={{ p: 1, mb: 1, bgcolor: 'warning.lighter', borderRadius: 1, display: 'flex', justifyContent: 'space-between' }}><Typography variant="caption">Modification...</Typography><IconButton size="small" onClick={() => { setEditingMessage(null); setNewMessage('') }}><CloseIcon fontSize="small" /></IconButton></Box>}
                         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                             <input type="file" ref={fileInputRef} onChange={handleFileSelect} style={{ display: 'none' }} />
-                            <Tooltip title="Joindre un fichier"><IconButton onClick={() => fileInputRef.current.click()}><AttachFileIcon /></IconButton></Tooltip>
-                            <Tooltip title="Ajouter un emoji"><IconButton ref={emojiPickerAnchor} onClick={() => setEmojiPickerOpen(true)}><EmojiEmotionsIcon /></IconButton></Tooltip>
+                            <Tooltip title="Joindre un fichier"><IconButton onClick={() => fileInputRef.current.click()} aria-label="Joindre un fichier"><AttachFileIcon /></IconButton></Tooltip>
+                            <Tooltip title="Ajouter un emoji"><IconButton ref={emojiPickerAnchor} onClick={() => setEmojiPickerOpen(true)} aria-label="Ouvrir le sélecteur d'emojis"><EmojiEmotionsIcon /></IconButton></Tooltip>
                             <TextField fullWidth multiline maxRows={5} placeholder={`Message pour ${currentTargetName}`} variant="standard" InputProps={{ disableUnderline: true }} value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyPress={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} />
-                            <IconButton color="primary" onClick={handleSendMessage} disabled={isSending || !newMessage.trim()}><SendIcon /></IconButton>
+                            <IconButton color="primary" onClick={handleSendMessage} disabled={isSending || !newMessage.trim()} aria-label="Envoyer le message"><SendIcon /></IconButton>
                         </Box>
                     </Paper>
                 </Box>

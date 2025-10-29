@@ -59,23 +59,65 @@ const ManualConnectionDialog = ({ open, server, config, onClose, onSubmit }) => 
 };
 
 const ServerListItem = memo(({ server, editMode, onAdminConnect, onManualConnect, onPing, onEdit, onDelete }) => (
-    <ListItem divider secondaryAction={<Box sx={{ display: 'flex', gap: 0.5 }}><Tooltip title="Connexion Admin"><IconButton size="small" onClick={() => onAdminConnect(server)}><AdminPanelSettingsIcon /></IconButton></Tooltip><Tooltip title="Connexion Manuelle"><IconButton size="small" onClick={() => onManualConnect(server)}><ManageAccountsIcon /></IconButton></Tooltip><Tooltip title="Ping"><IconButton size="small" onClick={() => onPing(server)}><NetworkPingIcon /></IconButton></Tooltip>{editMode && (<><Tooltip title="Renommer"><IconButton size="small" onClick={() => onEdit(server)}><EditIcon /></IconButton></Tooltip><Tooltip title="Supprimer"><IconButton size="small" color="error" onClick={() => onDelete(server)}><DeleteIcon /></IconButton></Tooltip></>)}</Box>} >
+    <ListItem divider secondaryAction={<Box sx={{ display: 'flex', gap: 0.5 }}><Tooltip title="Connexion Admin"><IconButton size="small" onClick={() => onAdminConnect(server)}><AdminPanelSettingsIcon /></IconButton></Tooltip><Tooltip title="Connexion Manuelle"><IconButton size="small" onClick={() => onManualConnect(server)}><ManageAccountsIcon /></IconButton></Tooltip><Tooltip title="Ping"><IconButton size="small" onClick={() => onPing(server)}><NetworkPingIcon /></IconButton></Tooltip>{editMode && (<><Tooltip title="Modifier"><IconButton size="small" onClick={() => onEdit(server)}><EditIcon /></IconButton></Tooltip><Tooltip title="Supprimer"><IconButton size="small" color="error" onClick={() => onDelete(server)}><DeleteIcon /></IconButton></Tooltip></>)}</Box>} >
         {editMode && <DragIndicatorIcon color="action" sx={{ cursor: 'grab', mr: 1 }} />}
-        <ListItemIcon><ComputerIcon color="primary" /></ListItemIcon>
-        <ListItemText primary={server} />
+        <ListItemIcon><ComputerIcon color={server.useCustomCredentials ? "secondary" : "primary"} /></ListItemIcon>
+        <ListItemText primary={server.name} secondary={server.hostname} />
     </ListItem>
 ));
 
 const ServerGroup = memo(({ groupName, servers, editMode, onDragStart, onDrop, onDragOver, ...actions }) => {
     const [dragOver, setDragOver] = useState(false);
-    return (<Paper elevation={dragOver ? 4 : 1} sx={{ border: dragOver ? '2px dashed' : '1px solid', borderColor: dragOver ? 'primary.main' : 'divider' }} onDragOver={(e) => { e.preventDefault(); if (editMode) setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={(e) => { e.preventDefault(); setDragOver(false); onDrop(e, groupName); }}><Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between' }}><Typography variant="h6">{groupName} ({servers.length})</Typography>{editMode && (<Box><Tooltip title="Ajouter"><IconButton size="small" onClick={() => actions.onAddServer(groupName)}><AddIcon /></IconButton></Tooltip><Tooltip title="Renommer"><IconButton size="small" onClick={() => actions.onEditGroup(groupName)}><EditIcon /></IconButton></Tooltip><Tooltip title="Supprimer"><IconButton size="small" color="error" onClick={() => actions.onDeleteGroup(groupName)}><DeleteIcon /></IconButton></Tooltip></Box>)}</Box><List dense>{servers.map(server => (<div key={server} draggable={editMode} onDragStart={(e) => onDragStart(e, `${groupName}/${server}`)}><ServerListItem server={server} editMode={editMode} {...actions} onEdit={() => actions.onEditServer(groupName, server)} onDelete={() => actions.onDeleteServer(groupName, server)} /></div>))}</List></Paper>);
+    return (<Paper elevation={dragOver ? 4 : 1} sx={{ border: dragOver ? '2px dashed' : '1px solid', borderColor: dragOver ? 'primary.main' : 'divider' }} onDragOver={(e) => { e.preventDefault(); if (editMode) setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={(e) => { e.preventDefault(); setDragOver(false); onDrop(e, groupName); }}><Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between' }}><Typography variant="h6">{groupName} ({servers.length})</Typography>{editMode && (<Box><Tooltip title="Ajouter"><IconButton size="small" onClick={() => actions.onAddServer(groupName)}><AddIcon /></IconButton></Tooltip><Tooltip title="Renommer"><IconButton size="small" onClick={() => actions.onEditGroup(groupName)}><EditIcon /></IconButton></Tooltip><Tooltip title="Supprimer"><IconButton size="small" color="error" onClick={() => actions.onDeleteGroup(groupName)}><DeleteIcon /></IconButton></Tooltip></Box>)}</Box><List dense>{servers.map(server => (<div key={server.name} draggable={editMode} onDragStart={(e) => onDragStart(e, `${groupName}/${server.name}`)}><ServerListItem server={server} editMode={editMode} {...actions} onEdit={() => actions.onEditServer(groupName, server)} onDelete={() => actions.onDeleteServer(groupName, server)} /></div>))}</List></Paper>);
 });
 
-const EditDialog = ({ open, type, item, group, onClose, onSubmit }) => {
+const ServerEditDialog = ({ open, server, groupName, onClose, onSubmit }) => {
+    const [formData, setFormData] = useState({ name: '', hostname: '', useCustomCredentials: false, username: '', password: '', domain: '' });
+
+    useEffect(() => {
+        if (open) {
+            setFormData(server || { name: '', hostname: '', useCustomCredentials: false, username: '', password: '', domain: '' });
+        }
+    }, [open, server]);
+
+    const handleChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setFormData(p => ({ ...p, [name]: type === 'checkbox' ? checked : value }));
+    };
+
+    const handleSubmit = () => {
+        onSubmit(formData);
+        onClose();
+    };
+
+    return (
+        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+            <DialogTitle>{server ? `Modifier ${server.name}` : `Ajouter un serveur à ${groupName}`}</DialogTitle>
+            <DialogContent>
+                <Grid container spacing={2} sx={{ pt: 1 }}>
+                    <Grid item xs={12} sm={6}><TextField name="name" label="Nom d'affichage" value={formData.name} onChange={handleChange} fullWidth /></Grid>
+                    <Grid item xs={12} sm={6}><TextField name="hostname" label="IP / Nom d'hôte" value={formData.hostname} onChange={handleChange} fullWidth /></Grid>
+                    <Grid item xs={12}><FormControlLabel control={<Switch name="useCustomCredentials" checked={formData.useCustomCredentials} onChange={handleChange} />} label="Utiliser des identifiants spécifiques" /></Grid>
+                    {formData.useCustomCredentials && <>
+                        <Grid item xs={12} sm={6}><TextField name="username" label="Utilisateur" value={formData.username} onChange={handleChange} fullWidth /></Grid>
+                        <Grid item xs={12} sm={6}><TextField name="password" label="Mot de passe" type="password" value={formData.password} onChange={handleChange} fullWidth /></Grid>
+                        <Grid item xs={12}><TextField name="domain" label="Domaine" value={formData.domain} onChange={handleChange} fullWidth /></Grid>
+                    </>}
+                </Grid>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={onClose}>Annuler</Button>
+                <Button onClick={handleSubmit} variant="contained">Sauvegarder</Button>
+            </DialogActions>
+        </Dialog>
+    );
+};
+
+const GroupEditDialog = ({ open, type, item, onClose, onSubmit }) => {
     const [value, setValue] = useState('');
     useEffect(() => { if (open) setValue(item || ''); }, [open, item]);
-    const title = { addGroup: "Créer un groupe", renameGroup: `Renommer "${item}"`, addServer: `Ajouter à "${group}"`, editServer: `Renommer "${item}"` }[type];
-    return (<Dialog open={open} onClose={onClose}><DialogTitle>{title}</DialogTitle><DialogContent><TextField autoFocus margin="dense" label="Nom" fullWidth value={value} onChange={e => setValue(e.target.value)} /></DialogContent><DialogActions><Button onClick={onClose}>Annuler</Button><Button onClick={() => { onSubmit(value); onClose(); }}>Confirmer</Button></DialogActions></Dialog>);
+    const title = type === 'addGroup' ? "Créer un groupe" : `Renommer "${item}"`;
+    return (<Dialog open={open} onClose={onClose}><DialogTitle>{title}</DialogTitle><DialogContent><TextField autoFocus margin="dense" label="Nom du groupe" fullWidth value={value} onChange={e => setValue(e.target.value)} /></DialogContent><DialogActions><Button onClick={onClose}>Annuler</Button><Button onClick={() => { onSubmit(value); onClose(); }}>Confirmer</Button></DialogActions></Dialog>);
 };
 
 const ConnectionsPage = () => {
@@ -83,12 +125,23 @@ const ConnectionsPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [pingResult, setPingResult] = useState({ open: false, text: '' });
     const [editMode, setEditMode] = useState(false);
-    const [editableGroups, setEditableGroups] = useState(config?.server_groups || {});
-    const [dialog, setDialog] = useState({ open: false, type: null, item: '', group: '' });
+    const [editableGroups, setEditableGroups] = useState({});
+    const [dialog, setDialog] = useState({ open: false, type: null, item: null, group: '' });
     const [manualConnectionDialog, setManualConnectionDialog] = useState({ open: false, server: '' });
     const [draggedItem, setDraggedItem] = useState(null);
 
-    useEffect(() => { setEditableGroups(config?.server_groups || {}); }, [config]);
+    useEffect(() => {
+        const groups = config?.server_groups || {};
+        const upgradedGroups = {};
+        for (const groupName in groups) {
+            upgradedGroups[groupName] = groups[groupName].map(server =>
+                typeof server === 'string'
+                    ? { name: server, hostname: server, useCustomCredentials: false, username: '', password: '', domain: '' }
+                    : server
+            );
+        }
+        setEditableGroups(upgradedGroups);
+    }, [config]);
 
     const filteredServerGroups = useMemo(() => {
         const groups = editMode ? editableGroups : config?.server_groups || {};
@@ -96,19 +149,41 @@ const ConnectionsPage = () => {
         const term = searchTerm.toLowerCase();
         const filtered = {};
         for (const groupName in groups) {
-            const matchingServers = groups[groupName].filter(s => s.toLowerCase().includes(term));
+            const matchingServers = groups[groupName].filter(s => s.name.toLowerCase().includes(term) || s.hostname.toLowerCase().includes(term));
             if (matchingServers.length > 0 || groupName.toLowerCase().includes(term)) filtered[groupName] = matchingServers;
         }
         return filtered;
     }, [searchTerm, config?.server_groups, editMode, editableGroups]);
 
-    const handleAdminConnect = (server) => window.electronAPI.quickConnect(server);
-    const handlePing = async (server) => { setPingResult({ open: true, text: `Ping de ${server}...` }); const res = await window.electronAPI.pingServer(server); setPingResult({ open: true, text: res.output }); };
-    const handleManualConnect = (server) => setManualConnectionDialog({ open: true, server });
+    const handleAdminConnect = (server) => {
+        if (server.useCustomCredentials) {
+            window.electronAPI.connectWithStoredCredentials({
+                server: server.hostname,
+                username: server.username,
+                password: server.password,
+                domain: server.domain
+            });
+        } else {
+            window.electronAPI.quickConnect(server.hostname);
+        }
+    };
+    const handlePing = async (server) => { setPingResult({ open: true, text: `Ping de ${server.hostname}...` }); const res = await window.electronAPI.pingServer(server.hostname); setPingResult({ open: true, text: res.output }); };
+    const handleManualConnect = (server) => setManualConnectionDialog({ open: true, server: server.hostname });
     const handleSaveChanges = async () => { const success = await handleSaveConfig({ newConfig: { ...config, server_groups: editableGroups } }); if (success) { setEditMode(false); showNotification('success', 'Groupes de serveurs mis à jour.'); } else { showNotification('error', 'La sauvegarde a échoué.'); } };
     const handleDragStart = (e, nodeId) => { if (editMode) setDraggedItem(nodeId); };
-    const handleDrop = (e, targetGroup) => { if (!editMode || !draggedItem) return; const [draggedGroup, draggedServer] = draggedItem.split('/'); if (draggedServer && draggedGroup !== targetGroup) { const newGroups = { ...editableGroups }; newGroups[draggedGroup] = newGroups[draggedGroup].filter(s => s !== draggedServer); if (!newGroups[targetGroup].includes(draggedServer)) newGroups[targetGroup] = [...newGroups[targetGroup], draggedServer].sort(); setEditableGroups(newGroups); } setDraggedItem(null); };
-    const handleDialogSubmit = (value) => { const { type, group, item } = dialog; let newGroups = { ...editableGroups }; if (type === 'addGroup') { if (value && !newGroups[value]) newGroups[value] = []; } else if (type === 'renameGroup') { if (value && value !== item && !newGroups[value]) { newGroups[value] = newGroups[item]; delete newGroups[item]; } } else if (type === 'deleteGroup') { delete newGroups[item]; } else if (type === 'addServer') { if (value && !newGroups[group].includes(value)) { newGroups[group].push(value); newGroups[group].sort(); } } else if (type === 'editServer') { const i = newGroups[group].indexOf(item); if (i > -1 && value && !newGroups[group].includes(value)) { newGroups[group][i] = value; newGroups[group].sort(); } } else if (type === 'deleteServer') { newGroups[group] = newGroups[group].filter(s => s !== item); } setEditableGroups(newGroups); };
+    const handleDrop = (e, targetGroup) => { if (!editMode || !draggedItem) return; const [draggedGroup, draggedServerName] = draggedItem.split('/'); if (draggedServerName && draggedGroup !== targetGroup) { const newGroups = { ...editableGroups }; const serverToMove = newGroups[draggedGroup].find(s => s.name === draggedServerName); newGroups[draggedGroup] = newGroups[draggedGroup].filter(s => s.name !== draggedServerName); if (serverToMove && !newGroups[targetGroup].some(s => s.name === draggedServerName)) { newGroups[targetGroup] = [...newGroups[targetGroup], serverToMove].sort((a, b) => a.name.localeCompare(b.name)); } setEditableGroups(newGroups); } setDraggedItem(null); };
+
+    const handleDialogSubmit = (data) => {
+        const { type, group, item } = dialog;
+        let newGroups = { ...editableGroups };
+        if (type === 'addGroup') { if (data && !newGroups[data]) newGroups[data] = []; }
+        else if (type === 'renameGroup') { if (data && data !== item && !newGroups[data]) { newGroups[data] = newGroups[item]; delete newGroups[item]; } }
+        else if (type === 'deleteGroup') { delete newGroups[item]; }
+        else if (type === 'addServer') { if (data.name && !newGroups[group].some(s => s.name === data.name)) { newGroups[group] = [...newGroups[group], data].sort((a,b) => a.name.localeCompare(b.name)); } }
+        else if (type === 'editServer') { const index = newGroups[group].findIndex(s => s.name === item.name); if (index > -1) newGroups[group][index] = data; }
+        else if (type === 'deleteServer') { newGroups[group] = newGroups[group].filter(s => s.name !== item.name); }
+        setEditableGroups(newGroups);
+    };
 
     return (
         <Box sx={{ p: 2 }}>
@@ -124,8 +199,9 @@ const ConnectionsPage = () => {
                     </Grid>
                 ))}
             </Grid>
-            <EditDialog open={dialog.open && ['addGroup', 'renameGroup', 'addServer', 'editServer'].includes(dialog.type)} {...dialog} onClose={() => setDialog({ open: false })} onSubmit={handleDialogSubmit} />
-            <Dialog open={dialog.open && ['deleteGroup', 'deleteServer'].includes(dialog.type)} onClose={() => setDialog({ open: false })}><DialogTitle>Confirmer</DialogTitle><DialogContent><Typography>Supprimer "{dialog.item}" ?</Typography></DialogContent><DialogActions><Button onClick={() => setDialog({ open: false })}>Annuler</Button><Button onClick={() => { handleDialogSubmit(); setDialog({ open: false }); }} color="error">Supprimer</Button></DialogActions></Dialog>
+            <ServerEditDialog open={dialog.open && ['addServer', 'editServer'].includes(dialog.type)} server={dialog.item} groupName={dialog.group} onClose={() => setDialog({ open: false })} onSubmit={handleDialogSubmit} />
+            <GroupEditDialog open={dialog.open && ['addGroup', 'renameGroup'].includes(dialog.type)} type={dialog.type} item={dialog.item} onClose={() => setDialog({ open: false })} onSubmit={handleDialogSubmit} />
+            <Dialog open={dialog.open && ['deleteGroup', 'deleteServer'].includes(dialog.type)} onClose={() => setDialog({ open: false })}><DialogTitle>Confirmer</DialogTitle><DialogContent><Typography>Supprimer "{dialog.item?.name || dialog.item}" ?</Typography></DialogContent><DialogActions><Button onClick={() => setDialog({ open: false })}>Annuler</Button><Button onClick={() => { handleDialogSubmit(); setDialog({ open: false }); }} color="error">Supprimer</Button></DialogActions></Dialog>
             <Snackbar open={pingResult.open} autoHideDuration={6000} onClose={() => setPingResult({ open: false, text: '' })} message={pingResult.text} />
             <ManualConnectionDialog open={manualConnectionDialog.open} server={manualConnectionDialog.server} config={config} onClose={() => setManualConnectionDialog({ open: false, server: '' })} onSubmit={(creds) => window.electronAPI.connectWithStoredCredentials(creds)} />
         </Box>

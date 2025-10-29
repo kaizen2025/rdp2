@@ -16,6 +16,7 @@ import { AppProvider } from './contexts/AppContext';
 import { CacheProvider } from './contexts/CacheContext';
 import LoginPage from './pages/LoginPage';
 import MainLayout from './layouts/MainLayout';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import apiService from './services/apiService';
 import theme from './styles/theme'; // Importer le nouveau thème moderne
 
@@ -94,13 +95,15 @@ function App() {
                                 <LoginPage onLoginSuccess={handleLoginSuccess} />
                             </>
                         ) : (
-                            <CacheProvider>
-                                <ConfigErrorAlert />
-                                <MainLayout 
-                                    onLogout={handleLogout} 
-                                    currentTechnician={currentTechnician}
-                                />
-                            </CacheProvider>
+                            <ErrorBoundary>
+                                <CacheProvider>
+                                    <ConfigErrorAlert />
+                                    <MainLayout
+                                        onLogout={handleLogout}
+                                        currentTechnician={currentTechnician}
+                                    />
+                                </CacheProvider>
+                            </ErrorBoundary>
                         )}
                     </Router>
                 </AppProvider>

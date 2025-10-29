@@ -198,7 +198,18 @@ const DashboardPage = () => {
                         {isLoadingLoans ? <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}><CircularProgress size={20}/></Box> : (
                             <List dense disablePadding sx={{ flex: 1, overflowY: 'auto' }}>
                                 {overdueLoans.slice(0,5).map(l => (
-                                    <ListItem key={l.id} disableGutters sx={{ py: 0.3 }}><ListItemText primary={<Typography variant="caption" fontWeight={500}>{l.computerName}</Typography>} secondary={<Typography variant="caption" sx={{ fontSize: '0.65rem' }}>{l.userDisplayName} • {new Date(l.expectedReturnDate).toLocaleDateString('fr-FR')}</Typography>} /></ListItem>
+                                    <ListItem key={l.id} disableGutters sx={{ py: 0.3 }}>
+                                        <ListItemText
+                                            primary={<Typography variant="caption" fontWeight={500}>{l.computerName}</Typography>}
+                                            secondary={
+                                                <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                    <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>{l.userDisplayName}</Typography>
+                                                    <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>•</Typography>
+                                                    <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>{new Date(l.expectedReturnDate).toLocaleDateString('fr-FR')}</Typography>
+                                                </Box>
+                                            }
+                                        />
+                                    </ListItem>
                                 ))}
                                 {overdueLoans.length === 0 && <Typography variant="caption" color="text.secondary" sx={{ py: 2, textAlign: 'center', display: 'block' }}>Aucun prêt en retard</Typography>}
                             </List>
@@ -211,7 +222,18 @@ const DashboardPage = () => {
                         {isLoadingLoans ? <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}><CircularProgress size={20}/></Box> : (
                             <List dense disablePadding sx={{ flex: 1, overflowY: 'auto' }}>
                                 {activeLoans.slice(0,5).map(l => (
-                                    <ListItem key={l.id} disableGutters sx={{ py: 0.3 }}><ListItemText primary={<Typography variant="caption" fontWeight={500}>{l.computerName}</Typography>} secondary={<Typography variant="caption" sx={{ fontSize: '0.65rem' }}>{l.userDisplayName} • {new Date(l.expectedReturnDate).toLocaleDateString('fr-FR')}</Typography>} /></ListItem>
+                                    <ListItem key={l.id} disableGutters sx={{ py: 0.3 }}>
+                                        <ListItemText
+                                            primary={<Typography variant="caption" fontWeight={500}>{l.computerName}</Typography>}
+                                            secondary={
+                                                <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                    <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>{l.userDisplayName}</Typography>
+                                                    <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>•</Typography>
+                                                    <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>{new Date(l.expectedReturnDate).toLocaleDateString('fr-FR')}</Typography>
+                                                </Box>
+                                            }
+                                        />
+                                    </ListItem>
                                 ))}
                                 {activeLoans.length === 0 && <Typography variant="caption" color="text.secondary" sx={{ py: 2, textAlign: 'center', display: 'block' }}>Aucun prêt actif</Typography>}
                             </List>

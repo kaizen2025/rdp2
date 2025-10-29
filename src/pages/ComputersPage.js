@@ -120,7 +120,7 @@ const ComputersPage = () => {
                 fetchWithCache('loans', apiService.getLoans, { force })
             ]);
 
-            setComputers(computersRes || []);
+            setComputers(Array.isArray(computersRes) ? computersRes : []);
             setItStaff(configRes?.it_staff || []);
             setUsers(usersRes?.success ? Object.values(usersRes.users).flat() : []);
             setLoans(loansRes || []);

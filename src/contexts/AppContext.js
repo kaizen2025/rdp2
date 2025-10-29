@@ -103,6 +103,20 @@ export const AppProvider = ({ children }) => {
         };
     }, [emit, showNotification]);
 
+    const handleSaveConfig = useCallback(async ({ newConfig }) => {
+        try {
+            const result = await apiService.saveConfig(newConfig);
+            if (result.success) {
+                setConfig(newConfig); // Met à jour l'état local
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error("Erreur lors de la sauvegarde de la config:", error);
+            return false;
+        }
+    }, []);
+
     useEffect(() => {
         // **CORRECTION POUR STRICT MODE** : On s'assure que l'initialisation ne se fait qu'une fois
         if (initialized.current) return;
@@ -139,6 +153,7 @@ export const AppProvider = ({ children }) => {
         isOnline,
         notifications,
         showNotification,
+        handleSaveConfig,
         events: { on, off, emit },
     };
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Dialog from '@mui/material/Dialog';
+import StyledDialog from './StyledDialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
@@ -13,11 +13,6 @@ import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import Slide from '@mui/material/Slide';
-
-const Transition = React.forwardRef(function Transition(props, ref) {
-    return <Slide direction="up" ref={ref} {...props} />;
-});
 
 const COMPUTER_STATUS = {
   AVAILABLE: 'available',
@@ -176,11 +171,20 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
             case 'serialNumber':
                 if (!value) error = 'Le numéro de série est obligatoire';
                 break;
+            case 'warranty.purchasePrice':
+                if (value && parseFloat(value) < 0) error = 'Le prix ne peut pas être négatif';
+                break;
             default:
                 break;
         }
         return error;
     }
+
+    const handleBlur = (e) => {
+        const { name, value } = e.target;
+        const error = validateField(name, value);
+        setErrors(prev => ({ ...prev, [name]: error }));
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -193,9 +197,6 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
         } else {
             setFormData(prev => ({ ...prev, [name]: value }));
         }
-
-        const error = validateField(name, value);
-        setErrors(prev => ({ ...prev, [name]: error }));
     };
 
     const validate = () => {
@@ -222,12 +223,11 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
     };
 
     return (
-        <Dialog
+        <StyledDialog
             open={open}
             onClose={onClose}
             maxWidth="lg"
             fullWidth
-            TransitionComponent={Transition}
             aria-labelledby="computer-dialog-title"
             aria-describedby="computer-dialog-description"
         >
@@ -251,6 +251,7 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
                             label="Nom de l'ordinateur (ex: PC-ANECOOP-01)" 
                             value={formData.name} 
                             onChange={handleChange} 
+                            onBlur={handleBlur}
                             fullWidth 
                             required 
                             error={!!errors.name}
@@ -291,6 +292,7 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
                             label="Numéro de série" 
                             value={formData.serialNumber} 
                             onChange={handleChange} 
+                            onBlur={handleBlur}
                             fullWidth 
                             required 
                             error={!!errors.serialNumber}
@@ -475,8 +477,11 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
                             label="Prix d'achat (€)" 
                             value={formData.warranty.purchasePrice} 
                             onChange={handleChange} 
+                            onBlur={handleBlur}
                             fullWidth 
                             type="number"
+                            error={!!errors['warranty.purchasePrice']}
+                            helperText={errors['warranty.purchasePrice']}
                         />
                     </Grid>
 

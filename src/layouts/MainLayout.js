@@ -21,6 +21,8 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Badge from '@mui/material/Badge';
 import Chip from '@mui/material/Chip';
+import Alert from '@mui/material/Alert';
+import Collapse from '@mui/material/Collapse';
 
 // Icons
 import DnsIcon from '@mui/icons-material/Dns';
@@ -68,7 +70,7 @@ const navItems = [
 function MainLayout({ onLogout, currentTechnician }) {
     const navigate = useNavigate();
     const location = useLocation();
-    const { events, isOnline } = useApp();
+    const { events, isOnline, notifications } = useApp();
     
     const [userMenuAnchor, setUserMenuAnchor] = useState(null);
     const [chatOpen, setChatOpen] = useState(false);
@@ -116,10 +118,10 @@ function MainLayout({ onLogout, currentTechnician }) {
                     <Chip label={isOnline ? "En ligne" : "Hors ligne"} color={isOnline ? "success" : "error"} size="small" sx={{ mr: 2 }} />
                     <Tooltip title={`${activeSessionsCount} session(s) active(s)`}><Chip icon={<ComputerIcon />} label={activeSessionsCount} color="primary" size="small" sx={{ mr: 2 }} onClick={() => navigate('/sessions')} /></Tooltip>
 
-                    <Tooltip title="Chat entre techniciens"><IconButton color="inherit" onClick={() => setChatOpen(true)}><Badge badgeContent={unreadChatCount} color="success"><ChatIcon /></Badge></IconButton></Tooltip>
-                    <Tooltip title="Notifications"><IconButton color="inherit" onClick={() => setNotificationsPanelOpen(true)}><Badge badgeContent={unreadNotifsCount} color="error"><NotificationsIcon /></Badge></IconButton></Tooltip>
+                    <Tooltip title="Chat entre techniciens"><IconButton color="inherit" onClick={() => setChatOpen(true)} aria-label="Ouvrir le chat"><Badge badgeContent={unreadChatCount} color="success"><ChatIcon /></Badge></IconButton></Tooltip>
+                    <Tooltip title="Notifications"><IconButton color="inherit" onClick={() => setNotificationsPanelOpen(true)} aria-label="Ouvrir les notifications"><Badge badgeContent={unreadNotifsCount} color="error"><NotificationsIcon /></Badge></IconButton></Tooltip>
                     
-                    <Tooltip title="Menu utilisateur"><IconButton onClick={handleUserMenuOpen} sx={{ p: 1, ml: 1 }}><Avatar sx={{ bgcolor: 'secondary.main', width: 32, height: 32 }}>{currentTechnician?.avatar || 'IT'}</Avatar></IconButton></Tooltip>
+                    <Tooltip title="Menu utilisateur"><IconButton onClick={handleUserMenuOpen} sx={{ p: 1, ml: 1 }} aria-label="Ouvrir le menu utilisateur"><Avatar sx={{ bgcolor: 'secondary.main', width: 32, height: 32 }}>{currentTechnician?.avatar || 'IT'}</Avatar></IconButton></Tooltip>
                     <Menu sx={{ mt: '45px' }} anchorEl={userMenuAnchor} open={Boolean(userMenuAnchor)} onClose={handleUserMenuClose} anchorOrigin={{ vertical: 'top', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}>
                         <MenuItem disabled><ListItemText primary={currentTechnician?.name} secondary={currentTechnician?.position} /></MenuItem>
                         <Divider />
@@ -163,6 +165,29 @@ function MainLayout({ onLogout, currentTechnician }) {
                         <Route path="*" element={<Navigate to="/dashboard" replace />} />
                     </Routes>
                 </Suspense>
+            </Box>
+
+            {/* Zone pour les notifications "toast" */}
+            <Box
+                sx={{
+                    position: 'fixed',
+                    bottom: 16,
+                    right: 16,
+                    zIndex: (theme) => theme.zIndex.snackbar,
+                    width: 320,
+                }}
+            >
+                {notifications.map((notification) => (
+                    <Collapse key={notification.id}>
+                        <Alert
+                            severity={notification.type}
+                            sx={{ mb: 1, boxShadow: 3 }}
+                            onClose={() => { /* La fermeture est gérée par le timeout dans AppContext */ }}
+                        >
+                            {notification.message}
+                        </Alert>
+                    </Collapse>
+                ))}
             </Box>
         </Box>
     );
