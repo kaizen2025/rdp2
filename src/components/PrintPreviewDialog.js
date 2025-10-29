@@ -12,6 +12,8 @@ import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
 import Divider from '@mui/material/Divider';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
 
 // Icônes
 import PrintIcon from '@mui/icons-material/Print';
@@ -21,6 +23,9 @@ import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import ContactMailIcon from '@mui/icons-material/ContactMail';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import ContentCopy from '@mui/icons-material/ContentCopy';
 
 // Bibliothèques de génération
 import html2canvas from 'html2canvas';
@@ -30,6 +35,21 @@ import jsPDF from 'jspdf';
 // Ce composant recrée le design de votre "jolie" fiche.
 const UserSheet = React.forwardRef(({ user }, ref) => {
     if (!user) return null;
+
+    const [showWindowsPassword, setShowWindowsPassword] = useState(false);
+    const [showOfficePassword, setShowOfficePassword] = useState(false);
+    const [copiedWindows, setCopiedWindows] = useState(false);
+    const [copiedOffice, setCopiedOffice] = useState(false);
+
+    const handleCopyPassword = async (password, setCopied) => {
+        try {
+            await navigator.clipboard.writeText(password);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        } catch (err) {
+            console.error('Erreur lors de la copie:', err);
+        }
+    };
 
     const Section = ({ title, icon, children }) => (
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
@@ -45,12 +65,53 @@ const UserSheet = React.forwardRef(({ user }, ref) => {
         </Box>
     );
 
-    const ConfidentialField = ({ label, value }) => (
+    const ConfidentialField = ({ label, value, isVisible, onToggleVisibility, onCopy, copied }) => (
          <Box sx={{ mb: 1.5 }}>
-            <Typography variant="caption" color="error.dark" sx={{ display: 'block', textTransform: 'uppercase' }}>{label}</Typography>
-            <Typography variant="body1" sx={{ border: '2px dashed #d32f2f', p: 1, borderRadius: 1, backgroundColor: '#ffebee', fontFamily: 'monospace', letterSpacing: '1px' }}>
-                {value || 'Non défini'}
-            </Typography>
+            <Typography variant="caption" color="error.dark" sx={{ display: 'block', textTransform: 'uppercase', mb: 0.5 }}>{label}</Typography>
+            <Box sx={{
+                border: '2px dashed #d32f2f',
+                p: 1,
+                borderRadius: 1,
+                backgroundColor: '#ffebee',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+            }}>
+                <Typography variant="body1" sx={{
+                    fontFamily: 'monospace',
+                    letterSpacing: '1px',
+                    flex: 1,
+                    minWidth: 0
+                }}>
+                    {value ? (isVisible ? value : '••••••••') : 'Non défini'}
+                </Typography>
+                {value && (
+                    <>
+                        <Tooltip title={isVisible ? 'Masquer' : 'Afficher'}>
+                            <IconButton
+                                size="small"
+                                onClick={onToggleVisibility}
+                                sx={{ p: 0.5 }}
+                            >
+                                {isVisible ?
+                                    <VisibilityOff sx={{ fontSize: '18px' }} /> :
+                                    <Visibility sx={{ fontSize: '18px' }} />
+                                }
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title={copied ? 'Copié!' : 'Copier'}>
+                            <IconButton
+                                size="small"
+                                onClick={onCopy}
+                                sx={{ p: 0.5 }}
+                                color={copied ? 'success' : 'default'}
+                            >
+                                <ContentCopy sx={{ fontSize: '16px' }} />
+                            </IconButton>
+                        </Tooltip>
+                    </>
+                )}
+            </Box>
         </Box>
     );
 
@@ -87,8 +148,26 @@ const UserSheet = React.forwardRef(({ user }, ref) => {
                 <Box sx={{ p: 3, backgroundColor: '#fff5f5', borderTop: '1px solid #ddd', borderBottom: '1px solid #ddd' }}>
                     <Section title="Informations Confidentielles" icon={<VpnKeyIcon color="error" />} />
                     <Grid container spacing={3}>
-                        <Grid item xs={12} md={6}><ConfidentialField label="Mot de passe Windows" value={user.password} /></Grid>
-                        <Grid item xs={12} md={6}><ConfidentialField label="Mot de passe Office 365" value={user.officePassword} /></Grid>
+                        <Grid item xs={12} md={6}>
+                            <ConfidentialField
+                                label="Mot de passe Windows"
+                                value={user.password}
+                                isVisible={showWindowsPassword}
+                                onToggleVisibility={() => setShowWindowsPassword(!showWindowsPassword)}
+                                onCopy={() => handleCopyPassword(user.password, setCopiedWindows)}
+                                copied={copiedWindows}
+                            />
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                            <ConfidentialField
+                                label="Mot de passe Office 365"
+                                value={user.officePassword}
+                                isVisible={showOfficePassword}
+                                onToggleVisibility={() => setShowOfficePassword(!showOfficePassword)}
+                                onCopy={() => handleCopyPassword(user.officePassword, setCopiedOffice)}
+                                copied={copiedOffice}
+                            />
+                        </Grid>
                     </Grid>
                 </Box>
 

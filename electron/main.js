@@ -179,13 +179,93 @@ function setupIpcHandlers() {
     });
 
     ipcMain.handle('launch-rdp', async (event, params) => {
-        const { server, sessionId } = params;
+        const { server, sessionId, username, password } = params;
         if (!server) return { success: false, error: 'Serveur non spécifié' };
 
+        // Si on a un username et password, créer un fichier RDP temporaire
+        if (username && password) {
+            const os = require('os');
+            const tempDir = os.tmpdir();
+            const rdpFilePath = path.join(tempDir, `rdp_${Date.now()}.rdp`);
+
+            // Contenu du fichier RDP avec identifiants
+            const rdpContent = [
+                'screen mode id:i:2',
+                `full address:s:${server}`,
+                `username:s:${username}`,
+                'prompt for credentials:i:0',
+                'authentication level:i:0',
+                'enablecredsspsupport:i:1',
+                'disable wallpaper:i:0',
+                'allow font smoothing:i:1',
+                'allow desktop composition:i:1',
+                'disable full window drag:i:0',
+                'disable menu anims:i:0',
+                'disable themes:i:0',
+                'disable cursor setting:i:0',
+                'bitmapcachepersistenable:i:1',
+                'audiomode:i:0',
+                'redirectprinters:i:1',
+                'redirectcomports:i:0',
+                'redirectsmartcards:i:1',
+                'redirectclipboard:i:1',
+                'redirectposdevices:i:0',
+                'autoreconnection enabled:i:1',
+                'negotiate security layer:i:1',
+                'remoteapplicationmode:i:0',
+                'alternate shell:s:',
+                'shell working directory:s:',
+                'gatewayhostname:s:',
+                'gatewayusagemethod:i:0',
+                'gatewaycredentialssource:i:0',
+                'gatewayprofileusagemethod:i:0',
+                'promptcredentialonce:i:0',
+                'use redirection server name:i:0',
+                'loadbalanceinfo:s:',
+                'drivestoredirect:s:'
+            ].join('\r\n');
+
+            try {
+                fs.writeFileSync(rdpFilePath, rdpContent);
+                log.info(`[RDP] Fichier RDP créé: ${rdpFilePath} pour ${username}@${server}`);
+
+                // Lancer mstsc avec le fichier RDP
+                const command = `mstsc.exe "${rdpFilePath}"`;
+                log.info(`[RDP] Lancement de: ${command}`);
+
+                return new Promise((resolve) => {
+                    exec(command, (error) => {
+                        // Supprimer le fichier RDP après un délai
+                        setTimeout(() => {
+                            try {
+                                if (fs.existsSync(rdpFilePath)) {
+                                    fs.unlinkSync(rdpFilePath);
+                                    log.info(`[RDP] Fichier RDP supprimé: ${rdpFilePath}`);
+                                }
+                            } catch (err) {
+                                log.error(`[RDP] Erreur lors de la suppression du fichier RDP: ${err.message}`);
+                            }
+                        }, 5000);
+
+                        if (error) {
+                            log.error(`[RDP] Erreur: ${error.message}`);
+                            resolve({ success: false, error: error.message });
+                        } else {
+                            resolve({ success: true });
+                        }
+                    });
+                });
+            } catch (error) {
+                log.error(`[RDP] Erreur lors de la création du fichier RDP: ${error.message}`);
+                return { success: false, error: error.message };
+            }
+        }
+
+        // Mode normal sans identifiants
         const command = sessionId
             ? `mstsc.exe /shadow:${sessionId} /v:${server} /control`
             : `mstsc.exe /v:${server}`;
-        
+
         log.info(`[RDP] Lancement de: ${command}`);
 
         return new Promise((resolve) => {

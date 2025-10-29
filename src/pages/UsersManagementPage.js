@@ -16,7 +16,7 @@ import {
     Edit as EditIcon, Delete as DeleteIcon, Launch as LaunchIcon, Print as PrintIcon,
     MoreVert as MoreVertIcon, VpnKey as VpnKeyIcon,
     Language as LanguageIcon, Settings as SettingsIcon, Person as PersonIcon,
-    Dns as DnsIcon
+    Dns as DnsIcon, LoginOutlined as LoginIcon
 } from '@mui/icons-material';
 
 import { useApp } from '../contexts/AppContext';
@@ -57,7 +57,7 @@ const AdGroupBadge = memo(({ groupName, isMember, onToggle, isLoading }) => {
     );
 });
 
-const UserRow = memo(({ user, style, isOdd, onEdit, onDelete, onConnect, onPrint, onOpenAdMenu, vpnMembers, internetMembers, onMembershipChange }) => {
+const UserRow = memo(({ user, style, isOdd, onEdit, onDelete, onConnect, onConnectWithCredentials, onPrint, onOpenAdMenu, vpnMembers, internetMembers, onMembershipChange }) => {
     const { showNotification } = useApp();
     const [isUpdatingVpn, setIsUpdatingVpn] = useState(false);
     const [isUpdatingInternet, setIsUpdatingInternet] = useState(false);
@@ -84,7 +84,14 @@ const UserRow = memo(({ user, style, isOdd, onEdit, onDelete, onConnect, onPrint
             </Box>
             <Box sx={{ flex: '1 1 120px', minWidth: 100, display: 'flex', gap: 1 }}><AdGroupBadge groupName="VPN" isMember={vpnMembers.has(user.username)} onToggle={() => toggleGroup('VPN', vpnMembers.has(user.username), setIsUpdatingVpn)} isLoading={isUpdatingVpn} /><AdGroupBadge groupName="Sortants_responsables" isMember={internetMembers.has(user.username)} onToggle={() => toggleGroup('Sortants_responsables', internetMembers.has(user.username), setIsUpdatingInternet)} isLoading={isUpdatingInternet} /></Box>
             <Box sx={{ flex: '0 0 auto', display: 'flex' }}>
-                <Tooltip title="Connexion RDP (app bureau)">
+                <Tooltip title="Connexion RDP automatique (avec identifiants)">
+                    <span>
+                        <IconButton size="small" onClick={() => onConnectWithCredentials(user)} disabled={!window.electronAPI} color="success">
+                            <LoginIcon />
+                        </IconButton>
+                    </span>
+                </Tooltip>
+                <Tooltip title="Connexion RDP standard">
                     <span>
                         <IconButton size="small" onClick={() => onConnect(user)} disabled={!window.electronAPI}><LaunchIcon /></IconButton>
                     </span>
@@ -244,17 +251,47 @@ const UsersManagementPage = () => {
         }
     }, [showNotification]);
 
+    const handleConnectUserWithCredentials = useCallback(async (user) => {
+        if (!window.electronAPI?.launchRdp) {
+            showNotification('warning', 'La connexion RDP directe est uniquement disponible dans l\'application de bureau.');
+            return;
+        }
+
+        if (!user.password) {
+            showNotification('error', 'Aucun mot de passe configuré pour cet utilisateur.');
+            return;
+        }
+
+        try {
+            showNotification('info', `Connexion automatique vers ${user.server} avec le compte ${user.username}...`);
+            const result = await window.electronAPI.launchRdp({
+                server: user.server,
+                username: user.username,
+                password: user.password
+            });
+
+            if (result.success) {
+                showNotification('success', `Connexion RDP lancée pour ${user.username}@${user.server}`);
+            } else {
+                showNotification('error', `Erreur: ${result.error}`);
+            }
+        } catch (error) {
+            showNotification('error', `Erreur lors du lancement: ${error.message}`);
+        }
+    }, [showNotification]);
+
     const Row = useCallback(({ index, style }) => (
         <UserRow
             user={filteredUsers[index]} style={style} isOdd={index % 2 === 1}
             onEdit={u => { setSelectedUser(u); setUserDialogOpen(true); }}
             onDelete={handleDeleteUser} onConnect={handleConnectUser}
+            onConnectWithCredentials={handleConnectUserWithCredentials}
             onPrint={u => { setUserToPrint(u); setPrintPreviewOpen(true); }}
             onOpenAdMenu={(e, u) => { setSelectedUserForAd(u); setAdMenuAnchor(e.currentTarget); }}
             vpnMembers={vpnMembers} internetMembers={internetMembers}
             onMembershipChange={() => handleRefresh(true)}
         />
-    ), [filteredUsers, vpnMembers, internetMembers, handleDeleteUser, handleConnectUser, handleRefresh]);
+    ), [filteredUsers, vpnMembers, internetMembers, handleDeleteUser, handleConnectUser, handleConnectUserWithCredentials, handleRefresh]);
     
     const clearFilters = () => {
         setSearchTerm('');
@@ -422,7 +459,7 @@ const UsersManagementPage = () => {
                         <Box sx={{ flex: '1.2 1 180px', minWidth: 150 }}>Email</Box>
                         <Box sx={{ flex: '1 1 160px', minWidth: 140 }}>Mots de passe</Box>
                         <Box sx={{ flex: '1 1 120px', minWidth: 100 }}>Groupes</Box>
-                        <Box sx={{ flex: '0 0 auto', width: '180px' }}>Actions</Box>
+                        <Box sx={{ flex: '0 0 auto', width: '220px' }}>Actions</Box>
                     </Box>
                     <Box sx={{ flex: 1, overflow: 'auto', minHeight: 400 }}>
                         <AutoSizer>
