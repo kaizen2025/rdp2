@@ -32,6 +32,7 @@ console.log("=============================================");
 // Fonction pour obtenir les origines autorisées (sera appelée après allocation des ports)
 function getAllowedOrigins() {
   return [
+    // Origines localhost
     'http://localhost:3000',
     'http://localhost:3001',
     'http://localhost:3002',
@@ -43,7 +44,21 @@ function getAllowedOrigins() {
     'http://localhost:3008',
     'http://localhost:3009',
     'http://localhost:3010',
+    // Origines 127.0.0.1 (équivalent localhost mais traité différemment par le navigateur)
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001',
+    'http://127.0.0.1:3002',
+    'http://127.0.0.1:3003',
+    'http://127.0.0.1:3004',
+    'http://127.0.0.1:3005',
+    'http://127.0.0.1:3006',
+    'http://127.0.0.1:3007',
+    'http://127.0.0.1:3008',
+    'http://127.0.0.1:3009',
+    'http://127.0.0.1:3010',
+    // Origines dynamiques
     `http://localhost:${API_PORT}`,
+    `http://127.0.0.1:${API_PORT}`,
     `http://192.168.1.232:${API_PORT}`,
     `http://${os.hostname()}:${API_PORT}`,
   ];

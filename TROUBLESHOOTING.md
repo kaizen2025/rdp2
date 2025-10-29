@@ -160,6 +160,60 @@ DISABLE_ESLINT_PLUGIN=true
 
 ---
 
+## Problème: Erreur CORS - L'application ne s'ouvre pas
+
+### Symptôme
+```
+[SERVER] Origine non autorisée par CORS: http://127.0.0.1:3000
+[SERVER] Error: Not allowed by CORS
+```
+
+L'application compile avec succès mais ne charge pas les données. La console affiche des erreurs CORS.
+
+### Cause
+React accède parfois au backend via `http://127.0.0.1:3000` au lieu de `http://localhost:3000`. Bien que ces deux adresses pointent vers la même machine, elles sont considérées comme des **origines différentes** par la politique de sécurité CORS des navigateurs.
+
+### ✅ Solution
+
+La configuration CORS dans `server/server.js` inclut maintenant les deux variantes :
+
+```javascript
+function getAllowedOrigins() {
+  return [
+    // Origines localhost
+    'http://localhost:3000',
+    'http://localhost:3001',
+    // ... 3002-3010
+
+    // Origines 127.0.0.1
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001',
+    // ... 3002-3010
+  ];
+}
+```
+
+Si le problème persiste après un `git pull` :
+
+```bash
+# 1. Tuer les processus Node.js
+taskkill /IM node.exe /F
+
+# 2. Nettoyer
+npm run clean
+
+# 3. Redémarrer
+npm run test:app
+```
+
+### 📋 Vérification
+
+Vérifier dans la console que le serveur accepte bien les deux origines :
+- ✅ `http://localhost:3000` (variante standard)
+- ✅ `http://127.0.0.1:3000` (variante IP numérique)
+
+---
+
 ## Problème: Serveur ne démarre pas
 
 ### Symptôme 1: Configuration Invalide
