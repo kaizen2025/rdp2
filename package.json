@@ -25,6 +25,7 @@
     "clean": "rimraf build dist node_modules/.cache .ports.json .env.local .rebuild-done"
   },
   "build": {
+    "extends": null,
     "appId": "com.anecoop.rds-viewer",
     "productName": "RDS Viewer Anecoop",
     "asar": true,
