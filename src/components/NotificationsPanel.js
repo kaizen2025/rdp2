@@ -7,6 +7,7 @@ import Typography from '@mui/material/Typography';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
+import Grow from '@mui/material/Grow';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import IconButton from '@mui/material/IconButton';
 import Chip from '@mui/material/Chip';
@@ -52,7 +53,7 @@ const getNotificationMessage = (notification) => {
     }
 };
 
-const NotificationItem = ({ notification, onMarkAsRead }) => {
+const NotificationItem = React.memo(({ notification, onMarkAsRead }) => {
     const config = NOTIFICATION_TYPE_CONFIG[notification.type] || { icon: <NotificationsIcon />, color: 'default', label: 'Notification' };
     const formatDate = (dateString) => {
         const date = new Date(dateString);
@@ -67,18 +68,20 @@ const NotificationItem = ({ notification, onMarkAsRead }) => {
     };
 
     return (
-        <ListItem
-            sx={{ backgroundColor: !notification.read_status ? 'action.hover' : 'transparent', borderLeft: !notification.read_status ? `4px solid` : 'none', borderColor: `${config.color}.main`, mb: 1, borderRadius: 1 }}
-            secondaryAction={!notification.read_status && <IconButton edge="end" size="small" onClick={() => onMarkAsRead(notification.id)} title="Marquer comme lu"><CheckCircleIcon /></IconButton>}
-        >
+        <Grow in={true}>
+            <ListItem
+                sx={{ backgroundColor: !notification.read_status ? 'action.hover' : 'transparent', borderLeft: !notification.read_status ? `4px solid` : 'none', borderColor: `${config.color}.main`, mb: 1, borderRadius: 1 }}
+                secondaryAction={!notification.read_status && <IconButton edge="end" size="small" onClick={() => onMarkAsRead(notification.id)} title="Marquer comme lu"><CheckCircleIcon /></IconButton>}
+            >
             <ListItemIcon>{React.cloneElement(config.icon, { color: config.color })}</ListItemIcon>
             <ListItemText
                 primary={<Box component="div" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}><Chip label={config.label} size="small" color={config.color} /><Typography variant="caption" color="textSecondary">{formatDate(notification.date)}</Typography></Box>}
                 secondary={<Box component="div"><Typography variant="body2" sx={{ mb: 0.5 }}><strong>{notification.computerName}</strong> - {notification.userDisplayName || notification.userName}</Typography><Typography component="div" variant="body2" color="textSecondary">{getNotificationMessage(notification)}</Typography></Box>}
             />
-        </ListItem>
+            </ListItem>
+        </Grow>
     );
-};
+});
 
 const NotificationsPanel = ({ open, onClose, onUpdate }) => {
     const { showNotification } = useApp();

@@ -19,6 +19,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
+import Grow from '@mui/material/Grow';
 
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
@@ -39,7 +40,7 @@ const NOTIFICATION_TYPE_CONFIG = {
     extended: { icon: <UpdateIcon />, color: 'info', label: 'Prolongé' },
 };
 
-const NotificationItem = ({ notification, onMarkAsRead }) => {
+const NotificationItem = React.memo(({ notification, onMarkAsRead }) => {
     const config = NOTIFICATION_TYPE_CONFIG[notification.type] || { icon: <NotificationsIcon />, color: 'default', label: 'Notification' };
     const formatDate = (dateString) => {
         const date = new Date(dateString);
@@ -68,16 +69,18 @@ const NotificationItem = ({ notification, onMarkAsRead }) => {
     };
 
     return (
-        <ListItem sx={{ backgroundColor: notification.read ? 'transparent' : 'action.hover', borderLeft: notification.read ? 'none' : `4px solid`, borderColor: `${config.color}.main`, mb: 1, borderRadius: 1 }}
-            secondaryAction={!notification.read && (<IconButton edge="end" size="small" onClick={() => onMarkAsRead(notification.id)} title="Marquer comme lu"><CheckCircleIcon /></IconButton>)} >
-            <ListItemIcon>{React.cloneElement(config.icon, { color: config.color })}</ListItemIcon>
+        <Grow in={true}>
+            <ListItem sx={{ backgroundColor: notification.read ? 'transparent' : 'action.hover', borderLeft: notification.read ? 'none' : `4px solid`, borderColor: `${config.color}.main`, mb: 1, borderRadius: 1 }}
+                secondaryAction={!notification.read && (<IconButton edge="end" size="small" onClick={() => onMarkAsRead(notification.id)} title="Marquer comme lu"><CheckCircleIcon /></IconButton>)} >
+                <ListItemIcon>{React.cloneElement(config.icon, { color: config.color })}</ListItemIcon>
             <ListItemText
                 primary={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}><Chip label={config.label} size="small" color={config.color} /><Typography variant="caption" color="textSecondary">{formatDate(notification.date)}</Typography></Box>}
                 secondary={<Box><Typography variant="body2" sx={{ mb: 0.5 }}><strong>{notification.computerName}</strong> - {notification.userDisplayName || notification.userName}</Typography><Typography variant="body2" color="textSecondary">{getNotificationMessage(notification)}</Typography></Box>}
             />
-        </ListItem>
+            </ListItem>
+        </Grow>
     );
-};
+});
 
 const LoanNotificationsPanel = ({ open, onClose, onNotificationClick }) => {
     const [notifications, setNotifications] = useState([]);

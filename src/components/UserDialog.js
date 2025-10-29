@@ -15,9 +15,14 @@ import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import Typography from '@mui/material/Typography';
+import Slide from '@mui/material/Slide';
 
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
+
+const Transition = React.forwardRef(function Transition(props, ref) {
+    return <Slide direction="up" ref={ref} {...props} />;
+});
 
 const UserDialog = ({ open, onClose, user, onSave, servers = [] }) => {
     const [formData, setFormData] = useState({
@@ -45,20 +50,44 @@ const UserDialog = ({ open, onClose, user, onSave, servers = [] }) => {
         setErrors({});
     }, [user, open, servers]);
 
+    const validateField = (name, value) => {
+        let error = '';
+        switch (name) {
+            case 'identifiant':
+                if (!value || value.length < 3) error = "L'identifiant doit contenir au moins 3 caractères";
+                else if (!/^[a-zA-Z0-9._-]+$/.test(value)) error = "L'identifiant contient des caractères invalides";
+                break;
+            case 'motdepasse':
+                if (!value || value.length < 8) error = "Le mot de passe doit contenir au moins 8 caractères";
+                break;
+            case 'nomcomplet':
+                if (!value) error = "Le nom complet est requis";
+                break;
+            case 'email':
+                if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) error = "Format d'email invalide";
+                break;
+            default:
+                break;
+        }
+        return error;
+    }
+
     const handleChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
-        if (errors[field]) {
-            setErrors(prev => ({ ...prev, [field]: '' }));
-        }
+        const error = validateField(field, value);
+        setErrors(prev => ({ ...prev, [field]: error }));
     };
 
     const validate = () => {
         const newErrors = {};
-        if (!formData.identifiant || formData.identifiant.length < 3) newErrors.identifiant = "L'identifiant doit contenir au moins 3 caractères";
-        if (formData.identifiant && !/^[a-zA-Z0-9._-]+$/.test(formData.identifiant)) newErrors.identifiant = "L'identifiant contient des caractères invalides";
-        if (!formData.motdepasse || formData.motdepasse.length < 8) newErrors.motdepasse = "Le mot de passe doit contenir au moins 8 caractères";
-        if (!formData.nomcomplet) newErrors.nomcomplet = "Le nom complet est requis";
-        if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = "Format d'email invalide";
+        const fieldsToValidate = ['identifiant', 'motdepasse', 'nomcomplet', 'email'];
+        fieldsToValidate.forEach(field => {
+            const error = validateField(field, formData[field]);
+            if (error) {
+                newErrors[field] = error;
+            }
+        });
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -69,9 +98,20 @@ const UserDialog = ({ open, onClose, user, onSave, servers = [] }) => {
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle>{user ? 'Modifier l\'utilisateur' : 'Ajouter un utilisateur'}</DialogTitle>
+        <Dialog
+            open={open}
+            onClose={onClose}
+            maxWidth="md"
+            fullWidth
+            TransitionComponent={Transition}
+            aria-labelledby="user-dialog-title"
+            aria-describedby="user-dialog-description"
+        >
+            <DialogTitle id="user-dialog-title">{user ? 'Modifier l\'utilisateur' : 'Ajouter un utilisateur'}</DialogTitle>
             <DialogContent>
+                <Typography id="user-dialog-description" style={{ display: 'none' }}>
+                    Formulaire pour ajouter ou modifier un utilisateur.
+                </Typography>
                 <Grid container spacing={2} sx={{ mt: 1 }}>
                     <Grid item xs={12} sm={6}>
                         <TextField label="Identifiant" fullWidth required value={formData.identifiant} onChange={(e) => handleChange('identifiant', e.target.value)} error={!!errors.identifiant} helperText={errors.identifiant} disabled={!!user} />

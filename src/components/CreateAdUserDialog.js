@@ -20,6 +20,11 @@ import Divider from '@mui/material/Divider';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import LockIcon from '@mui/icons-material/Lock';
 import InfoIcon from '@mui/icons-material/Info';
+import Slide from '@mui/material/Slide';
+
+const Transition = React.forwardRef(function Transition(props, ref) {
+    return <Slide direction="up" ref={ref} {...props} />;
+});
 
 const CreateAdUserDialog = ({ open, onClose, onSuccess, defaultOU = "OU=Users,DC=anecoopfr,DC=local" }) => {
     const [formData, setFormData] = useState({
@@ -40,53 +45,77 @@ const CreateAdUserDialog = ({ open, onClose, onSuccess, defaultOU = "OU=Users,DC
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
+    const [fieldErrors, setFieldErrors] = useState({});
+
+    const validateField = (name, value) => {
+        let error = '';
+        switch (name) {
+            case 'username':
+                if (!value || value.length < 3) error = 'Le nom d\'utilisateur doit contenir au moins 3 caractères';
+                break;
+            case 'firstName':
+                if (!value) error = 'Le prénom est obligatoire';
+                break;
+            case 'lastName':
+                if (!value) error = 'Le nom est obligatoire';
+                break;
+            case 'email':
+                if (!value || !value.includes('@')) error = 'Une adresse email valide est requise';
+                break;
+            case 'password':
+                if (!value || value.length < 8) error = 'Le mot de passe doit contenir au moins 8 caractères';
+                else {
+                    const hasUpperCase = /[A-Z]/.test(value);
+                    const hasLowerCase = /[a-z]/.test(value);
+                    const hasNumber = /[0-9]/.test(value);
+                    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(value);
+                    if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecialChar) {
+                        error = 'Majuscule, minuscule, chiffre et caractère spécial requis';
+                    }
+                }
+                break;
+            case 'confirmPassword':
+                if (value !== formData.password) error = 'Les mots de passe ne correspondent pas';
+                break;
+            default:
+                break;
+        }
+        return error;
+    }
+
     const handleChange = (e) => {
         const { name, value, checked, type } = e.target;
+        const fieldValue = type === 'checkbox' ? checked : value;
         setFormData(prev => ({
             ...prev,
-            [name]: type === 'checkbox' ? checked : value
+            [name]: fieldValue
         }));
-        setError(''); // Réinitialiser les erreurs lors de la modification
+
+        const error = validateField(name, fieldValue);
+        setFieldErrors(prev => ({ ...prev, [name]: error }));
+
+        if (name === 'password') {
+            const confirmPasswordError = validateField('confirmPassword', formData.confirmPassword);
+            setFieldErrors(prev => ({ ...prev, confirmPassword: confirmPasswordError }));
+        }
     };
 
     const validateForm = () => {
-        if (!formData.username || formData.username.length < 3) {
-            setError('Le nom d\'utilisateur doit contenir au moins 3 caractères');
-            return false;
+        const newErrors = {};
+        const fieldsToValidate = ['username', 'firstName', 'lastName', 'email', 'password', 'confirmPassword'];
+        fieldsToValidate.forEach(field => {
+            const error = validateField(field, formData[field]);
+            if (error) {
+                newErrors[field] = error;
+            }
+        });
+
+        setFieldErrors(newErrors);
+        const isValid = Object.keys(newErrors).length === 0;
+        if (!isValid) {
+            setError('Veuillez corriger les erreurs dans le formulaire.');
         }
-
-        if (!formData.firstName || !formData.lastName) {
-            setError('Le prénom et le nom sont obligatoires');
-            return false;
-        }
-
-        if (!formData.email || !formData.email.includes('@')) {
-            setError('Une adresse email valide est requise');
-            return false;
-        }
-
-        if (!formData.password || formData.password.length < 8) {
-            setError('Le mot de passe doit contenir au moins 8 caractères');
-            return false;
-        }
-
-        if (formData.password !== formData.confirmPassword) {
-            setError('Les mots de passe ne correspondent pas');
-            return false;
-        }
-
-        // Validation basique de la complexité du mot de passe
-        const hasUpperCase = /[A-Z]/.test(formData.password);
-        const hasLowerCase = /[a-z]/.test(formData.password);
-        const hasNumber = /[0-9]/.test(formData.password);
-        const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(formData.password);
-
-        if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecialChar) {
-            setError('Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial');
-            return false;
-        }
-
-        return true;
+        return isValid;
     };
 
     const handleSubmit = async () => {
@@ -177,14 +206,25 @@ const CreateAdUserDialog = ({ open, onClose, onSuccess, defaultOU = "OU=Users,DC
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle>
+        <Dialog
+            open={open}
+            onClose={onClose}
+            maxWidth="md"
+            fullWidth
+            TransitionComponent={Transition}
+            aria-labelledby="ad-user-dialog-title"
+            aria-describedby="ad-user-dialog-description"
+        >
+            <DialogTitle id="ad-user-dialog-title">
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <PersonAddIcon />
                     Créer un utilisateur Active Directory
                 </Box>
             </DialogTitle>
             <DialogContent dividers>
+                <Typography id="ad-user-dialog-description" style={{ display: 'none' }}>
+                    Formulaire pour créer un utilisateur Active Directory.
+                </Typography>
                 {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
                 {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
@@ -211,7 +251,8 @@ const CreateAdUserDialog = ({ open, onClose, onSuccess, defaultOU = "OU=Users,DC
                             onChange={handleChange}
                             fullWidth
                             required
-                            helperText="Utilisé pour la connexion (ex: j.dupont)"
+                            error={!!fieldErrors.username}
+                            helperText={fieldErrors.username || "Utilisé pour la connexion (ex: j.dupont)"}
                         />
                     </Grid>
 
@@ -224,7 +265,8 @@ const CreateAdUserDialog = ({ open, onClose, onSuccess, defaultOU = "OU=Users,DC
                             onChange={handleChange}
                             fullWidth
                             required
-                            helperText="Adresse email professionnelle"
+                            error={!!fieldErrors.email}
+                            helperText={fieldErrors.email || "Adresse email professionnelle"}
                         />
                     </Grid>
 
@@ -236,6 +278,8 @@ const CreateAdUserDialog = ({ open, onClose, onSuccess, defaultOU = "OU=Users,DC
                             onChange={handleChange}
                             fullWidth
                             required
+                            error={!!fieldErrors.firstName}
+                            helperText={fieldErrors.firstName}
                         />
                     </Grid>
 
@@ -247,6 +291,8 @@ const CreateAdUserDialog = ({ open, onClose, onSuccess, defaultOU = "OU=Users,DC
                             onChange={handleChange}
                             fullWidth
                             required
+                            error={!!fieldErrors.lastName}
+                            helperText={fieldErrors.lastName}
                         />
                     </Grid>
 
@@ -278,7 +324,8 @@ const CreateAdUserDialog = ({ open, onClose, onSuccess, defaultOU = "OU=Users,DC
                             onChange={handleChange}
                             fullWidth
                             required
-                            helperText="Min. 8 caractères, mixte"
+                            error={!!fieldErrors.password}
+                            helperText={fieldErrors.password || "Min. 8 caractères, mixte"}
                         />
                     </Grid>
 
@@ -291,6 +338,8 @@ const CreateAdUserDialog = ({ open, onClose, onSuccess, defaultOU = "OU=Users,DC
                             onChange={handleChange}
                             fullWidth
                             required
+                            error={!!fieldErrors.confirmPassword}
+                            helperText={fieldErrors.confirmPassword}
                         />
                     </Grid>
 
