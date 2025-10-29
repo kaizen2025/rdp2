@@ -1,0 +1,22 @@
+
+> rds-viewer-anecoop@3.0.3 dev
+> concurrently "npm run server:dev" "npm run start:auto"
+
+[0]
+[0] > rds-viewer-anecoop@3.0.3 server:dev
+[0] > nodemon server/server.js
+[0]
+[1]
+[1] > rds-viewer-anecoop@3.0.3 start:auto
+[1] > node scripts/start-react.js
+[1]
+[1] =============================================
+[1]  Démarrage de React Dev Server...
+[1] =============================================
+[1]
+[1] ⏳ Attente du démarrage du serveur backend...
+[0] [33m[nodemon] 3.1.10[39m
+[0] [33m[nodemon] to restart at any time, enter `rs`[39m
+[0] [33m[nodemon] watching path(s): *.*[39m
+[0] [33m[nodemon] watching extensions: js,mjs,cjs,json[39m
+[0] [32m[nodemon] starting `node server/server.js`[39m

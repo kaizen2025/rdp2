@@ -13,6 +13,11 @@ import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import Slide from '@mui/material/Slide';
+
+const Transition = React.forwardRef(function Transition(props, ref) {
+    return <Slide direction="up" ref={ref} {...props} />;
+});
 
 const COMPUTER_STATUS = {
   AVAILABLE: 'available',
@@ -139,19 +144,6 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
         }
     }, [computer, open]);
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        if (name.includes('.')) {
-            const [parent, child] = name.split('.');
-            setFormData(prev => ({ 
-                ...prev, 
-                [parent]: { ...prev[parent], [child]: value } 
-            }));
-        } else {
-            setFormData(prev => ({ ...prev, [name]: value }));
-        }
-    };
-
     const handleWarrantyToggle = (e) => {
         const hasWarranty = e.target.value === 'true';
         setFormData(prev => ({
@@ -173,9 +165,56 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
         }));
     };
 
+    const [errors, setErrors] = useState({});
+
+    const validateField = (name, value) => {
+        let error = '';
+        switch (name) {
+            case 'name':
+                if (!value) error = 'Le nom de l\'ordinateur est obligatoire';
+                break;
+            case 'serialNumber':
+                if (!value) error = 'Le numéro de série est obligatoire';
+                break;
+            default:
+                break;
+        }
+        return error;
+    }
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        if (name.includes('.')) {
+            const [parent, child] = name.split('.');
+            setFormData(prev => ({
+                ...prev,
+                [parent]: { ...prev[parent], [child]: value }
+            }));
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
+
+        const error = validateField(name, value);
+        setErrors(prev => ({ ...prev, [name]: error }));
+    };
+
+    const validate = () => {
+        const newErrors = {};
+        const fieldsToValidate = ['name', 'serialNumber'];
+        fieldsToValidate.forEach(field => {
+            const error = validateField(field, formData[field]);
+            if (error) {
+                newErrors[field] = error;
+            }
+        });
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
     const handleSubmit = () => {
-        if (!formData.name || !formData.serialNumber) {
-            alert('Le nom et le numéro de série sont obligatoires.');
+        if (!validate()) {
+            alert('Veuillez corriger les erreurs dans le formulaire.');
             return;
         }
         onSave(formData);
@@ -183,11 +222,22 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
-            <DialogTitle>
+        <Dialog
+            open={open}
+            onClose={onClose}
+            maxWidth="lg"
+            fullWidth
+            TransitionComponent={Transition}
+            aria-labelledby="computer-dialog-title"
+            aria-describedby="computer-dialog-description"
+        >
+            <DialogTitle id="computer-dialog-title">
                 {computer ? 'Modifier l\'ordinateur' : 'Ajouter un ordinateur'}
             </DialogTitle>
             <DialogContent>
+                <Typography id="computer-dialog-description" style={{ display: 'none' }}>
+                    Formulaire pour ajouter ou modifier un ordinateur.
+                </Typography>
                 <Grid container spacing={3} sx={{ mt: 0.5 }}>
                     {/* Informations de base */}
                     <Grid item xs={12}>
@@ -203,6 +253,8 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
                             onChange={handleChange} 
                             fullWidth 
                             required 
+                            error={!!errors.name}
+                            helperText={errors.name}
                         />
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -241,6 +293,8 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
                             onChange={handleChange} 
                             fullWidth 
                             required 
+                            error={!!errors.serialNumber}
+                            helperText={errors.serialNumber}
                         />
                     </Grid>
 

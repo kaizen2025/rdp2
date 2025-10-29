@@ -4,7 +4,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const log = require('electron-log');
-const { exec } = require('child_process');
+const { exec, fork } = require('child_process');
 const fs = require('fs');
 const isDev = require('electron-is-dev');
 
@@ -28,14 +28,33 @@ function startServer() {
         log.info('[Main] Environnement de production détecté. Démarrage du serveur Node.js interne...');
         const serverPath = path.join(__dirname, '..', 'server', 'server.js');
         log.info(`[Main] Chemin du serveur: ${serverPath}`);
-        try {
-            require(serverPath);
-            log.info('[Main] ✅ Serveur Node.js démarré avec succès.');
-        } catch (error) {
-            log.error('[Main] ❌ Erreur critique lors du démarrage du serveur:', error);
-            dialog.showErrorBox('Erreur Serveur Interne', `Impossible de démarrer le serveur local: ${error.message}`);
+
+        const serverProcess = fork(serverPath, [], {
+            silent: false, // Mettre à true pour rediriger stdout/stderr et les logger ici
+            env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
+        });
+
+        serverProcess.on('error', (err) => {
+            log.error('[Main] ❌ Erreur critique du processus serveur:', err);
+            dialog.showErrorBox('Erreur Serveur Interne', `Le processus serveur a rencontré une erreur fatale: ${err.message}`);
             app.quit();
-        }
+        });
+
+        serverProcess.on('exit', (code) => {
+            if (code !== 0) {
+                log.error(`[Main] ⚠️ Le processus serveur s'est arrêté avec le code d'erreur: ${code}`);
+                // On pourrait afficher une boîte de dialogue ici aussi, mais on évite pour ne pas spammer si le serveur redémarre en boucle.
+            } else {
+                log.info('[Main] Le processus serveur s\'est terminé proprement.');
+            }
+        });
+
+        app.on('will-quit', () => {
+            log.info('[Main] Arrêt du processus serveur...');
+            serverProcess.kill();
+        });
+
+        log.info('[Main] ✅ Processus serveur démarré.');
     } else {
         log.info('[Main] Mode développement. Le serveur backend est géré par un processus externe.');
     }
