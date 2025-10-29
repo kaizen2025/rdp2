@@ -65,7 +65,7 @@ const AddChannelDialog = ({ open, onClose, onSave }) => {
     );
 };
 
-const MessageItem = memo(({ message, isFirstInGroup, currentUser, onEdit, onDelete, onReact }) => {
+const MessageItem = memo(({ message, isFirstInGroup, currentUser, onEdit, onDelete, onReact, isOnline }) => {
     const { config } = useApp();
     const [isHovered, setIsHovered] = useState(false);
     const [menuAnchor, setMenuAnchor] = useState(null);
@@ -75,12 +75,24 @@ const MessageItem = memo(({ message, isFirstInGroup, currentUser, onEdit, onDele
     const getReactionAuthors = (users) => users.map(uid => allTechnicians.find(t => t.id === uid)?.name || uid).join(', ');
 
     return (
-        <Box 
-            onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)} 
+        <Box
+            onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}
             sx={{ display: 'flex', px: 2, py: isFirstInGroup ? 1.5 : 0.2, '&:hover': { bgcolor: 'action.hover' }, position: 'relative' }}
             onDoubleClick={() => isOwn && onEdit(message)}
         >
-            {isFirstInGroup ? <Avatar sx={{ width: 36, height: 36, mr: 2, mt: 0.5 }}>{message.authorAvatar}</Avatar> : <Box sx={{ width: 36, mr: 2 }} />}
+            {isFirstInGroup ? (
+                <Badge
+                    overlap="circular"
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                    variant="dot"
+                    color="success"
+                    invisible={!isOnline}
+                >
+                    <Avatar sx={{ width: 36, height: 36 }}>{message.authorAvatar}</Avatar>
+                </Badge>
+            ) : (
+                <Box sx={{ width: 36, mr: 2 }} />
+            )}
             <Box sx={{ flex: 1 }}>
                 {isFirstInGroup && <Stack direction="row" alignItems="baseline" spacing={1}><Typography variant="subtitle2" component="span" sx={{ fontWeight: 'bold' }}>{message.authorName}</Typography><Typography variant="caption" color="text.secondary">{new Date(message.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</Typography></Stack>}
                 <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', mt: isFirstInGroup ? 0 : -0.5 }}>
@@ -160,7 +172,8 @@ const ChatDialog = ({ open, onClose, onlineTechnicians = [] }) => {
                             const prevMsg = messages[index - 1];
                             const isFirstInGroup = !prevMsg || prevMsg.authorId !== msg.authorId || (new Date(msg.timestamp) - new Date(prevMsg.timestamp)) > 5 * 60 * 1000;
                             const showDateDivider = !prevMsg || new Date(msg.timestamp).toDateString() !== new Date(prevMsg.timestamp).toDateString();
-                            return (<React.Fragment key={msg.id}>{showDateDivider && <DateDivider date={msg.timestamp} />}<MessageItem message={msg} isFirstInGroup={isFirstInGroup} currentUser={currentTechnician} onEdit={handleEditMessage} onDelete={handleDeleteMessage} onReact={handleReaction} /></React.Fragment>);
+                            const isOnline = onlineIds.has(msg.authorId);
+                            return (<React.Fragment key={msg.id}>{showDateDivider && <DateDivider date={msg.timestamp} />}<MessageItem message={msg} isFirstInGroup={isFirstInGroup} currentUser={currentTechnician} onEdit={handleEditMessage} onDelete={handleDeleteMessage} onReact={handleReaction} isOnline={isOnline} /></React.Fragment>);
                          })}
                         <div ref={messagesEndRef} />
                     </Box>
