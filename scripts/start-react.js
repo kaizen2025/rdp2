@@ -111,7 +111,7 @@ GENERATE_SOURCEMAP=true
         fs.writeFileSync(ENV_FILE, envContent, 'utf8');
         console.log('✅ .env.local créé avec succès');
         console.log(`   React sera sur: http://localhost:${reactPort}`);
-        console.log(`   API sera sur  : http://localhost:${serverPort}`);
+        console.log(`   API sera sur  : http://localhost:${serverPort}/api`);
         console.log(`   WebSocket sur : ws://localhost:${wsPort}\n`);
     } catch (error) {
         console.error(`❌ Erreur création .env.local: ${error.message}`);

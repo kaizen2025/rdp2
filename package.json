@@ -20,7 +20,7 @@
     "check:deps": "node scripts/check-dependencies.js",
     "test:app": "concurrently --names \"SERVER,REACT\" -c \"bgBlue.bold,bgMagenta.bold\" \"npm run server:start\" \"npm run start:auto\"",
     "test:app:simple": "concurrently \"npm run server:start\" \"npm run start:auto\"",
-    "dev:electron": "concurrently --kill-others --names \"SERVER,REACT,ELECTRON\" -c \"bgBlue.bold,bgMagenta.bold,bgGreen.bold\" \"npm run server:start\" \"npm run start:auto\" \"wait-on http://localhost:3000 && npm run electron:dev\"",
+    "dev:electron": "rimraf .env.local node_modules/.cache/react-scripts && concurrently --kill-others --names \"SERVER,REACT,ELECTRON\" -c \"bgBlue.bold,bgMagenta.bold,bgGreen.bold\" \"npm run server:start\" \"npm run start:auto\" \"wait-on http://localhost:3000 && npm run electron:dev\"",
     "build:exe": "npm run build && electron-builder --win portable --config",
     "build:quick": "react-scripts build && electron-builder --win portable --config",
     "clean": "rimraf build dist node_modules/.cache .ports.json .env.local .rebuild-done"
