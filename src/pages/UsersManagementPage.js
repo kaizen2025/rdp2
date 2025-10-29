@@ -137,27 +137,20 @@ const UsersManagementPage = () => {
     const loadUsers = useCallback(async (force = false) => {
         try {
             const data = await fetchWithCache('excel_users', apiService.getExcelUsers, { force });
-
-            // On vérifie si les données sont dans le format attendu { success: true, users: [...] }
-            // ou si c'est directement un tableau d'utilisateurs.
-            const usersArray = data?.success && Array.isArray(data.users)
-                ? data.users
-                : Array.isArray(data)
-                ? data
-                : [];
-
-            if (usersArray.length > 0) {
-                setUsers(usersArray);
+            // Le backend retourne { success: true, users: { 'SRV-1': [...], 'SRV-2': [...] } }
+            // On doit aplatir cet objet en un seul tableau.
+            if (data?.success && typeof data.users === 'object' && data.users !== null) {
+                const allUsers = Object.values(data.users).flat();
+                setUsers(allUsers);
             } else {
                 setUsers([]);
-                // On évite d'afficher une erreur si le backend renvoie simplement un tableau vide.
-                if (data && !data.success && data.error) {
-                    showNotification('error', data.error);
+                if (data?.error) {
+                    showNotification('error', `Impossible de charger les utilisateurs : ${data.error}`);
                 }
             }
         } catch (error) {
             showNotification('error', `Erreur critique lors du chargement des utilisateurs: ${error.message}`);
-            setUsers([]); // Assurer un état propre en cas d'erreur
+            setUsers([]);
         }
     }, [fetchWithCache, showNotification]);
 

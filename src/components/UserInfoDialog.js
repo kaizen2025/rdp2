@@ -95,7 +95,6 @@ const UserInfoDialog = ({ open, onClose, user }) => {
             label="Mot de passe Office"
             value={userInfo?.officePassword}
             isPassword
-            forceCopy
           />
         </Grid>
       </DialogContent>
