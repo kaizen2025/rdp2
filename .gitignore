@@ -30,3 +30,8 @@ dist/
 build/
 assets/
 .git/
+
+# Fichiers de log et temporaires de l'agent
+jules-scratch/
+dev_electron.log
+*.log

@@ -1,3 +1,0 @@
-
-> rds-viewer-anecoop@3.0.0 dev:electron
-> rimraf .env.local node_modules/.cache/react-scripts && concurrently --kill-others --names "SERVER,REACT,ELECTRON" -c "bgBlue.bold,bgMagenta.bold,bgGreen.bold" "npm run server:start" "npm run start:auto" "wait-on http://localhost:3000 && npm run electron:dev"

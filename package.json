@@ -20,6 +20,7 @@
     "check:deps": "node scripts/check-dependencies.js",
     "test:app": "concurrently --names \"SERVER,REACT\" -c \"bgBlue.bold,bgMagenta.bold\" \"npm run server:start\" \"npm run start:auto\"",
     "test:app:simple": "concurrently \"npm run server:start\" \"npm run start:auto\"",
+    "dev:electron": "rimraf .env.local node_modules/.cache/react-scripts && concurrently --kill-others --names \"SERVER,REACT,ELECTRON\" -c \"bgBlue.bold,bgMagenta.bold,bgGreen.bold\" \"npm run server:start\" \"npm run start:auto\" \"wait-on http://localhost:3000 && npm run electron:dev\"",
     "build:exe": "npm run build && electron-builder --win portable --config",
     "build:quick": "react-scripts build && electron-builder --win portable --config",
     "clean": "rimraf build dist node_modules/.cache .ports.json .env.local .rebuild-done"
@@ -92,8 +93,11 @@
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8",
     "node-windows": "^1.0.0-beta.8",
+    "electron-is-dev": "2.0.0",
     "nodemon": "^3.1.3",
-    "react-scripts": "5.0.1"
+    "react-scripts": "5.0.1",
+    "rimraf": "^6.0.1",
+    "wait-on": "^7.2.0"
   },
   "eslintConfig": {
     "extends": [
