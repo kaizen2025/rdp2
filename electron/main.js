@@ -6,30 +6,44 @@ const { autoUpdater } = require('electron-updater');
 const log = require('electron-log');
 const { exec } = require('child_process');
 const fs = require('fs');
+const isDev = require('electron-is-dev');
 
-// Configuration des logs pour le fichier et la console
+// Configuration des logs
 log.transports.file.level = 'info';
 log.transports.console.level = 'info';
 autoUpdater.logger = log;
 
+log.info('[Main] ===================================================');
+log.info('[Main] 🚀 Démarrage de l\'application Electron...');
+log.info(`[Main] Mode de développement (isDev): ${isDev}`);
+log.info(`[Main] Version de l'application: ${app.getVersion()}`);
+log.info(`[Main] Chemin de l'application: ${app.getAppPath()}`);
+log.info('[Main] ===================================================');
+
 let mainWindow;
 
-// Démarrer le serveur Node.js interne
+// --- Démarrage du serveur backend (uniquement en production) ---
 function startServer() {
-    const serverPath = path.join(__dirname, '..', 'server', 'server.js');
-    log.info(`[Main] Démarrage du serveur Node.js depuis: ${serverPath}`);
-    try {
-        require(serverPath);
-        log.info('[Main] ✅ Serveur Node.js démarré avec succès.');
-    } catch (error) {
-        log.error('[Main] ❌ Erreur critique lors du démarrage du serveur:', error);
-        dialog.showErrorBox('Erreur Serveur Interne', `Impossible de démarrer le serveur local: ${error.message}`);
-        app.quit();
+    if (!isDev) {
+        log.info('[Main] Environnement de production détecté. Démarrage du serveur Node.js interne...');
+        const serverPath = path.join(__dirname, '..', 'server', 'server.js');
+        log.info(`[Main] Chemin du serveur: ${serverPath}`);
+        try {
+            require(serverPath);
+            log.info('[Main] ✅ Serveur Node.js démarré avec succès.');
+        } catch (error) {
+            log.error('[Main] ❌ Erreur critique lors du démarrage du serveur:', error);
+            dialog.showErrorBox('Erreur Serveur Interne', `Impossible de démarrer le serveur local: ${error.message}`);
+            app.quit();
+        }
+    } else {
+        log.info('[Main] Mode développement. Le serveur backend est géré par un processus externe.');
     }
 }
 
-// Créer la fenêtre principale de l'application
+// --- Création de la fenêtre principale ---
 function createWindow() {
+    log.info('[Main] 🎬 Création de la fenêtre principale...');
     mainWindow = new BrowserWindow({
         width: 1400,
         height: 900,
@@ -45,19 +59,34 @@ function createWindow() {
         },
         autoHideMenuBar: true,
         frame: true,
-        show: false
+        show: false // La fenêtre est masquée jusqu'à ce que le contenu soit prêt
     });
 
-    const indexPath = path.join(__dirname, '..', 'build', 'index.html');
-    mainWindow.loadFile(indexPath);
+    const devUrl = 'http://localhost:3000';
+    const prodPath = path.join(__dirname, '..', 'build', 'index.html');
+
+    if (isDev) {
+        log.info(`[Main] Chargement de l'URL de développement: ${devUrl}`);
+        mainWindow.loadURL(devUrl).catch(err => {
+            log.error(`[Main] ❌ Impossible de charger l'URL de développement: ${err.message}`);
+            dialog.showErrorBox('Erreur de chargement', `Impossible de se connecter au serveur de développement React. Veuillez vérifier qu'il est bien démarré.\n\nErreur: ${err.message}`);
+        });
+        // Ouvrir les outils de développement en mode dev
+        mainWindow.webContents.openDevTools();
+    } else {
+        log.info(`[Main] Chargement du fichier de production: ${prodPath}`);
+        mainWindow.loadFile(prodPath).catch(err => {
+            log.error(`[Main] ❌ Impossible de charger le fichier de production: ${err.message}`);
+        });
+    }
 
     mainWindow.once('ready-to-show', () => {
+        log.info('[Main] ✅ Fenêtre prête à être affichée.');
         mainWindow.show();
-        log.info('[Main] Fenêtre principale affichée.');
-        setTimeout(() => {
+        if (!isDev) {
             log.info('[Main] Lancement de la première vérification de mise à jour...');
-            checkForUpdates(false); // `false` signifie que ce n'est pas une demande manuelle
-        }, 5000);
+            setTimeout(() => checkForUpdates(false), 5000);
+        }
     });
 
     mainWindow.on('closed', () => {
