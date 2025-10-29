@@ -5,12 +5,12 @@ const configService = require('../backend/services/configService');
 const dataService = require('../backend/services/dataService');
 const adService = require('../backend/services/adService');
 const excelService = require('../backend/services/excelService');
+const userService = require('../backend/services/userService'); // ✅ NOUVEAU SERVICE SQLITE
 const accessoriesService = require('../backend/services/accessoriesService');
 const chatService = require('../backend/services/chatService');
 const notificationService = require('../backend/services/notificationService');
 const technicianService = require('../backend/services/technicianService');
 const rdsService = require('../backend/services/rdsService');
-// SUPPRESSION: L'import de guacamoleService n'est plus nécessaire.
 
 module.exports = (getBroadcast) => {
     const router = express.Router();
@@ -178,24 +178,40 @@ module.exports = (getBroadcast) => {
     router.post('/ad/users/:username/reset-password', asyncHandler(async (req, res) => res.json(await adService.resetAdUserPassword(req.params.username, req.body.newPassword, req.body.mustChange))));
     router.post('/ad/users', asyncHandler(async (req, res) => res.json(await adService.createAdUser(req.body))));
 
-    // --- UTILISATEURS EXCEL ---
-    router.get('/excel/users', asyncHandler(async (req, res) => res.json(await excelService.readExcelFileAsync())));
+    // --- UTILISATEURS RDS (SQLite + Sync Excel) ---
+    // Ces routes utilisent SQLite comme cache performant, synchronisé avec Excel
+
+    // Récupérer les utilisateurs depuis SQLite (groupés par serveur, format compatible avec l'ancien système)
+    router.get('/excel/users', asyncHandler(async (req, res) => res.json(await userService.getUsersByServer())));
+
+    // Rafraîchir: Synchroniser Excel → SQLite + invalider cache Excel
     router.post('/excel/users/refresh', asyncHandler(async (req, res) => {
-        excelService.invalidateCache();
-        const result = await excelService.readExcelFileAsync();
+        excelService.invalidateCache(); // Invalider le cache Excel
+        const result = await userService.syncUsersFromExcel(true); // Synchroniser Excel → SQLite
         getBroadcast()({ type: 'data_updated', payload: { entity: 'excel_users' } });
         res.json(result);
     }));
+
+    // Sauvegarder un utilisateur (dans SQLite ET Excel)
     router.post('/excel/users', asyncHandler(async (req, res) => {
-        const result = await excelService.saveUserToExcel(req.body);
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'excel_users' } });
+        const result = await userService.saveUser(req.body.user, getCurrentTechnician(req));
+        if (result.success) {
+            getBroadcast()({ type: 'data_updated', payload: { entity: 'excel_users' } });
+        }
         res.json(result);
     }));
+
+    // Supprimer un utilisateur (de SQLite ET Excel)
     router.delete('/excel/users/:username', asyncHandler(async (req, res) => {
-        const result = await excelService.deleteUserFromExcel({ username: req.params.username });
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'excel_users' } });
+        const result = await userService.deleteUser(req.params.username, getCurrentTechnician(req));
+        if (result.success) {
+            getBroadcast()({ type: 'data_updated', payload: { entity: 'excel_users' } });
+        }
         res.json(result);
     }));
+
+    // ✅ NOUVELLE ROUTE: Statistiques des utilisateurs
+    router.get('/users/stats', asyncHandler(async (req, res) => res.json(await userService.getUserStats())));
 
     // --- CHAT ---
     router.get('/chat/channels', asyncHandler(async (req, res) => res.json(await chatService.getChannels())));

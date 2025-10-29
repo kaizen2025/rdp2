@@ -147,6 +147,28 @@ const schema = `
         lastUpdate TEXT NOT NULL
     );
 
+    -- Table pour les utilisateurs RDS (synchronisée depuis Excel)
+    -- Cette table est le cache SQLite des utilisateurs, synchronisé avec le fichier Excel
+    CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL UNIQUE,
+        displayName TEXT NOT NULL,
+        email TEXT,
+        department TEXT,
+        server TEXT,
+        password TEXT,
+        officePassword TEXT,
+        adEnabled INTEGER DEFAULT 1, -- 1 pour actif, 0 pour désactivé
+        notes TEXT,
+        createdAt TEXT,
+        createdBy TEXT,
+        lastModified TEXT,
+        modifiedBy TEXT,
+        lastSyncFromExcel TEXT -- Date de dernière synchronisation depuis Excel
+    );
+    CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+    CREATE INDEX IF NOT EXISTS idx_users_server ON users(server);
+
     -- Table clé-valeur générique pour les paramètres (ex: loan_settings)
     CREATE TABLE IF NOT EXISTS key_value_store (
         key TEXT PRIMARY KEY,

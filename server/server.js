@@ -14,6 +14,7 @@ const notificationService = require('../backend/services/notificationService');
 const dataService = require('../backend/services/dataService');
 const rdsService = require('../backend/services/rdsService');
 const technicianService = require('../backend/services/technicianService');
+const userService = require('../backend/services/userService'); // ✅ NOUVEAU SERVICE
 const apiRoutes = require('./apiRoutes');
 const { findAllPorts, savePorts } = require('../backend/utils/portUtils');
 
@@ -208,6 +209,23 @@ async function startServer() {
         // ========================================
         databaseService.connect();
         console.log('✅ Base de données connectée.');
+
+        // ========================================
+        // ÉTAPE 3.5 : SYNCHRONISATION INITIALE DES UTILISATEURS
+        // ========================================
+        console.log('🔄 Synchronisation initiale des utilisateurs Excel → SQLite...');
+        try {
+            const syncResult = await userService.syncUsersFromExcel(false);
+            if (syncResult.success) {
+                console.log(`✅ ${syncResult.usersCount} utilisateurs synchronisés depuis Excel`);
+            } else {
+                console.warn(`⚠️  Échec de la synchronisation : ${syncResult.error}`);
+                console.warn('   L\'application continuera à fonctionner, mais les utilisateurs devront être synchronisés manuellement.');
+            }
+        } catch (error) {
+            console.error('❌ Erreur lors de la synchronisation initiale des utilisateurs:', error);
+            console.warn('   L\'application continuera à fonctionner, mais les utilisateurs devront être synchronisés manuellement.');
+        }
 
         // ========================================
         // ÉTAPE 4 : INITIALISATION WEBSOCKET
