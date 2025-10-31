@@ -7,9 +7,8 @@ const AppContext = createContext();
 
 export const useApp = () => useContext(AppContext);
 
-const WS_URL = process.env.NODE_ENV === 'development'
-  ? 'ws://localhost:3003'
-  : `ws://${window.location.hostname}:3003`;
+// ✅ CORRECTION: Utiliser localhost explicitement pour éviter une URL invalide dans Electron
+const WS_URL = `ws://localhost:3003`;
 
 export const AppProvider = ({ children }) => {
     const [config, setConfig] = useState(null);
@@ -21,7 +20,7 @@ export const AppProvider = ({ children }) => {
     
     const wsRef = useRef(null);
     const reconnectTimeoutRef = useRef(null);
-    const initialized = useRef(false); // **CORRECTION POUR STRICT MODE**
+    const initialized = useRef(false);
 
     const eventListeners = useRef(new Map());
 
@@ -77,7 +76,6 @@ export const AppProvider = ({ children }) => {
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                console.log('WebSocket Message Reçu:', data);
                 if (data.type === 'data_updated' && data.payload?.entity) {
                     emit(`data_updated:${data.payload.entity}`, data.payload);
                     emit('data_updated', data.payload);
@@ -97,7 +95,6 @@ export const AppProvider = ({ children }) => {
         };
 
         ws.onerror = (error) => {
-            // L'erreur est souvent non descriptive, onclose gère la reconnexion
             console.error('❌ Erreur WebSocket.');
             ws.close();
         };
@@ -107,7 +104,7 @@ export const AppProvider = ({ children }) => {
         try {
             const result = await apiService.saveConfig(newConfig);
             if (result.success) {
-                setConfig(newConfig); // Met à jour l'état local
+                setConfig(newConfig);
                 return true;
             }
             return false;
@@ -118,7 +115,6 @@ export const AppProvider = ({ children }) => {
     }, []);
 
     useEffect(() => {
-        // **CORRECTION POUR STRICT MODE** : On s'assure que l'initialisation ne se fait qu'une fois
         if (initialized.current) return;
         initialized.current = true;
 
@@ -126,10 +122,10 @@ export const AppProvider = ({ children }) => {
             try {
                 const loadedConfig = await apiService.getConfig();
                 setConfig(loadedConfig);
-                connectWebSocket(); // Démarrer le WebSocket après avoir chargé la config
+                connectWebSocket();
             } catch (err) {
                 console.error('Erreur initialisation App:', err);
-                setError(`Impossible de charger la configuration depuis le serveur: ${err.message}`);
+                setError(`Impossible de charger la configuration: ${err.message}`);
                 setIsOnline(false);
             } finally {
                 setIsInitializing(false);

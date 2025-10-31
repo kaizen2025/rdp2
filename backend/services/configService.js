@@ -1,48 +1,47 @@
-// backend/services/configService.js - VERSION FINALE SANS VÉRIFICATION GUACAMOLE
+// backend/services/configService.js - VERSION FINALE ROBUSTE
 
-const fs = require('fs').promises;
+const fs = require('fs');
 const path = require('path');
 
-const CONFIG_PATH = path.join(__dirname, '..', '..', 'config', 'config.json');
-const TEMPLATE_CONFIG_PATH = path.join(__dirname, '..', '..', 'config', 'config.template.json');
+// Cette variable globale est définie par Electron, mais pas par Node.js.
+// C'est le moyen le plus sûr de détecter l'environnement.
+const isElectron = 'electron' in process.versions;
+
+// On importe `electron-is-dev` uniquement si on est dans Electron.
+const isDev = isElectron ? require('electron-is-dev') : process.env.NODE_ENV !== 'production';
+
+function getBasePath() {
+    if (!isElectron || isDev) {
+        // En développement (Node pur ou Electron dev), la racine du projet.
+        return path.join(__dirname, '..', '..');
+    }
+    // En production (EXE), `process.resourcesPath` est le chemin le plus fiable.
+    return process.resourcesPath;
+}
+
+const basePath = getBasePath();
+const CONFIG_PATH = path.join(basePath, 'config', 'config.json');
+const TEMPLATE_CONFIG_PATH = path.join(basePath, 'config', 'config.template.json');
 
 let appConfig = null;
 let isConfigValid = false;
 
-/**
- * Normalise la configuration en mémoire pour assurer la rétrocompatibilité.
- * Si 'defaultExcelPath' existe, sa valeur est copiée dans 'excelFilePath'.
- * @param {object} config - L'objet de configuration.
- */
 function normalizeConfig(config) {
     if (config.defaultExcelPath && !config.excelFilePath) {
-        console.log("🔧 Clé de configuration obsolète 'defaultExcelPath' détectée. Utilisation de sa valeur pour 'excelFilePath'.");
         config.excelFilePath = config.defaultExcelPath;
     }
-    // La section guacamole est supprimée, donc plus besoin de normalisation ici.
 }
 
-/**
- * Valide que les clés essentielles sont présentes et non des placeholders.
- * @param {object} config - L'objet de configuration.
- * @returns {{isValid: boolean, errors: string[]}}
- */
 function validateConfig(config) {
     const errors = [];
     const requiredKeys = {
         'databasePath': 'Le chemin vers la base de données SQLite.',
-        'excelFilePath': 'Le chemin vers le fichier Excel des utilisateurs (ou defaultExcelPath).',
-        // --- SUPPRESSION DES VÉRIFICATIONS GUACAMOLE ---
-        // 'guacamole.url': 'L\'URL de votre serveur Guacamole.',
-        // 'guacamole.secretKey': 'La clé secrète pour l\'authentification Guacamole.',
+        'excelFilePath': 'Le chemin vers le fichier Excel des utilisateurs.',
     };
-
     for (const [key, description] of Object.entries(requiredKeys)) {
         const value = key.split('.').reduce((o, i) => o?.[i], config);
-        if (!value) {
-            errors.push(`Clé manquante: '${key}'. Description: ${description}`);
-        } else if (typeof value === 'string' && (value.includes('VOTRE_') || value.includes('CHEMIN\\VERS'))) {
-            errors.push(`Valeur placeholder détectée pour '${key}'. Veuillez la remplacer.`);
+        if (!value || (typeof value === 'string' && (value.includes('VOTRE_') || value.includes('CHEMIN_RESEAU')))) {
+            errors.push(`Clé invalide: '${key}'. Description: ${description}`);
         }
     }
     return { isValid: errors.length === 0, errors };
@@ -50,66 +49,49 @@ function validateConfig(config) {
 
 async function loadConfigAsync() {
     try {
-        const data = await fs.readFile(CONFIG_PATH, 'utf-8');
+        console.log(`[Config] Lecture de: ${CONFIG_PATH}`);
+        const data = await fs.promises.readFile(CONFIG_PATH, 'utf-8');
         appConfig = JSON.parse(data);
     } catch (error) {
-        console.error(`⚠️ Impossible de lire config.json (${error.message}). Utilisation de la configuration template comme fallback.`);
+        console.error(`⚠️ Impossible de lire config.json. Utilisation du template.`);
         try {
-            const templateData = await fs.readFile(TEMPLATE_CONFIG_PATH, 'utf-8');
+            const templateData = await fs.promises.readFile(TEMPLATE_CONFIG_PATH, 'utf-8');
             appConfig = JSON.parse(templateData);
         } catch (templateError) {
-            throw new Error("ERREUR CRITIQUE: config.json et config.template.json sont tous deux illisibles.");
+            throw new Error("ERREUR CRITIQUE: config.json et config.template.json sont illisibles.");
         }
-        isConfigValid = false; // La template n'est jamais valide par défaut
+        isConfigValid = false;
         return;
     }
-
     normalizeConfig(appConfig);
-
     const { isValid, errors } = validateConfig(appConfig);
     isConfigValid = isValid;
-
     if (!isValid) {
         console.error("====================== ERREUR DE CONFIGURATION ======================");
-        console.error("Le fichier de configuration est invalide. Le serveur démarre en mode dégradé.");
         errors.forEach(err => console.error(`- ${err}`));
         console.error("=====================================================================");
-    } else {
-        console.log("✅ Configuration chargée et validée avec succès.");
     }
 }
 
-function getConfig() {
-    return appConfig || {};
-}
-
-function isConfigurationValid() {
-    return isConfigValid;
-}
+function getConfig() { return appConfig || {}; }
+function isConfigurationValid() { return isConfigValid; }
 
 async function saveConfig(newConfig) {
     try {
-        await fs.writeFile(CONFIG_PATH, JSON.stringify(newConfig, null, 4), 'utf-8');
+        await fs.promises.writeFile(CONFIG_PATH, JSON.stringify(newConfig, null, 4), 'utf-8');
         appConfig = newConfig;
-        normalizeConfig(appConfig); // Normaliser après sauvegarde aussi
+        normalizeConfig(appConfig);
         const { isValid, errors } = validateConfig(appConfig);
         isConfigValid = isValid;
-        if (!isValid) {
-            console.warn("Configuration sauvegardée, mais elle contient des erreurs:", errors);
-        }
-        return { success: true, message: "Configuration sauvegardée." };
+        if (!isValid) console.warn("Config sauvegardée avec erreurs:", errors);
+        return { success: true };
     } catch (error) {
-        console.error('Erreur lors de la sauvegarde de la configuration:', error);
-        return { success: false, message: `Erreur: ${error.message}` };
+        console.error('Erreur sauvegarde config:', error);
+        return { success: false, message: error.message };
     }
 }
 
 module.exports = {
-    loadConfigAsync,
-    getConfig,
-    saveConfig,
-    isConfigurationValid,
-    get appConfig() {
-        return appConfig;
-    },
+    loadConfigAsync, getConfig, saveConfig, isConfigurationValid,
+    get appConfig() { return appConfig; },
 };

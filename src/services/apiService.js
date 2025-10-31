@@ -79,6 +79,7 @@ class ApiService {
     // PRÊTS (LOANS)
     getLoans = async () => this.request('/loans')
     createLoan = async (loanData) => this.request('/loans', { method: 'POST', body: JSON.stringify(loanData) })
+    updateLoan = async (loanId, loanData) => this.request(`/loans/${loanId}`, { method: 'PUT', body: JSON.stringify(loanData) })
     returnLoan = async (id, notes, accessoryInfo) => this.request(`/loans/${id}/return`, { method: 'POST', body: JSON.stringify({ returnNotes: notes, accessoryInfo }) })
     extendLoan = async (id, date, reason) => this.request(`/loans/${id}/extend`, { method: 'POST', body: JSON.stringify({ newReturnDate: date, reason }) })
     cancelLoan = async (id, reason) => this.request(`/loans/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) })

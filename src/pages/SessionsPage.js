@@ -1,17 +1,15 @@
-// src/pages/SessionsPage.js - VERSION AVEC RDP AUTO ET REFRESH AMÉLIORÉ
+// src/pages/SessionsPage.js - VERSION FINALE CORRIGÉE
 
 import React, { useState, useMemo, useCallback, memo } from 'react';
-import { Box, Paper, Typography, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Alert, Chip, Tooltip, IconButton, FormControl, InputLabel, Select, MenuItem, Switch, FormControlLabel } from '@mui/material';
-import { Person as PersonIcon, Dns as DnsIcon, Timer as TimerIcon, VpnKey as VpnKeyIcon, ScreenShare as ScreenShareIcon, Computer as ComputerIcon, Message as MessageIcon, Info as InfoIcon, Refresh as RefreshIcon, Announcement as AnnouncementIcon, CheckCircle as CheckCircleIcon, RadioButtonUnchecked as RadioButtonUncheckedIcon, Cancel as CancelIcon } from '@mui/icons-material';
+import { Box, Paper, Typography, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Chip, Tooltip, IconButton, FormControl, InputLabel, Select, MenuItem, Switch, FormControlLabel } from '@mui/material';
+import { Person as PersonIcon, Dns as DnsIcon, Timer as TimerIcon, ScreenShare as ScreenShareIcon, Computer as ComputerIcon, Message as MessageIcon, Info as InfoIcon, Refresh as RefreshIcon, Announcement as AnnouncementIcon, CheckCircle as CheckCircleIcon, RadioButtonUnchecked as RadioButtonUncheckedIcon, Cancel as CancelIcon } from '@mui/icons-material';
 
 import { useApp } from '../contexts/AppContext';
+import { useCache } from '../contexts/CacheContext';
 import apiService from '../services/apiService';
-import useDataFetching from '../hooks/useDataFetching';
 import SendMessageDialog from '../components/SendMessageDialog';
 import UserInfoDialog from '../components/UserInfoDialog';
 import GlobalMessageDialog from '../components/GlobalMessageDialog';
-
-// Nouveaux composants modernes
 import PageHeader from '../components/common/PageHeader';
 import SearchInput from '../components/common/SearchInput';
 import EmptyState from '../components/common/EmptyState';
@@ -53,20 +51,10 @@ const GroupedUserRow = memo(({ user, sessions, onSendMessage, onShowInfo, onShad
             <TableCell>{oldestSession ? new Date(oldestSession.logonTime).toLocaleString('fr-FR') : 'N/A'}</TableCell>
             <TableCell>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Tooltip title={isActive ? "Shadow - Prise en main directe (app bureau)" : "Session inactive"}>
-                        <span><IconButton size="small" onClick={() => onShadow(mainSession)} color="primary" disabled={!isActive || !window.electronAPI}><ScreenShareIcon /></IconButton></span>
-                    </Tooltip>
-                    <Tooltip title="Connexion RDP directe (app bureau)">
-                        <span><IconButton size="small" onClick={() => onConnect(mainSession, userInfo)} color="success" disabled={!window.electronAPI}><ComputerIcon /></IconButton></span>
-                    </Tooltip>
-                    <Tooltip title={isActive ? "Envoyer un message" : "Session inactive"}>
-                        <span><IconButton size="small" onClick={() => onSendMessage(mainSession)} color="info" disabled={!isActive}><MessageIcon /></IconButton></span>
-                    </Tooltip>
-                    {userInfo && (
-                        <Tooltip title="Fiche utilisateur">
-                            <IconButton size="small" onClick={() => onShowInfo(mainSession, userInfo)} color="secondary"><InfoIcon /></IconButton>
-                        </Tooltip>
-                    )}
+                    <Tooltip title={isActive ? "Shadow (app bureau)" : "Session inactive"}><span><IconButton size="small" onClick={() => onShadow(mainSession)} color="primary" disabled={!isActive || !window.electronAPI}><ScreenShareIcon /></IconButton></span></Tooltip>
+                    <Tooltip title="Connexion RDP (app bureau)"><span><IconButton size="small" onClick={() => onConnect(mainSession, userInfo)} color="success" disabled={!window.electronAPI}><ComputerIcon /></IconButton></span></Tooltip>
+                    <Tooltip title={isActive ? "Envoyer un message" : "Session inactive"}><span><IconButton size="small" onClick={() => onSendMessage(mainSession)} color="info" disabled={!isActive}><MessageIcon /></IconButton></span></Tooltip>
+                    {userInfo && (<Tooltip title="Fiche utilisateur"><IconButton size="small" onClick={() => onShowInfo(mainSession, userInfo)} color="secondary"><InfoIcon /></IconButton></Tooltip>)}
                 </Box>
             </TableCell>
         </TableRow>
@@ -74,20 +62,28 @@ const GroupedUserRow = memo(({ user, sessions, onSendMessage, onShowInfo, onShad
 });
 
 const SessionsPage = () => {
-    const { config, showNotification } = useApp();
+    const { showNotification } = useApp();
+    const { cache, isLoading: isCacheLoading, invalidate } = useCache();
     const [filter, setFilter] = useState('');
     const [serverFilter, setServerFilter] = useState('all');
     const [dialogState, setDialogState] = useState({ type: null, data: null });
     const [multiScreenMode, setMultiScreenMode] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
-    const { data: sessionsData, isLoading: isLoadingSessions, error: sessionsError, refresh: refreshSessions } = useDataFetching(apiService.getRdsSessions, { entityName: 'rds_sessions' });
-    const { data: usersData, error: usersError } = useDataFetching(apiService.getExcelUsers, { entityName: 'excel_users' });
+    const sessions = useMemo(() => Array.isArray(cache.rds_sessions) ? cache.rds_sessions : [], [cache.rds_sessions]);
+    const users = useMemo(() => (cache.excel_users && typeof cache.excel_users === 'object') ? cache.excel_users : {}, [cache.excel_users]);
+    const config = useMemo(() => cache.config || {}, [cache.config]);
 
-    const sessions = useMemo(() => Array.isArray(sessionsData) ? sessionsData : [], [sessionsData]);
-    const users = useMemo(() => usersData?.success ? usersData.users : {}, [usersData]);
+    const handleRefresh = useCallback(async () => {
+        setIsRefreshing(true);
+        showNotification('info', 'Rafraîchissement des sessions en cours...');
+        await apiService.refreshRdsSessions();
+        await invalidate('rds_sessions');
+        setIsRefreshing(false);
+    }, [invalidate, showNotification]);
 
     const getUserInfo = useCallback((username) => {
-        if (!users || typeof users !== 'object') return null;
+        if (!users) return null;
         for (const serverUsers of Object.values(users)) {
             const user = serverUsers.find(u => u.username && u.username.toLowerCase() === username.toLowerCase());
             if (user) return user;
@@ -103,15 +99,17 @@ const SessionsPage = () => {
 
     const stats = useMemo(() => {
         const activeSessions = sessions.filter(s => s.isActive).length;
-        const disconnectedSessions = sessions.length - activeSessions;
-        const uniqueServers = [...new Set(sessions.map(s => s.server))].length;
-        return { activeSessions, disconnectedSessions, uniqueServers };
+        return {
+            activeSessions,
+            disconnectedSessions: sessions.length - activeSessions,
+            uniqueServers: [...new Set(sessions.map(s => s.server))].length
+        };
     }, [sessions]);
 
     const handleLaunchShadow = async (session) => {
-        if (!window.electronAPI?.launchRdp) return showNotification('warning', 'Le mode Shadow est uniquement disponible dans l\'application de bureau.');
-        if (!session || !session.isActive) return showNotification('warning', 'La session doit être active pour utiliser le mode Shadow.');
-        showNotification('info', `Lancement du mode Shadow pour ${session.username} sur ${session.server}...`);
+        if (!window.electronAPI?.launchRdp) return showNotification('warning', 'Fonctionnalité disponible uniquement dans l\'application de bureau.');
+        if (!session || !session.isActive) return showNotification('warning', 'La session doit être active.');
+        showNotification('info', `Lancement du Shadow pour ${session.username}...`);
         try {
             const result = await window.electronAPI.launchRdp({ server: session.server, sessionId: session.sessionId });
             if (!result.success) throw new Error(result.error);
@@ -119,22 +117,24 @@ const SessionsPage = () => {
     };
 
     const handleLaunchConnect = async (session, userInfo) => {
-        if (!window.electronAPI?.launchRdp) return showNotification('warning', 'La connexion RDP directe est uniquement disponible dans l\'application de bureau.');
+        if (!window.electronAPI?.launchRdp) return showNotification('warning', 'Fonctionnalité disponible uniquement dans l\'application de bureau.');
         if (!session) return;
-        
         if (!userInfo?.password) {
-            showNotification('error', `Aucun mot de passe configuré pour ${userInfo?.username || 'cet utilisateur'}. Connexion manuelle requise.`);
+            showNotification('error', `Aucun mot de passe configuré pour ${userInfo?.username}. Connexion manuelle requise.`);
             await window.electronAPI.launchRdp({ server: session.server });
             return;
         }
-
-        showNotification('info', `Connexion RDP automatique vers ${session.server} pour ${userInfo.username}...`);
+        showNotification('info', `Connexion RDP automatique vers ${session.server}...`);
         try {
             const result = await window.electronAPI.launchRdp({ server: session.server, username: userInfo.username, password: userInfo.password });
             if (!result.success) throw new Error(result.error);
         } catch (err) { showNotification('error', `Erreur RDP: ${err.message}`); }
     };
     
+    if (isCacheLoading) {
+        return <LoadingScreen type="table" rows={10} columns={7} />;
+    }
+
     return (
         <Box sx={{ p: 2 }}>
             <PageHeader
@@ -142,7 +142,7 @@ const SessionsPage = () => {
                 subtitle="Surveillance en temps réel des sessions utilisateurs"
                 icon={ComputerIcon}
                 stats={[
-                    { label: 'Sessions actives', value: stats.activeSessions, icon: CheckCircleIcon },
+                    { label: 'Actives', value: stats.activeSessions, icon: CheckCircleIcon },
                     { label: 'Déconnectées', value: stats.disconnectedSessions, icon: CancelIcon },
                     { label: 'Serveurs', value: stats.uniqueServers, icon: DnsIcon },
                     { label: 'Utilisateurs', value: groupedSessions.length, icon: PersonIcon }
@@ -152,7 +152,7 @@ const SessionsPage = () => {
                         <FormControlLabel control={<Switch checked={multiScreenMode} onChange={(e) => setMultiScreenMode(e.target.checked)} size="small" />} label="Multi-écrans" />
                         <Button variant="contained" startIcon={<AnnouncementIcon />} onClick={() => setDialogState({ type: 'globalMessage' })} sx={{ borderRadius: 2 }}>Message à tous</Button>
                         <Tooltip title="Forcer le rafraîchissement">
-                            <span><IconButton onClick={refreshSessions} disabled={isLoadingSessions} color="primary"><>{isLoadingSessions ? <CircularProgress size={24} color="inherit" /> : <RefreshIcon />}</></IconButton></span>
+                            <span><IconButton onClick={handleRefresh} disabled={isRefreshing} color="primary">{isRefreshing ? <CircularProgress size={24} color="inherit" /> : <RefreshIcon />}</IconButton></span>
                         </Tooltip>
                     </Box>
                 }
@@ -160,7 +160,7 @@ const SessionsPage = () => {
 
             <Paper elevation={2} sx={{ p: 2.5, mb: 3, borderRadius: 2 }}>
                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-end' }}>
-                    <Box sx={{ flexGrow: 1 }}><SearchInput value={filter} onChange={setFilter} placeholder="Rechercher un utilisateur ou une session..." fullWidth /></Box>
+                    <Box sx={{ flexGrow: 1 }}><SearchInput value={filter} onChange={setFilter} placeholder="Rechercher un utilisateur..." fullWidth /></Box>
                     <FormControl size="small" sx={{ minWidth: 220 }}>
                         <InputLabel>Serveur</InputLabel>
                         <Select value={serverFilter} label="Serveur" onChange={(e) => setServerFilter(e.target.value)} sx={{ borderRadius: 2 }}>
@@ -169,18 +169,15 @@ const SessionsPage = () => {
                         </Select>
                     </FormControl>
                 </Box>
-                {(sessionsError || usersError) && <Alert severity="error" sx={{ mt: 2, borderRadius: 1 }}>{sessionsError || usersError}</Alert>}
             </Paper>
 
-            {isLoadingSessions && sessions.length === 0 ? (
-                <LoadingScreen type="table" rows={10} columns={7} />
-            ) : groupedSessions.length === 0 ? (
+            {groupedSessions.length === 0 ? (
                 <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
                     <EmptyState
                         type={filter || serverFilter !== 'all' ? 'search' : 'empty'}
                         title={filter || serverFilter !== 'all' ? 'Aucune session trouvée' : 'Aucune session active'}
-                        description={filter || serverFilter !== 'all' ? 'Essayez avec d\'autres critères de recherche' : 'Les sessions RDS apparaîtront ici une fois les utilisateurs connectés'}
-                        actionLabel={filter || serverFilter !== 'all' ? 'Réinitialiser les filtres' : undefined}
+                        description={filter || serverFilter !== 'all' ? 'Essayez avec d\'autres critères' : 'Les sessions apparaîtront ici.'}
+                        actionLabel={filter || serverFilter !== 'all' ? 'Réinitialiser' : undefined}
                         onAction={filter || serverFilter !== 'all' ? () => { setFilter(''); setServerFilter('all'); } : undefined}
                     />
                 </Paper>
@@ -189,13 +186,13 @@ const SessionsPage = () => {
                     <Table size="small" stickyHeader>
                         <TableHead>
                             <TableRow>
-                                <TableCell sx={{ width: '16%', fontWeight: 600 }}><PersonIcon sx={{ verticalAlign: 'bottom', mr: 0.5 }} />Nom Complet</TableCell>
-                                <TableCell sx={{ width: '12%', fontWeight: 600 }}><VpnKeyIcon sx={{ verticalAlign: 'bottom', mr: 0.5 }} />Utilisateur</TableCell>
-                                <TableCell sx={{ width: '13%', fontWeight: 600 }}><DnsIcon sx={{ verticalAlign: 'bottom', mr: 0.5 }} />Serveurs</TableCell>
-                                <TableCell sx={{ width: '10%', fontWeight: 600 }}>État</TableCell>
-                                <TableCell sx={{ width: '11%', fontWeight: 600 }}><TimerIcon sx={{ verticalAlign: 'bottom', mr: 0.5 }} />Durée</TableCell>
-                                <TableCell sx={{ width: '14%', fontWeight: 600 }}>Heure Connexion</TableCell>
-                                <TableCell sx={{ width: '14%', fontWeight: 600 }}>Actions</TableCell>
+                                <TableCell>Nom Complet</TableCell>
+                                <TableCell>Utilisateur</TableCell>
+                                <TableCell>Serveurs</TableCell>
+                                <TableCell>État</TableCell>
+                                <TableCell>Durée</TableCell>
+                                <TableCell>Heure Connexion</TableCell>
+                                <TableCell>Actions</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>

@@ -12,7 +12,7 @@ const notificationService = require('../backend/services/notificationService');
 const technicianService = require('../backend/services/technicianService');
 const rdsService = require('../backend/services/rdsService');
 
-module.exports = (getBroadcast) => {
+module.exports = (broadcast) => {
     const router = express.Router();
 
     const getCurrentTechnician = (req) => {
@@ -28,44 +28,46 @@ module.exports = (getBroadcast) => {
             res.status(500).json({ error: 'Erreur interne du serveur.', details: error.message });
         });
 
+    // --- ROUTES DE SANTÉ ET CONFIGURATION (toujours disponibles) ---
     router.get('/health', asyncHandler(async (req, res) => {
         if (!configService.isConfigurationValid()) {
             return res.status(503).json({
                 status: 'error',
-                message: 'Le serveur est en mode dégradé en raison d\'une configuration invalide. Veuillez consulter les logs du serveur pour plus de détails.',
+                message: 'Le serveur est en mode dégradé en raison d\'une configuration invalide.',
             });
         }
         res.json({ status: 'ok', message: 'Le serveur est opérationnel.' });
     }));
-
     router.get('/config', asyncHandler(async (req, res) => res.json(configService.getConfig())));
     router.post('/config', asyncHandler(async (req, res) => {
         const result = await configService.saveConfig(req.body.newConfig);
-        getBroadcast()({ type: 'config_updated' });
+        broadcast({ type: 'config_updated' });
         res.json(result);
     }));
 
-    if (!configService.isConfigurationValid()) {
-        router.use((req, res, next) => {
-            res.status(503).json({
+    // Middleware pour bloquer les autres routes si la config est invalide
+    router.use((req, res, next) => {
+        if (!configService.isConfigurationValid()) {
+            return res.status(503).json({
                 error: 'Service Indisponible',
-                message: 'Le serveur est en mode dégradé car la configuration est invalide. Seul le diagnostic est possible.'
+                message: 'Le serveur est en mode dégradé car la configuration est invalide. Veuillez corriger config.json.'
             });
-        });
-        return router;
-    }
+        }
+        next();
+    });
 
+    // --- ROUTES PROTÉGÉES PAR LA CONFIGURATION ---
     router.get('/technicians/connected', asyncHandler(async (req, res) => res.json(await technicianService.getConnectedTechnicians())));
     router.post('/technicians/login', asyncHandler(async (req, res) => {
         const result = await technicianService.registerTechnicianLogin(req.body);
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'technicians' } });
+        broadcast({ type: 'data_updated', payload: { entity: 'technicians' } });
         res.json(result);
     }));
 
     router.get('/rds-sessions', asyncHandler(async (req, res) => res.json(await rdsService.getStoredRdsSessions())));
     router.post('/rds-sessions/refresh', asyncHandler(async (req, res) => {
         const result = await rdsService.refreshAndStoreRdsSessions();
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'rds_sessions' } });
+        broadcast({ type: 'data_updated', payload: { entity: 'rds_sessions' } });
         res.json(result);
     }));
     router.post('/rds-sessions/send-message', asyncHandler(async (req, res) => res.json(await rdsService.sendMessage(req.body.server, req.body.sessionId, req.body.message))));
@@ -74,47 +76,54 @@ module.exports = (getBroadcast) => {
     router.get('/computers', asyncHandler(async (req, res) => res.json(await dataService.getComputers())));
     router.post('/computers', asyncHandler(async (req, res) => {
         const result = await dataService.saveComputer(req.body, getCurrentTechnician(req));
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'computers' } });
+        broadcast({ type: 'data_updated', payload: { entity: 'computers' } });
         res.status(201).json(result);
     }));
     router.put('/computers/:id', asyncHandler(async (req, res) => {
         const result = await dataService.saveComputer({ ...req.body, id: req.params.id }, getCurrentTechnician(req));
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'computers' } });
+        broadcast({ type: 'data_updated', payload: { entity: 'computers' } });
         res.json(result);
     }));
     router.delete('/computers/:id', asyncHandler(async (req, res) => {
         const result = await dataService.deleteComputer(req.params.id, getCurrentTechnician(req));
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'computers' } });
+        broadcast({ type: 'data_updated', payload: { entity: 'computers' } });
         res.json(result);
     }));
     router.post('/computers/:id/maintenance', asyncHandler(async (req, res) => {
         const result = await dataService.addComputerMaintenance(req.params.id, req.body, getCurrentTechnician(req));
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'computers' } });
+        broadcast({ type: 'data_updated', payload: { entity: 'computers' } });
         res.json(result);
     }));
 
     router.get('/loans', asyncHandler(async (req, res) => res.json(await dataService.getLoans())));
     router.post('/loans', asyncHandler(async (req, res) => {
         const result = await dataService.createLoan(req.body, getCurrentTechnician(req));
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'loans' } });
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'computers' } });
+        broadcast({ type: 'data_updated', payload: { entity: 'loans' } });
+        broadcast({ type: 'data_updated', payload: { entity: 'computers' } });
         res.status(201).json(result);
+    }));
+    // ✅ NOUVELLE ROUTE: Modification d'un prêt existant
+    router.put('/loans/:id', asyncHandler(async (req, res) => {
+        const result = await dataService.updateLoan(req.params.id, req.body, getCurrentTechnician(req));
+        broadcast({ type: 'data_updated', payload: { entity: 'loans' } });
+        broadcast({ type: 'data_updated', payload: { entity: 'computers' } });
+        res.json(result);
     }));
     router.post('/loans/:id/return', asyncHandler(async (req, res) => {
         const result = await dataService.returnLoan(req.params.id, getCurrentTechnician(req), req.body.returnNotes, req.body.accessoryInfo);
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'loans' } });
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'computers' } });
+        broadcast({ type: 'data_updated', payload: { entity: 'loans' } });
+        broadcast({ type: 'data_updated', payload: { entity: 'computers' } });
         res.json(result);
     }));
     router.post('/loans/:id/extend', asyncHandler(async (req, res) => {
         const result = await dataService.extendLoan(req.params.id, req.body.newReturnDate, req.body.reason, getCurrentTechnician(req));
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'loans' } });
+        broadcast({ type: 'data_updated', payload: { entity: 'loans' } });
         res.json(result);
     }));
     router.post('/loans/:id/cancel', asyncHandler(async (req, res) => {
         const result = await dataService.cancelLoan(req.params.id, req.body.reason, getCurrentTechnician(req));
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'loans' } });
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'computers' } });
+        broadcast({ type: 'data_updated', payload: { entity: 'loans' } });
+        broadcast({ type: 'data_updated', payload: { entity: 'computers' } });
         res.json(result);
     }));
     router.get('/loans/history', asyncHandler(async (req, res) => res.json(await dataService.getLoanHistory(req.query))));
@@ -124,12 +133,12 @@ module.exports = (getBroadcast) => {
     router.get('/accessories', asyncHandler(async (req, res) => res.json(await accessoriesService.getAccessories())));
     router.post('/accessories', asyncHandler(async (req, res) => {
         const result = await accessoriesService.saveAccessory(req.body, getCurrentTechnician(req));
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'accessories' } });
+        broadcast({ type: 'data_updated', payload: { entity: 'accessories' } });
         res.status(201).json(result);
     }));
     router.delete('/accessories/:id', asyncHandler(async (req, res) => {
         const result = await accessoriesService.deleteAccessory(req.params.id, getCurrentTechnician(req));
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'accessories' } });
+        broadcast({ type: 'data_updated', payload: { entity: 'accessories' } });
         res.json(result);
     }));
 
@@ -137,12 +146,12 @@ module.exports = (getBroadcast) => {
     router.get('/notifications/unread', asyncHandler(async (req, res) => res.json(await notificationService.getUnreadNotifications())));
     router.post('/notifications/:id/mark-read', asyncHandler(async (req, res) => {
         const result = await notificationService.markNotificationAsRead(req.params.id);
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'notifications' } });
+        broadcast({ type: 'data_updated', payload: { entity: 'notifications' } });
         res.json(result);
     }));
     router.post('/notifications/mark-all-read', asyncHandler(async (req, res) => {
         const result = await notificationService.markAllNotificationsAsRead();
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'notifications' } });
+        broadcast({ type: 'data_updated', payload: { entity: 'notifications' } });
         res.json(result);
     }));
 
@@ -150,12 +159,12 @@ module.exports = (getBroadcast) => {
     router.get('/ad/groups/:groupName/members', asyncHandler(async (req, res) => res.json(await adService.getAdGroupMembers(req.params.groupName))));
     router.post('/ad/groups/members', asyncHandler(async (req, res) => {
         const result = await adService.addUserToGroup(req.body.username, req.body.groupName);
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'ad_groups', group: req.body.groupName } });
+        broadcast({ type: 'data_updated', payload: { entity: 'ad_groups', group: req.body.groupName } });
         res.json(result);
     }));
     router.delete('/ad/groups/:groupName/members/:username', asyncHandler(async (req, res) => {
         const result = await adService.removeUserFromGroup(req.params.username, req.params.groupName);
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'ad_groups', group: req.params.groupName } });
+        broadcast({ type: 'data_updated', payload: { entity: 'ad_groups', group: req.params.groupName } });
         res.json(result);
     }));
     router.get('/ad/users/:username/details', asyncHandler(async (req, res) => res.json(await adService.getAdUserDetails(req.params.username))));
@@ -168,48 +177,47 @@ module.exports = (getBroadcast) => {
     router.post('/excel/users/refresh', asyncHandler(async (req, res) => {
         excelService.invalidateCache();
         const result = await userService.syncUsersFromExcel(true);
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'excel_users' } });
+        broadcast({ type: 'data_updated', payload: { entity: 'excel_users' } });
         res.json(result);
     }));
     router.post('/excel/users', asyncHandler(async (req, res) => {
         const result = await userService.saveUser(req.body.user, getCurrentTechnician(req));
-        if (result.success) getBroadcast()({ type: 'data_updated', payload: { entity: 'excel_users' } });
+        if (result.success) broadcast({ type: 'data_updated', payload: { entity: 'excel_users' } });
         res.json(result);
     }));
     router.delete('/excel/users/:username', asyncHandler(async (req, res) => {
         const result = await userService.deleteUser(req.params.username, getCurrentTechnician(req));
-        if (result.success) getBroadcast()({ type: 'data_updated', payload: { entity: 'excel_users' } });
+        if (result.success) broadcast({ type: 'data_updated', payload: { entity: 'excel_users' } });
         res.json(result);
     }));
-    router.get('/users/stats', asyncHandler(async (req, res) => res.json(await userService.getUserStats())));
 
     router.get('/chat/channels', asyncHandler(async (req, res) => res.json(await chatService.getChannels())));
     router.post('/chat/channels', asyncHandler(async (req, res) => {
         const result = await chatService.addChannel(req.body.name, req.body.description, getCurrentTechnician(req));
-        getBroadcast()({ type: 'data_updated', payload: { entity: 'chat_channels' } });
+        broadcast({ type: 'data_updated', payload: { entity: 'chat_channels' } });
         res.status(201).json(result);
     }));
     router.get('/chat/messages/:channelId', asyncHandler(async (req, res) => res.json(await chatService.getMessages(req.params.channelId))));
     router.post('/chat/messages', asyncHandler(async (req, res) => {
         const newMessage = await chatService.addMessage(req.body.channelId, req.body.messageText, getCurrentTechnician(req), req.body.fileInfo);
-        getBroadcast()({ type: 'chat_message_new', payload: newMessage });
+        broadcast({ type: 'chat_message_new', payload: newMessage });
         res.status(201).json(newMessage);
     }));
     router.put('/chat/messages/:messageId', asyncHandler(async (req, res) => {
         const result = await chatService.editMessage(req.params.messageId, req.body.channelId, req.body.newText, getCurrentTechnician(req));
-        getBroadcast()({ type: 'chat_message_updated', payload: { messageId: req.params.messageId, channelId: req.body.channelId } });
+        broadcast({ type: 'chat_message_updated', payload: { messageId: req.params.messageId, channelId: req.body.channelId } });
         res.json(result);
     }));
     router.delete('/chat/messages/:messageId', asyncHandler(async (req, res) => {
         const { channelId } = req.body;
         const result = await chatService.deleteMessage(req.params.messageId, channelId, getCurrentTechnician(req));
-        getBroadcast()({ type: 'chat_message_deleted', payload: { messageId: req.params.messageId, channelId } });
+        broadcast({ type: 'chat_message_deleted', payload: { messageId: req.params.messageId, channelId } });
         res.json(result);
     }));
     router.post('/chat/reactions', asyncHandler(async (req, res) => {
         const { messageId, channelId, emoji } = req.body;
         const result = await chatService.toggleReaction(messageId, channelId, emoji, getCurrentTechnician(req).id);
-        getBroadcast()({ type: 'chat_reaction_toggled', payload: { messageId, channelId } });
+        broadcast({ type: 'chat_reaction_toggled', payload: { messageId, channelId } });
         res.json(result);
     }));
 

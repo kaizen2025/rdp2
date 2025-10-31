@@ -8,22 +8,24 @@ const { safeReadJsonFile, safeWriteJsonFile } = require('./fileService');
 
 let memoryCache = null;
 let memoryCacheTimestamp = null;
-const MEMORY_CACHE_TTL = 30000; // 30 secondes
+const MEMORY_CACHE_TTL = 30000; // 30 secondes de cache en mémoire
 
 function getCachePath() {
     const dbPath = configService.getConfig().databasePath;
     if (dbPath) {
+        // Place le cache dans le même dossier que la base de données pour la cohérence
         return path.join(path.dirname(dbPath), 'cache-excel.json');
     }
-    console.warn("Chemin DB non défini, cache Excel sur disque désactivé.");
+    console.warn("Chemin de la base de données non défini, le cache disque Excel est désactivé.");
     return null;
 }
 
 async function readExcelFileAsync() {
     const config = configService.getConfig();
     const excelPath = config.excelFilePath;
-
     const now = Date.now();
+
+    // 1. Tenter d'utiliser le cache mémoire rapide
     if (memoryCache && (now - memoryCacheTimestamp) < MEMORY_CACHE_TTL) {
         console.log('🔦 Utilisation du cache mémoire Excel.');
         return { success: true, users: memoryCache, fromMemoryCache: true };
@@ -34,43 +36,20 @@ async function readExcelFileAsync() {
             throw new Error(`Fichier Excel introuvable. Vérifiez le chemin dans config.json. Chemin actuel: ${excelPath}`);
         }
 
-        const workbook = XLSX.readFile(excelPath);
+        // 2. Tenter de lire le fichier Excel
+        const workbook = XLSX.readFile(excelPath, { cellStyles: false }); // cellStyles: false peut aider avec les fichiers verrouillés
         const sheetName = workbook.SheetNames[0];
         const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { raw: false, defval: '' });
-
-        // Log des en-têtes du fichier Excel pour diagnostic
-        if (data.length > 0) {
-            const excelHeaders = Object.keys(data[0]);
-            console.log('📋 En-têtes Excel détectés:', excelHeaders);
-            console.log('🔧 Mapping configuré:', config.excelColumnMapping);
-        }
 
         const columnMapping = config.excelColumnMapping;
         if (!columnMapping || !columnMapping['Identifiant'] || !columnMapping['Nom complet']) {
              throw new Error("La section 'excelColumnMapping' dans config.json est manquante ou incomplète. 'Identifiant' et 'Nom complet' sont requis.");
         }
 
-        const usersByServer = data.reduce((acc, row, index) => {
+        const usersByServer = data.reduce((acc, row) => {
             const user = {};
             for (const [header, key] of Object.entries(columnMapping)) {
-                if (row[header] !== undefined && row[header] !== null && row[header] !== '') {
-                    user[key] = String(row[header]).trim();
-                } else {
-                    // Initialiser avec une chaîne vide pour éviter undefined
-                    user[key] = '';
-                }
-            }
-
-            // Log de debug pour les 3 premiers utilisateurs
-            if (index < 3) {
-                console.log(`📋 DEBUG Utilisateur ${index + 1}:`, {
-                    username: user.username,
-                    displayName: user.displayName,
-                    password: user.password ? '✓ (défini)' : '✗ (vide)',
-                    officePassword: user.officePassword ? '✓ (défini)' : '✗ (vide)',
-                    email: user.email,
-                    server: user.server
-                });
+                user[key] = row[header] !== undefined ? String(row[header]).trim() : '';
             }
 
             if (user.username) {
@@ -82,11 +61,12 @@ async function readExcelFileAsync() {
 
         const userCount = Object.values(usersByServer).flat().length;
         if (userCount === 0) {
-            console.warn("⚠️ Le fichier Excel a été lu, mais aucun utilisateur n'a été trouvé. Vérifiez le mapping des colonnes dans config.json et les en-têtes du fichier Excel.");
+            console.warn("⚠️ Le fichier Excel a été lu, mais aucun utilisateur n'a été trouvé. Vérifiez le mapping des colonnes.");
         } else {
              console.log(`✅ Fichier Excel chargé: ${userCount} utilisateurs trouvés.`);
         }
 
+        // 3. Mettre à jour les caches (disque et mémoire)
         const cachePath = getCachePath();
         if (cachePath) await safeWriteJsonFile(cachePath, usersByServer);
         memoryCache = usersByServer;
@@ -95,21 +75,24 @@ async function readExcelFileAsync() {
         return { success: true, users: usersByServer };
 
     } catch (error) {
+        // 4. En cas d'échec, tenter de charger depuis le cache disque
         console.warn(`⚠️ Erreur lecture Excel (${error.message}), tentative d'utilisation du cache disque.`);
         const cachePath = getCachePath();
         if (cachePath) {
             const cachedData = await safeReadJsonFile(cachePath, {});
             if (Object.keys(cachedData).length > 0) {
+                console.log('✅ Chargement réussi depuis le cache disque Excel.');
                 memoryCache = cachedData;
                 memoryCacheTimestamp = now;
-                return { success: true, users: cachedData, fromCache: true };
+                return { success: true, users: cachedData, fromCache: true, warning: 'Using cached data, Excel file is locked or unavailable.' };
             }
         }
+        
+        // 5. Si tout échoue
         return { success: false, error: error.message, users: {} };
     }
 }
 
-// Les fonctions de sauvegarde et suppression restent inchangées mais bénéficieront du mapping correct.
 async function saveUserToExcel({ user, isEdit }) {
     const config = configService.getConfig();
     const excelPath = config.excelFilePath;
@@ -151,7 +134,6 @@ async function saveUserToExcel({ user, isEdit }) {
     }
 }
 
-
 async function deleteUserFromExcel({ username }) {
     const config = configService.getConfig();
     const excelPath = config.excelFilePath;
@@ -180,7 +162,6 @@ async function deleteUserFromExcel({ username }) {
         return { success: false, error: error.message };
     }
 }
-
 
 function invalidateCache() {
     memoryCache = null;

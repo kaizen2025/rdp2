@@ -62,9 +62,9 @@ const AddChannelDialog = memo(({ open, onClose, onSave }) => {
                 <Button onClick={onClose}>Annuler</Button>
                 <Button onClick={handleSubmit} variant="contained">Créer</Button>
             </DialogActions>
-        </Dialog>
+        </StyledDialog>
     );
-};
+});
 
 const MessageItem = memo(({ message, isFirstInGroup, currentUser, onEdit, onDelete, onReact, isOnline }) => {
     const { config } = useApp();
@@ -192,7 +192,7 @@ const ChatDialog = ({ open, onClose, onlineTechnicians = [] }) => {
             </DialogContent>
             <Popover open={emojiPickerOpen} anchorEl={emojiPickerAnchor.current} onClose={() => setEmojiPickerOpen(false)} anchorOrigin={{ vertical: 'top', horizontal: 'left' }} transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}><EmojiPicker onEmojiClick={(e) => setNewMessage(p => p + e.emoji)} /></Popover>
             <AddChannelDialog open={addChannelOpen} onClose={() => setAddChannelOpen(false)} onSave={handleAddChannel} />
-        </Dialog>
+        </StyledDialog>
     );
 };
 

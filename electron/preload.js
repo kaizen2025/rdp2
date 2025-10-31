@@ -11,16 +11,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
 
     // Listener pour les événements de mise à jour
-    onUpdateAvailable: (callback) => ipcRenderer.on('update-available', callback),
-    onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', callback),
+    onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, ...args) => callback(...args)),
+    onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', (event, ...args) => callback(...args)),
 
-    // --- NOUVELLE FONCTION ---
     // Lance le client Bureau à Distance natif (mstsc.exe)
     launchRdp: (params) => ipcRenderer.invoke('launch-rdp', params),
 
-    // ---- Fonctions que vous aviez dans d'autres fichiers mais qui doivent être ici ----
-    // C'est la bonne pratique de centraliser tous les appels IPC
+    // Fonctions diverses (si vous en avez d'autres)
     pingServer: (server) => ipcRenderer.invoke('ping-server', server),
     quickConnect: (server) => ipcRenderer.invoke('quick-connect', server),
     connectWithStoredCredentials: (credentials) => ipcRenderer.invoke('connect-with-credentials', credentials),
+
+    // Permet à React d'écouter les messages de log du processus principal
+    onLogMessage: (callback) => ipcRenderer.on('log-message', (event, message) => callback(message)),
 });

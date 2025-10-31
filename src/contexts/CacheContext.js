@@ -1,163 +1,78 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+// src/contexts/CacheContext.js
+
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import apiService from '../services/apiService';
+import { useApp } from './AppContext';
 
 const CacheContext = createContext();
 
-export const useCache = () => {
-    const context = useContext(CacheContext);
-    if (!context) {
-        throw new Error('useCache must be used within CacheProvider');
-    }
-    return context;
-};
+export const useCache = () => useContext(CacheContext);
 
-const CACHE_VERSION = '1.0.0';
-const CACHE_DURATION = {
-    users: 5 * 60 * 1000,
-    adGroups: 3 * 60 * 1000,
-    computers: 2 * 60 * 1000,
-    loans: 1 * 60 * 1000,
-    config: 10 * 60 * 1000,
-};
+// Liste des entités à mettre en cache et à gérer
+const ENTITIES = ['loans', 'computers', 'excel_users', 'technicians', 'rds_sessions', 'config'];
 
 export const CacheProvider = ({ children }) => {
+    const { events, showNotification } = useApp();
     const [cache, setCache] = useState({});
-    const [isHydrated, setIsHydrated] = useState(false);
-    const pendingRequests = useRef(new Map());
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    useEffect(() => {
+    const fetchDataForEntity = useCallback(async (entity) => {
         try {
-            const stored = localStorage.getItem('appCache');
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                if (parsed.version === CACHE_VERSION) {
-                    const now = Date.now();
-                    const cleaned = Object.entries(parsed.data || {}).reduce((acc, [key, value]) => {
-                        if (value.expiresAt > now) {
-                            acc[key] = value;
-                        }
-                        return acc;
-                    }, {});
-                    setCache(cleaned);
-                }
+            let data;
+            switch (entity) {
+                case 'loans': data = await apiService.getLoans(); break;
+                case 'computers': data = await apiService.getComputers(); break;
+                case 'excel_users': data = (await apiService.getExcelUsers())?.users || {}; break;
+                case 'technicians': data = await apiService.getConnectedTechnicians(); break;
+                case 'rds_sessions': data = await apiService.getRdsSessions(); break;
+                case 'config': data = await apiService.getConfig(); break;
+                default: return;
             }
-        } catch (error) {
-            console.warn('Erreur hydratation cache:', error);
-        } finally {
-            setIsHydrated(true);
+            setCache(prev => ({ ...prev, [entity]: data }));
+            return data;
+        } catch (err) {
+            console.error(`Erreur chargement ${entity}:`, err);
+            setError(err.message);
+            showNotification('error', `Impossible de charger les données: ${entity}`);
         }
+    }, [showNotification]);
 
-        const handleDataUpdate = () => {
-            console.log('🔄 Données mises à jour - invalidation cache');
-            setCache({});
-        };
-
-        window.electronAPI?.onDataUpdated?.(handleDataUpdate);
-
-        return () => {
-            window.electronAPI?.removeDataUpdatedListener?.();
-        };
-    }, []);
-
+    // Chargement initial de toutes les données
     useEffect(() => {
-        if (!isHydrated) return;
+        const initialLoad = async () => {
+            setIsLoading(true);
+            await Promise.all(ENTITIES.map(entity => fetchDataForEntity(entity)));
+            setIsLoading(false);
+        };
+        initialLoad();
+    }, [fetchDataForEntity]);
 
-        const saveTimer = setTimeout(() => {
-            try {
-                localStorage.setItem('appCache', JSON.stringify({
-                    version: CACHE_VERSION,
-                    data: cache,
-                    savedAt: Date.now()
-                }));
-            } catch (error) {
-                console.warn('Erreur sauvegarde cache:', error);
+    // Écoute des événements WebSocket pour les mises à jour
+    useEffect(() => {
+        const handleDataUpdate = (payload) => {
+            if (payload && payload.entity && ENTITIES.includes(payload.entity)) {
+                console.log(`[CacheContext] Mise à jour reçue pour: ${payload.entity}`);
+                fetchDataForEntity(payload.entity);
             }
-        }, 500);
+        };
+        
+        const unsubscribe = events.on('data_updated', handleDataUpdate);
+        return () => unsubscribe();
+    }, [events, fetchDataForEntity]);
 
-        return () => clearTimeout(saveTimer);
-    }, [cache, isHydrated]);
-
-    const get = useCallback((key) => {
-        const entry = cache[key];
-        if (!entry) return null;
-
-        if (Date.now() > entry.expiresAt) {
-            setCache(prev => {
-                const { [key]: removed, ...rest } = prev;
-                return rest;
-            });
-            return null;
+    // Fonction pour forcer le rafraîchissement d'une entité
+    const invalidate = useCallback(async (entity) => {
+        if (ENTITIES.includes(entity)) {
+            await fetchDataForEntity(entity);
         }
-
-        return entry.data;
-    }, [cache]);
-
-    const set = useCallback((key, data, customDuration) => {
-        const duration = customDuration || CACHE_DURATION[key.split(':')[0]] || 60000;
-        setCache(prev => ({
-            ...prev,
-            [key]: {
-                data,
-                cachedAt: Date.now(),
-                expiresAt: Date.now() + duration
-            }
-        }));
-    }, []);
-
-    const invalidate = useCallback((keyPattern) => {
-        setCache(prev => {
-            const newCache = { ...prev };
-            Object.keys(newCache).forEach(key => {
-                if (key.startsWith(keyPattern) || key === keyPattern) {
-                    delete newCache[key];
-                }
-            });
-            return newCache;
-        });
-    }, []);
-
-    const clear = useCallback(() => {
-        setCache({});
-        localStorage.removeItem('appCache');
-    }, []);
-
-    const fetchWithCache = useCallback(async (key, fetchFn, options = {}) => {
-        const { force = false, duration } = options;
-
-        if (!force) {
-            const cached = get(key);
-            if (cached !== null) {
-                return { data: cached, fromCache: true };
-            }
-        }
-
-        if (pendingRequests.current.has(key)) {
-            return await pendingRequests.current.get(key);
-        }
-
-        const promise = (async () => {
-            try {
-                const data = await fetchFn();
-                set(key, data, duration);
-                return { data, fromCache: false };
-            } catch (error) {
-                console.error(`Erreur fetch ${key}:`, error);
-                throw error;
-            } finally {
-                pendingRequests.current.delete(key);
-            }
-        })();
-
-        pendingRequests.current.set(key, promise);
-        return await promise;
-    }, [get, set]);
+    }, [fetchDataForEntity]);
 
     const value = {
-        get,
-        set,
+        cache,
+        isLoading,
+        error,
         invalidate,
-        clear,
-        fetchWithCache,
-        isHydrated
     };
 
     return (

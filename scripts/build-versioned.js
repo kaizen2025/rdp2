@@ -25,17 +25,13 @@ function main() {
         fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2), 'utf-8');
         console.log('✅ package.json mis à jour.');
 
-        // 4. Définir la date pour le nom du fichier
-        const buildDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-        process.env.BUILD_DATE = buildDate;
-        console.log(`- Date de build : ${buildDate}`);
-
-        // 5. Lancer la commande de build
+        // 4. Lancer la commande de build simplifiée
         console.log('\n🔨 Lancement de la compilation React et du packaging Electron...');
         execSync('npm run build:exe', { stdio: 'inherit' });
 
         console.log('\n🎉 Build versionné terminé avec succès !');
-        console.log(`   Exécutable généré dans le dossier /dist avec la version ${newVersion} et la date ${buildDate}.`);
+        console.log(`   Exécutable généré dans le dossier /dist avec la version ${newVersion}.`);
+        console.log('   N\'oubliez pas de copier le .exe et le fichier latest.yml sur votre serveur de mise à jour.');
 
     } catch (error) {
         console.error('\n❌ Une erreur est survenue lors du build versionné :');

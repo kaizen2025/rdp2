@@ -1,18 +1,28 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
+# Dependencies
 /node_modules
 /.pnp
 .pnp.js
 
-# testing
+# Production builds
+/build
+/dist
+
+# Testing
 /coverage
 
-# production
-/build
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+dev_electron.log
 
-# misc
+# OS generated files
 .DS_Store
+
+# Local environment variables and auto-generated files
 .env.local
 .env.development.local
 .env.test.local
@@ -20,18 +30,15 @@
 .ports.json
 .rebuild-done
 
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Cache files
+node_modules/.cache
+cache-excel.json
 
-# Dossiers à ignorer
-node_modules/
-dist/
-build/
-assets/
-.git/
-
-# Fichiers de log et temporaires de l'agent
+# Misc
 jules-scratch/
-dev_electron.log
-*.log
+
+# IMPORTANT: Ne pas ignorer le dossier 'assets' car il contient l'icône de l'application.
+# Si vous avez des assets générés, ignorez-les spécifiquement.
+# Exemple: /assets/generated/
+
+# IMPORTANT: Ne pas ignorer .git/ car c'est le répertoire de versioning de Git lui-même.

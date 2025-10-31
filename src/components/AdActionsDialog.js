@@ -140,7 +140,7 @@ const PasswordResetDialog = ({ user, onComplete, onClose }) => {
             <DialogActions>
                 <Button onClick={onClose} disabled={isResetting}>Fermer</Button>
             </DialogActions>
-        </Dialog>
+        </StyledDialog>
     );
 };
 
@@ -278,7 +278,7 @@ const AdActionsDialog = ({ open, onClose, user, onActionComplete }) => {
                 <DialogActions>
                     <Button onClick={onClose}>Fermer</Button>
                 </DialogActions>
-            </Dialog>
+            </StyledDialog>
 
             {passwordDialogOpen && (
                 <PasswordResetDialog

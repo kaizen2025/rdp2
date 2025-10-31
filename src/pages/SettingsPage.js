@@ -1,6 +1,6 @@
 // src/pages/SettingsPage.js - VERSION COMPLÈTE AMÉLIORÉE
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import Dialog from '@mui/material/Dialog';
 import AppBar from '@mui/material/AppBar';
@@ -23,7 +23,6 @@ import TableRow from '@mui/material/TableRow';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
-import CircularProgress from '@mui/material/CircularProgress';
 import Switch from '@mui/material/Switch';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
@@ -34,9 +33,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Avatar from '@mui/material/Avatar';
 import InputAdornment from '@mui/material/InputAdornment';
 import Chip from '@mui/material/Chip';
-import path from 'path-browserify';
 
-// Icons
 import CloseIcon from '@mui/icons-material/Close';
 import SaveIcon from '@mui/icons-material/Save';
 import LockIcon from '@mui/icons-material/Lock';
@@ -50,238 +47,55 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import PaletteIcon from '@mui/icons-material/Palette';
 import DnsIcon from '@mui/icons-material/Dns';
-import ChatIcon from '@mui/icons-material/Chat';
 
 function TabPanel({ children, value, index }) {
     return <div hidden={value !== index}>{value === index && <Box sx={{ p: 3 }}>{children}</Box>}</div>;
 }
 
-const ChannelEditDialog = ({ open, onClose, onSave, channel }) => {
-    const [name, setName] = useState('');
-    const [description, setDescription] = useState('');
-    
-    useEffect(() => {
-        if (channel) {
-            setName(channel.name);
-            setDescription(channel.description);
-        } else {
-            setName('');
-            setDescription('');
-        }
-    }, [channel, open]);
-    
-    const handleSave = () => {
-        onSave({ ...channel, name, description });
-        onClose();
-    };
-    
-    return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-            <DialogTitle>{channel ? 'Modifier' : 'Nouveau'} canal</DialogTitle>
-            <DialogContent>
-                <TextField autoFocus margin="dense" label="Nom" fullWidth value={name} onChange={(e) => setName(e.target.value)} />
-                <TextField margin="dense" label="Description" fullWidth value={description} onChange={(e) => setDescription(e.target.value)} />
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose}>Annuler</Button>
-                <Button onClick={handleSave}>Sauvegarder</Button>
-            </DialogActions>
-        </Dialog>
-    );
-};
-
-const ChatSettingsPanel = () => {
-    const { showNotification } = useApp();
-    const [channels, setChannels] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [dialogOpen, setDialogOpen] = useState(false);
-    const [editingChannel, setEditingChannel] = useState(null);
-
-    const fetchChannels = useCallback(async () => {
-        setLoading(true);
-        try {
-            const data = await window.electronAPI['chat:getChannels']();
-            setChannels(data || []);
-        } catch (e) {
-            showNotification('error', "Erreur chargement canaux.");
-        } finally {
-            setLoading(false);
-        }
-    }, [showNotification]);
-
-    useEffect(() => {
-        fetchChannels();
-    }, [fetchChannels]);
-
-    const handleSave = async (channel) => {
-        try {
-            if (channel.id) {
-                await window.electronAPI['chat:updateChannel'](channel);
-            } else {
-                await window.electronAPI['chat:addChannel'](channel.name, channel.description);
-            }
-            showNotification('success', 'Canal sauvegardé.');
-            fetchChannels();
-        } catch (e) {
-            showNotification('error', `Erreur: ${e.message}`);
-        }
-    };
-
-    const handleDelete = async (id) => {
-        if (window.confirm("Supprimer ce canal ?")) {
-            try {
-                await window.electronAPI['chat:deleteChannel'](id);
-                showNotification('success', 'Canal supprimé.');
-                fetchChannels();
-            } catch (e) {
-                showNotification('error', `Erreur: ${e.message}`);
-            }
-        }
-    };
-
-    return (
-        <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                <Box>
-                    <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center', fontWeight: 600, mb: 1 }}>
-                        <ChatIcon sx={{ mr: 1.5 }} />
-                        Canaux de Discussion
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        Gérez les canaux de communication de l'équipe technique
-                    </Typography>
-                </Box>
-                <Button
-                    startIcon={<AddIcon />}
-                    onClick={() => { setEditingChannel(null); setDialogOpen(true); }}
-                    variant="contained"
-                    sx={{ borderRadius: 2 }}
-                >
-                    Ajouter
-                </Button>
-            </Box>
-            {loading ? <CircularProgress /> : (
-                <TableContainer>
-                    <Table>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell sx={{ fontWeight: 600 }}>Nom</TableCell>
-                                <TableCell sx={{ fontWeight: 600 }}>Description</TableCell>
-                                <TableCell sx={{ fontWeight: 600 }}>Actions</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {channels.map(c => (
-                                <TableRow key={c.id} hover>
-                                    <TableCell>{c.name}</TableCell>
-                                    <TableCell>{c.description}</TableCell>
-                                    <TableCell>
-                                        <IconButton onClick={() => { setEditingChannel(c); setDialogOpen(true); }} size="small">
-                                            <EditIcon />
-                                        </IconButton>
-                                        {c.id !== 'general' && (
-                                            <IconButton onClick={() => handleDelete(c.id)} size="small" color="error">
-                                                <DeleteIcon />
-                                            </IconButton>
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            )}
-            <ChannelEditDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onSave={handleSave} channel={editingChannel} />
-        </Paper>
-    );
-};
-
 const TechnicianDialog = ({ open, onClose, onSave, technician }) => {
-    const [formData, setFormData] = useState({
-        name: '', position: '', email: '', avatar: '', permissions: [], isActive: true
-    });
-
+    const [formData, setFormData] = useState({ name: '', position: '', email: '', avatar: '', permissions: [], isActive: true });
     useEffect(() => {
-        if (technician) {
-            setFormData(technician);
-        } else {
-            setFormData({ name: '', position: '', email: '', avatar: '', permissions: [], isActive: true });
-        }
+        if (technician) setFormData(technician);
+        else setFormData({ name: '', position: '', email: '', avatar: '', permissions: [], isActive: true });
     }, [technician, open]);
-
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         setFormData(p => ({ ...p, [name]: type === 'checkbox' ? checked : value }));
     };
-
-    const handlePermsChange = (e) => {
-        setFormData(p => ({ ...p, permissions: typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value }));
-    };
-
+    const handlePermsChange = (e) => setFormData(p => ({ ...p, permissions: typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value }));
     const handleSubmit = () => {
         onSave({ ...formData, id: formData.id || formData.name.toLowerCase().replace(/\s+/g, '_') });
         onClose();
     };
-
     const availablePermissions = ['admin', 'config', 'loans', 'users', 'servers', 'reports'];
-    const permissionTranslations = {
-        admin: 'Administrateur',
-        config: 'Configuration',
-        loans: 'Gestion des prêts',
-        users: 'Gestion des utilisateurs',
-        servers: 'Gestion des serveurs',
-        reports: 'Rapports'
-    };
+    const permissionTranslations = { admin: 'Administrateur', config: 'Configuration', loans: 'Gestion des prêts', users: 'Gestion des utilisateurs', servers: 'Gestion des serveurs', reports: 'Rapports' };
     const translatePermission = (p) => permissionTranslations[p] || p;
-
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
             <DialogTitle>{technician ? 'Modifier' : 'Ajouter'} un technicien</DialogTitle>
             <DialogContent>
                 <Grid container spacing={2} sx={{ pt: 1 }}>
-                    <Grid item xs={12}>
-                        <TextField name="name" label="Nom complet" value={formData.name || ''} onChange={handleChange} fullWidth required />
-                    </Grid>
-                    <Grid item xs={12}>
-                        <TextField name="position" label="Poste" value={formData.position || ''} onChange={handleChange} fullWidth />
-                    </Grid>
-                    <Grid item xs={12}>
-                        <TextField name="email" label="Email" value={formData.email || ''} onChange={handleChange} fullWidth />
-                    </Grid>
-                    <Grid item xs={12}>
-                        <TextField name="avatar" label="Avatar (Initiales)" value={formData.avatar || ''} onChange={handleChange} fullWidth inputProps={{ maxLength: 2 }} />
-                    </Grid>
-                    <Grid item xs={12}>
-                        <FormControl fullWidth>
-                            <InputLabel>Permissions</InputLabel>
-                            <Select multiple name="permissions" value={formData.permissions || []} onChange={handlePermsChange} renderValue={(selected) => selected.map(translatePermission).join(', ')}>
-                                {availablePermissions.map(p => (
-                                    <MenuItem key={p} value={p}>
-                                        <Checkbox checked={(formData.permissions || []).includes(p)} />
-                                        {translatePermission(p)}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    </Grid>
-                    <Grid item xs={12}>
-                        <FormControlLabel control={<Switch name="isActive" checked={formData.isActive} onChange={handleChange} />} label="Compte Actif" />
-                    </Grid>
+                    <Grid item xs={12}><TextField name="name" label="Nom complet" value={formData.name || ''} onChange={handleChange} fullWidth required /></Grid>
+                    <Grid item xs={12}><TextField name="position" label="Poste" value={formData.position || ''} onChange={handleChange} fullWidth /></Grid>
+                    <Grid item xs={12}><TextField name="email" label="Email" value={formData.email || ''} onChange={handleChange} fullWidth /></Grid>
+                    <Grid item xs={12}><TextField name="avatar" label="Avatar (Initiales)" value={formData.avatar || ''} onChange={handleChange} fullWidth inputProps={{ maxLength: 2 }} /></Grid>
+                    <Grid item xs={12}><FormControl fullWidth><InputLabel>Permissions</InputLabel><Select multiple name="permissions" value={formData.permissions || []} onChange={handlePermsChange} renderValue={(selected) => selected.map(translatePermission).join(', ')}>{availablePermissions.map(p => (<MenuItem key={p} value={p}><Checkbox checked={(formData.permissions || []).includes(p)} />{translatePermission(p)}</MenuItem>))}</Select></FormControl></Grid>
+                    <Grid item xs={12}><FormControlLabel control={<Switch name="isActive" checked={formData.isActive} onChange={handleChange} />} label="Compte Actif" /></Grid>
                 </Grid>
             </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose}>Annuler</Button>
-                <Button onClick={handleSubmit}>Sauvegarder</Button>
-            </DialogActions>
+            <DialogActions><Button onClick={onClose}>Annuler</Button><Button onClick={handleSubmit}>Sauvegarder</Button></DialogActions>
         </Dialog>
     );
 };
+
 
 const SettingsPage = ({ open, onClose }) => {
     const { config, handleSaveConfig, showNotification } = useApp();
     const [editedConfig, setEditedConfig] = useState(config);
     const [currentTab, setCurrentTab] = useState(0);
     const [technicianDialog, setTechnicianDialog] = useState({ open: false, technician: null });
+
+    const isElectron = !!window.electronAPI?.showSaveDialog;
 
     useEffect(() => {
         setEditedConfig(config);
@@ -303,16 +117,16 @@ const SettingsPage = ({ open, onClose }) => {
     };
 
     const handleBrowse = async (fieldName, isFile = true) => {
+        if (!isElectron) {
+            showNotification('info', 'Cette fonctionnalité est uniquement disponible dans l\'application de bureau.');
+            return;
+        }
         const result = await window.electronAPI.showSaveDialog({
             properties: [isFile ? 'openFile' : 'openDirectory'],
-            filters: isFile ? [{ name: 'Fichiers', extensions: ['xlsx', 'json'] }] : []
+            filters: isFile ? [{ name: 'Fichiers', extensions: ['xlsx', 'json', 'sqlite'] }] : []
         });
         if (!result.canceled && result.filePath) {
-            let finalPath = result.filePath;
-            if (fieldName === 'computersDbPath' && !isFile) {
-                finalPath = path.join(finalPath, 'computers_stock.json');
-            }
-            handleFieldChange({ target: { name: fieldName, value: finalPath } });
+            handleFieldChange({ target: { name: fieldName, value: result.filePath } });
         }
     };
 
@@ -367,232 +181,41 @@ const SettingsPage = ({ open, onClose }) => {
                 <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
                     <TabPanel value={currentTab} index={0}>
                         <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                            <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', fontWeight: 600 }}>
-                                <LockIcon sx={{ mr: 1.5 }} />
-                                Sécurité & Active Directory
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                                Configuration de l'authentification Active Directory et sécurité de l'application
-                            </Typography>
+                            <Typography variant="h5" gutterBottom>Sécurité & Active Directory</Typography>
                             <Grid container spacing={2}>
-                                <Grid item xs={12} sm={6}>
-                                    <TextField
-                                        label="Nouveau mot de passe App"
-                                        type="password"
-                                        fullWidth
-                                        helperText="Laissez vide pour ne pas changer"
-                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                                    />
-                                </Grid>
-                                <Grid item xs={12} sm={4}>
-                                    <TextField
-                                        label="Domaine AD"
-                                        name="domain"
-                                        value={editedConfig.domain || ''}
-                                        onChange={handleFieldChange}
-                                        fullWidth
-                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                                    />
-                                </Grid>
-                                <Grid item xs={12} sm={4}>
-                                    <TextField
-                                        label="Utilisateur AD (Admin)"
-                                        name="username"
-                                        value={editedConfig.username || ''}
-                                        onChange={handleFieldChange}
-                                        fullWidth
-                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                                    />
-                                </Grid>
-                                <Grid item xs={12} sm={4}>
-                                    <TextField
-                                        label="Mot de passe AD"
-                                        name="password"
-                                        type="password"
-                                        value={editedConfig.password || ''}
-                                        onChange={handleFieldChange}
-                                        fullWidth
-                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                                    />
-                                </Grid>
+                                <Grid item xs={12} sm={6}><TextField label="Nouveau mot de passe App" type="password" fullWidth helperText="Laissez vide pour ne pas changer" /></Grid>
+                                <Grid item xs={12} sm={4}><TextField label="Domaine AD" name="domain" value={editedConfig.domain || ''} onChange={handleFieldChange} fullWidth /></Grid>
+                                <Grid item xs={12} sm={4}><TextField label="Utilisateur AD (Admin)" name="username" value={editedConfig.username || ''} onChange={handleFieldChange} fullWidth /></Grid>
+                                <Grid item xs={12} sm={4}><TextField label="Mot de passe AD" name="password" type="password" value={editedConfig.password || ''} onChange={handleFieldChange} fullWidth /></Grid>
                             </Grid>
                         </Paper>
                     </TabPanel>
-
                     <TabPanel value={currentTab} index={1}>
                         <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                                <Box>
-                                    <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center', fontWeight: 600, mb: 1 }}>
-                                        <PeopleIcon sx={{ mr: 1.5 }} />
-                                        Gestion des Techniciens
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                        Gérez les comptes et permissions des techniciens IT ayant accès à l'application
-                                    </Typography>
-                                </Box>
-                                <Button
-                                    startIcon={<AddIcon />}
-                                    onClick={() => setTechnicianDialog({ open: true, technician: null })}
-                                    variant="contained"
-                                    sx={{ borderRadius: 2 }}
-                                >
-                                    Ajouter
-                                </Button>
-                            </Box>
-                            <TableContainer>
-                                <Table>
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell>Nom</TableCell>
-                                            <TableCell>Poste</TableCell>
-                                            <TableCell>Permissions</TableCell>
-                                            <TableCell>Actif</TableCell>
-                                            <TableCell>Actions</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {(editedConfig.it_technicians || []).map(t => (
-                                            <TableRow key={t.id}>
-                                                <TableCell>
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                        <Avatar sx={{ width: 24, height: 24, fontSize: '0.75rem' }}>{t.avatar || '?'}</Avatar>
-                                                        {t.name}
-                                                    </Box>
-                                                </TableCell>
-                                                <TableCell>{t.position}</TableCell>
-                                                <TableCell sx={{ maxWidth: 200 }}>
-                                                    {(t.permissions || []).map(p => <Chip key={p} label={translatePermission(p)} size="small" sx={{ mr: 0.5, mb: 0.5 }} />)}
-                                                </TableCell>
-                                                <TableCell>{t.isActive ? 'Oui' : 'Non'}</TableCell>
-                                                <TableCell>
-                                                    <IconButton onClick={() => setTechnicianDialog({ open: true, technician: t })}><EditIcon /></IconButton>
-                                                    <IconButton onClick={() => handleDeleteTechnician(t.id)}><DeleteIcon /></IconButton>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}><Typography variant="h5">Gestion des Techniciens</Typography><Button startIcon={<AddIcon />} onClick={() => setTechnicianDialog({ open: true, technician: null })} variant="contained">Ajouter</Button></Box>
+                            <TableContainer><Table><TableHead><TableRow><TableCell>Nom</TableCell><TableCell>Poste</TableCell><TableCell>Permissions</TableCell><TableCell>Actif</TableCell><TableCell>Actions</TableCell></TableRow></TableHead>
+                                <TableBody>{(editedConfig.it_technicians || []).map(t => (<TableRow key={t.id}><TableCell><Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Avatar sx={{ width: 24, height: 24, fontSize: '0.75rem' }}>{t.avatar || '?'}</Avatar>{t.name}</Box></TableCell><TableCell>{t.position}</TableCell><TableCell sx={{ maxWidth: 200 }}>{(t.permissions || []).map(p => <Chip key={p} label={translatePermission(p)} size="small" sx={{ mr: 0.5, mb: 0.5 }} />)}</TableCell><TableCell>{t.isActive ? 'Oui' : 'Non'}</TableCell><TableCell><IconButton onClick={() => setTechnicianDialog({ open: true, technician: t })}><EditIcon /></IconButton><IconButton onClick={() => handleDeleteTechnician(t.id)}><DeleteIcon /></IconButton></TableCell></TableRow>))}</TableBody>
+                            </Table></TableContainer>
                         </Paper>
                     </TabPanel>
-
                     <TabPanel value={currentTab} index={2}>
                         <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
-                            <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', fontWeight: 600 }}>
-                                <DnsIcon sx={{ mr: 1.5 }} />
-                                Serveurs RDS
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                                Liste des serveurs Remote Desktop Services à surveiller
-                            </Typography>
-                            <TextField
-                                label="Liste des serveurs (un par ligne)"
-                                name="rds_servers"
-                                value={editedConfig.rds_servers?.join('\n') || ''}
-                                onChange={e => setEditedConfig(p => ({ ...p, rds_servers: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) }))}
-                                multiline
-                                rows={8}
-                                fullWidth
-                                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                            />
+                            <Typography variant="h5" gutterBottom>Serveurs RDS</Typography>
+                            <TextField label="Liste des serveurs (un par ligne)" name="rds_servers" value={editedConfig.rds_servers?.join('\n') || ''} onChange={e => setEditedConfig(p => ({ ...p, rds_servers: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) }))} multiline rows={8} fullWidth />
                         </Paper>
-                        <ChatSettingsPanel />
                     </TabPanel>
-
                     <TabPanel value={currentTab} index={3}>
                         <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                            <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', fontWeight: 600 }}>
-                                <FolderSharedIcon sx={{ mr: 1.5 }} />
-                                Chemins d'Accès
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                                Configuration des chemins vers les fichiers de données et de configuration
-                            </Typography>
+                            <Typography variant="h5" gutterBottom>Chemins d'Accès</Typography>
                             <Grid container spacing={2}>
-                                <Grid item xs={12}>
-                                    <TextField
-                                        label="Fichier Excel Utilisateurs"
-                                        name="defaultExcelPath"
-                                        value={editedConfig.defaultExcelPath || ''}
-                                        onChange={handleFieldChange}
-                                        fullWidth
-                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                                        InputProps={{
-                                            endAdornment: (
-                                                <InputAdornment position="end">
-                                                    <IconButton onClick={() => handleBrowse('defaultExcelPath')}>
-                                                        <FolderOpenIcon />
-                                                    </IconButton>
-                                                </InputAdornment>
-                                            )
-                                        }}
-                                    />
-                                </Grid>
-                                <Grid item xs={12}>
-                                    <TextField
-                                        label="Dossier des Données Partagées"
-                                        name="computersDbPath"
-                                        value={path.dirname(editedConfig.computersDbPath || '')}
-                                        onChange={e => handleFieldChange({ target: { name: 'computersDbPath', value: path.join(e.target.value, 'computers_stock.json') } })}
-                                        fullWidth
-                                        helperText="Dossier contenant: computers_stock.json, loans.json, chat.json, etc."
-                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                                        InputProps={{
-                                            endAdornment: (
-                                                <InputAdornment position="end">
-                                                    <IconButton onClick={() => handleBrowse('computersDbPath', false)}>
-                                                        <FolderOpenIcon />
-                                                    </IconButton>
-                                                </InputAdornment>
-                                            )
-                                        }}
-                                    />
-                                </Grid>
+                                <Grid item xs={12}><TextField label="Fichier Excel Utilisateurs" name="excelFilePath" value={editedConfig.excelFilePath || ''} onChange={handleFieldChange} fullWidth InputProps={{ endAdornment: (<InputAdornment position="end"><IconButton onClick={() => handleBrowse('excelFilePath')} disabled={!isElectron}><FolderOpenIcon /></IconButton></InputAdornment>) }} /></Grid>
+                                <Grid item xs={12}><TextField label="Base de données SQLite" name="databasePath" value={editedConfig.databasePath || ''} onChange={handleFieldChange} fullWidth InputProps={{ endAdornment: (<InputAdornment position="end"><IconButton onClick={() => handleBrowse('databasePath')} disabled={!isElectron}><FolderOpenIcon /></IconButton></InputAdornment>) }} /></Grid>
                             </Grid>
                         </Paper>
                     </TabPanel>
-
-                    <TabPanel value={currentTab} index={4}>
-                        <Paper sx={{ p: 3 }}>
-                            <Typography variant="h5" gutterBottom><AssignmentIcon sx={{ mb: -0.5, mr: 1 }} />Paramètres des Prêts</Typography>
-                            <Grid container spacing={3}>
-                                <Grid item xs={12} sm={6}><TextField label="Durée maximum (jours)" name="loans.maxLoanDays" type="number" value={editedConfig.loans?.maxLoanDays || 90} onChange={handleFieldChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={6}><TextField label="Nombre max de prolongations" name="loans.maxExtensions" type="number" value={editedConfig.loans?.maxExtensions || 3} onChange={handleFieldChange} fullWidth /></Grid>
-                                <Grid item xs={12}><FormControlLabel control={<Switch name="loans.autoNotifications" checked={editedConfig.loans?.autoNotifications ?? true} onChange={handleFieldChange} />} label="Activer les notifications automatiques" /></Grid>
-                            </Grid>
-                        </Paper>
-                    </TabPanel>
-
-                    <TabPanel value={currentTab} index={5}>
-                        <Paper sx={{ p: 3 }}>
-                            <Typography variant="h5" gutterBottom><NotificationsIcon sx={{ mb: -0.5, mr: 1 }} />Notifications</Typography>
-                            <Grid container spacing={3}>
-                                <Grid item xs={12}><FormControlLabel control={<Switch name="notifications.enabled" checked={editedConfig.notifications?.enabled ?? true} onChange={handleFieldChange} />} label="Activer les notifications système globales" /></Grid>
-                                <Grid item xs={12}><FormControlLabel control={<Switch name="notifications.loanReminders" checked={editedConfig.notifications?.loanReminders ?? true} onChange={handleFieldChange} />} label="Activer les rappels avant échéance des prêts" /></Grid>
-                                <Grid item xs={12}><FormControlLabel control={<Switch name="notifications.overdueLoanAlerts" checked={editedConfig.notifications?.overdueLoanAlerts ?? true} onChange={handleFieldChange} />} label="Activer les alertes pour les prêts en retard" /></Grid>
-                            </Grid>
-                        </Paper>
-                    </TabPanel>
-
-                    <TabPanel value={currentTab} index={6}>
-                        <Paper sx={{ p: 3 }}>
-                            <Typography variant="h5" gutterBottom><PaletteIcon sx={{ mb: -0.5, mr: 1 }} />Interface</Typography>
-                            <Grid container spacing={3}>
-                                <Grid item xs={12} sm={6}>
-                                    <FormControl fullWidth>
-                                        <InputLabel>Thème</InputLabel>
-                                        <Select name="ui.theme" value={editedConfig.ui?.theme || 'light'} label="Thème" onChange={handleFieldChange}>
-                                            <MenuItem value="light">Clair</MenuItem>
-                                            <MenuItem value="dark">Sombre</MenuItem>
-                                        </Select>
-                                    </FormControl>
-                                </Grid>
-                                <Grid item xs={12}><FormControlLabel control={<Switch name="ui.compactView" checked={editedConfig.ui?.compactView ?? false} onChange={handleFieldChange} />} label="Activer le mode compact (tableaux plus denses)" /></Grid>
-                                <Grid item xs={12}><FormControlLabel control={<Switch name="ui.autoRefresh" checked={editedConfig.ui?.autoRefresh ?? true} onChange={handleFieldChange} />} label="Activer le rafraîchissement automatique (sessions, etc.)" /></Grid>
-                            </Grid>
-                        </Paper>
-                    </TabPanel>
+                    <TabPanel value={currentTab} index={4}><Paper sx={{ p: 3 }}><Typography variant="h5" gutterBottom>Paramètres des Prêts</Typography><Grid container spacing={3}><Grid item xs={12} sm={6}><TextField label="Durée maximum (jours)" name="loans.maxLoanDays" type="number" value={editedConfig.loans?.maxLoanDays || 90} onChange={handleFieldChange} fullWidth /></Grid><Grid item xs={12} sm={6}><TextField label="Nombre max de prolongations" name="loans.maxExtensions" type="number" value={editedConfig.loans?.maxExtensions || 3} onChange={handleFieldChange} fullWidth /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="loans.autoNotifications" checked={editedConfig.loans?.autoNotifications ?? true} onChange={handleFieldChange} />} label="Activer les notifications automatiques" /></Grid></Grid></Paper></TabPanel>
+                    <TabPanel value={currentTab} index={5}><Paper sx={{ p: 3 }}><Typography variant="h5" gutterBottom>Notifications</Typography><Grid container spacing={3}><Grid item xs={12}><FormControlLabel control={<Switch name="notifications.enabled" checked={editedConfig.notifications?.enabled ?? true} onChange={handleFieldChange} />} label="Activer les notifications système globales" /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="notifications.loanReminders" checked={editedConfig.notifications?.loanReminders ?? true} onChange={handleFieldChange} />} label="Activer les rappels avant échéance des prêts" /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="notifications.overdueLoanAlerts" checked={editedConfig.notifications?.overdueLoanAlerts ?? true} onChange={handleFieldChange} />} label="Activer les alertes pour les prêts en retard" /></Grid></Grid></Paper></TabPanel>
+                    <TabPanel value={currentTab} index={6}><Paper sx={{ p: 3 }}><Typography variant="h5" gutterBottom>Interface</Typography><Grid container spacing={3}><Grid item xs={12} sm={6}><FormControl fullWidth><InputLabel>Thème</InputLabel><Select name="ui.theme" value={editedConfig.ui?.theme || 'light'} label="Thème" onChange={handleFieldChange}><MenuItem value="light">Clair</MenuItem><MenuItem value="dark">Sombre</MenuItem></Select></FormControl></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="ui.compactView" checked={editedConfig.ui?.compactView ?? false} onChange={handleFieldChange} />} label="Activer le mode compact" /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="ui.autoRefresh" checked={editedConfig.ui?.autoRefresh ?? true} onChange={handleFieldChange} />} label="Activer le rafraîchissement automatique" /></Grid></Grid></Paper></TabPanel>
                 </Box>
             </Box>
             <TechnicianDialog open={technicianDialog.open} onClose={() => setTechnicianDialog({ open: false, technician: null })} onSave={handleSaveTechnician} technician={technicianDialog.technician} />
