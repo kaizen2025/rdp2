@@ -174,6 +174,11 @@ module.exports = (broadcast) => {
     router.post('/ad/users/:username/reset-password', asyncHandler(async (req, res) => res.json(await adService.resetAdUserPassword(req.params.username, req.body.newPassword, req.body.mustChange))));
     router.post('/ad/users', asyncHandler(async (req, res) => res.json(await adService.createAdUser(req.body))));
 
+    router.get('/ad/ous', asyncHandler(async (req, res) => {
+        const { parentId } = req.query; // parentId sera l'ID (DistinguishedName) de l'OU parente
+        res.json(await adService.getAdOUs(parentId || null));
+    }));
+
     router.get('/excel/users', asyncHandler(async (req, res) => res.json(await userService.getUsersByServer())));
     router.post('/excel/users/refresh', asyncHandler(async (req, res) => {
         excelService.invalidateCache();

@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Détecte si on est dans un environnement Electron packagé
-const isPackaged = process.mainModule.filename.includes('app.asar') || process.mainModule.filename.includes('app');
+const isPackaged = process.mainModule && process.mainModule.filename.includes('app.asar');
 
 /**
  * Calcule le chemin de base de l'application de manière fiable
