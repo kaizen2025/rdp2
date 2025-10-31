@@ -22,6 +22,7 @@ import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { addDays } from 'date-fns';
+import Alert from '@mui/material/Alert';
 import apiService from '../services/apiService';
 import { getAccessoryIcon } from '../config/accessoriesConfig';
 
@@ -30,6 +31,8 @@ const LoanDialog = ({ open, onClose, loan, onSave, users, itStaff, computers = [
     const [formData, setFormData] = useState({});
     const [availableAccessories, setAvailableAccessories] = useState([]);
     const [userConfirmed, setUserConfirmed] = useState(false);
+    const [errors, setErrors] = useState({});
+    const [activeLoansForUser, setActiveLoansForUser] = useState([]);
     const isEditMode = !!loan;
 
     useEffect(() => {
@@ -56,11 +59,28 @@ const LoanDialog = ({ open, onClose, loan, onSave, users, itStaff, computers = [
         }
     }, [loan, open, itStaff, isEditMode, computer, currentTechnician]);
 
+    const validate = () => {
+        const newErrors = {};
+        if (!formData.computerId) newErrors.computerId = 'Veuillez sélectionner un ordinateur';
+        if (!formData.userName) newErrors.userName = 'Veuillez sélectionner un utilisateur';
+        if (!formData.itStaff) newErrors.itStaff = 'Veuillez sélectionner un responsable IT';
+        if (!formData.loanDate) newErrors.loanDate = 'Veuillez sélectionner une date de prêt';
+        if (!formData.expectedReturnDate) newErrors.expectedReturnDate = 'Veuillez sélectionner une date de retour';
+        if (formData.loanDate && formData.expectedReturnDate && formData.loanDate > formData.expectedReturnDate) {
+            newErrors.expectedReturnDate = 'La date de retour doit être après la date de prêt';
+        }
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
     const handleSubmit = () => {
-        if (!formData.computerId || !formData.userName || !formData.itStaff) {
-            alert('Veuillez remplir tous les champs obligatoires.');
+        if (!validate()) return;
+
+        if (!isEditMode && !userConfirmed) {
+            alert('Veuillez confirmer que l\'utilisateur a bien reçu le matériel.');
             return;
         }
+
         const selectedComputer = computers.find(c => c.id === formData.computerId);
         const loanData = {
             ...formData,
@@ -94,13 +114,26 @@ const LoanDialog = ({ open, onClose, loan, onSave, users, itStaff, computers = [
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
             <DialogTitle>{isEditMode ? 'Modifier le prêt' : 'Créer un prêt'}</DialogTitle>
             <DialogContent dividers>
+                {!isEditMode && availableComputers.length === 0 && (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                        Aucun ordinateur disponible pour le moment. Tous les ordinateurs sont déjà en prêt.
+                    </Alert>
+                )}
                 <Grid container spacing={2} sx={{ pt: 1 }}>
                     <Grid item xs={12}>
-                        <FormControl fullWidth required>
+                        <FormControl fullWidth required error={!!errors.computerId}>
                             <InputLabel>Ordinateur</InputLabel>
-                            <Select value={formData.computerId || ''} onChange={(e) => setFormData(prev => ({ ...prev, computerId: e.target.value }))} label="Ordinateur">
+                            <Select
+                                value={formData.computerId || ''}
+                                onChange={(e) => {
+                                    setFormData(prev => ({ ...prev, computerId: e.target.value }));
+                                    setErrors(prev => ({...prev, computerId: ''}));
+                                }}
+                                label="Ordinateur"
+                            >
                                 {availableComputers.map(comp => (<MenuItem key={comp.id} value={comp.id}>{comp.name} - {comp.brand} {comp.model}</MenuItem>))}
                             </Select>
+                            {errors.computerId && <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 2 }}>{errors.computerId}</Typography>}
                         </FormControl>
                     </Grid>
                     <Grid item xs={12}>
@@ -108,8 +141,11 @@ const LoanDialog = ({ open, onClose, loan, onSave, users, itStaff, computers = [
                             options={users}
                             value={selectedUser || null}
                             getOptionLabel={(option) => `${option.displayName || option.username} (${option.username})`}
-                            onChange={(event, newValue) => setFormData(prev => ({...prev, userName: newValue ? newValue.username : '', userDisplayName: newValue ? newValue.displayName : ''}))}
-                            renderInput={(params) => <TextField {...params} label="Utilisateur" required />}
+                            onChange={(event, newValue) => {
+                                setFormData(prev => ({...prev, userName: newValue ? newValue.username : '', userDisplayName: newValue ? newValue.displayName : ''}));
+                                setErrors(prev => ({...prev, userName: ''}));
+                            }}
+                            renderInput={(params) => <TextField {...params} label="Utilisateur" required error={!!errors.userName} helperText={errors.userName} />}
                         />
                     </Grid>
                     <Grid item xs={12}>

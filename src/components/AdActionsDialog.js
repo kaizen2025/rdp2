@@ -132,7 +132,9 @@ const AdActionsDialog = ({ open, onClose, user, onActionComplete }) => {
     const [details, setDetails] = useState(null);
     const [isActionLoading, setIsActionLoading] = useState(false);
     const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
-    const [foundGroups, setFoundGroups] = useState([]); // Pour une future recherche de groupe
+    const [foundGroups, setFoundGroups] = useState([]);
+    const [groupSearchTerm, setGroupSearchTerm] = useState('');
+    const [isSearchingGroups, setIsSearchingGroups] = useState(false);
 
     const loadUserDetails = useCallback(async () => {
         if (!user) return;
@@ -197,6 +199,7 @@ const AdActionsDialog = ({ open, onClose, user, onActionComplete }) => {
             if (result.success) {
                 showNotification('success', `Utilisateur ${actionVerb} du groupe ${groupName} avec succès.`);
                 loadUserDetails(); // Recharger les détails pour voir le changement
+                setGroupSearchTerm(''); // Réinitialiser le champ de recherche
             } else {
                 throw new Error(result.error);
             }
@@ -206,6 +209,32 @@ const AdActionsDialog = ({ open, onClose, user, onActionComplete }) => {
             setIsActionLoading(false);
         }
     };
+
+    // ✅ NOUVELLE FONCTION: Recherche de groupes AD avec debounce
+    const searchAdGroups = useCallback(async (searchTerm) => {
+        if (!searchTerm || searchTerm.length < 2) {
+            setFoundGroups([]);
+            return;
+        }
+        setIsSearchingGroups(true);
+        try {
+            const groups = await apiService.searchAdGroups(searchTerm);
+            setFoundGroups(groups || []);
+        } catch (error) {
+            console.error('Erreur recherche de groupes:', error);
+            setFoundGroups([]);
+        } finally {
+            setIsSearchingGroups(false);
+        }
+    }, []);
+
+    // Debounce pour la recherche de groupes
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            searchAdGroups(groupSearchTerm);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [groupSearchTerm, searchAdGroups]);
 
     const formatDate = (dateStr) => {
         if (!dateStr) return 'Jamais';
@@ -259,12 +288,39 @@ const AdActionsDialog = ({ open, onClose, user, onActionComplete }) => {
                                     sx={{ mt: 2 }}
                                     freeSolo
                                     options={foundGroups}
+                                    inputValue={groupSearchTerm}
+                                    onInputChange={(event, newValue) => setGroupSearchTerm(newValue)}
                                     onChange={(event, newValue) => {
                                         if (newValue) {
                                             handleGroupAction(newValue, 'add');
                                         }
                                     }}
-                                    renderInput={(params) => <TextField {...params} label="Ajouter à un groupe..." size="small" placeholder="Taper le nom du groupe et Entrée" />}
+                                    loading={isSearchingGroups}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            label="Ajouter à un groupe..."
+                                            size="small"
+                                            placeholder="Taper au moins 2 caractères..."
+                                            helperText="Commencez à taper pour rechercher les groupes AD disponibles"
+                                            InputProps={{
+                                                ...params.InputProps,
+                                                endAdornment: (
+                                                    <>
+                                                        {isSearchingGroups ? <CircularProgress size={20} /> : null}
+                                                        {params.InputProps.endAdornment}
+                                                    </>
+                                                )
+                                            }}
+                                        />
+                                    )}
+                                    renderOption={(props, option) => (
+                                        <Box component="li" {...props} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <GroupIcon fontSize="small" color="action" />
+                                            <Typography variant="body2">{option}</Typography>
+                                        </Box>
+                                    )}
+                                    noOptionsText={groupSearchTerm.length < 2 ? "Tapez au moins 2 caractères" : "Aucun groupe trouvé"}
                                 />
                             </Grid>
                             <Grid item xs={12}>

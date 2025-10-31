@@ -24,12 +24,12 @@ export const AppProvider = ({ children }) => {
 
     const eventListeners = useRef(new Map());
 
-    const showNotification = useCallback((type, message) => {
-        const newNotification = { id: Date.now() + Math.random(), type, message };
+    const showNotification = useCallback((type, message, duration = 5000) => {
+        const newNotification = { id: Date.now() + Math.random(), type, message, duration };
         setNotifications(prev => [...prev, newNotification]);
         setTimeout(() => {
             setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
-        }, 5000);
+        }, duration);
     }, []);
 
     const off = useCallback((eventName, callback) => {

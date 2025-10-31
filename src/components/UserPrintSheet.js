@@ -52,8 +52,10 @@ const UserPrintSheet = forwardRef(({ user }, ref) => {
                     </Box>
                     <Box sx={{ textAlign: 'right' }}>
                         <Typography sx={{ fontSize: '12pt', fontWeight: 600 }}>{user.displayName}</Typography>
-                        {/* ✅ AMÉLIORATION: Ajout du libellé "Identifiant" */}
-                        <Typography sx={{ color: '#555', fontSize: '9pt' }}>Identifiant : @{user.username}</Typography>
+                        {/* ✅ AMÉLIORATION: Identifiant sans arobase, plus visible */}
+                        <Typography sx={{ color: '#333', fontSize: '10pt', fontWeight: 600, backgroundColor: '#f0f0f0', px: 1, py: 0.5, borderRadius: 1, mt: 0.5 }}>
+                            Identifiant : {user.username}
+                        </Typography>
                     </Box>
                 </Box>
 

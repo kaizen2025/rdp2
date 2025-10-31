@@ -100,6 +100,7 @@ class ApiService {
 
     // ACTIVE DIRECTORY
     searchAdUsers = async (term) => this.request(`/ad/users/search/${encodeURIComponent(term)}`)
+    searchAdGroups = async (term) => this.request(`/ad/groups/search/${encodeURIComponent(term)}`)
     getAdGroupMembers = async (group) => this.request(`/ad/groups/${encodeURIComponent(group)}/members`)
     addUserToGroup = async (username, groupName) => this.request('/ad/groups/members', { method: 'POST', body: JSON.stringify({ username, groupName }) })
     removeUserFromGroup = async (username, groupName) => this.request(`/ad/groups/${encodeURIComponent(groupName)}/members/${encodeURIComponent(username)}`, { method: 'DELETE' })

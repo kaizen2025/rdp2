@@ -156,6 +156,7 @@ module.exports = (broadcast) => {
     }));
 
     router.get('/ad/users/search/:term', asyncHandler(async (req, res) => res.json(await adService.searchAdUsers(req.params.term))));
+    router.get('/ad/groups/search/:term', asyncHandler(async (req, res) => res.json(await adService.searchAdGroups(req.params.term))));
     router.get('/ad/groups/:groupName/members', asyncHandler(async (req, res) => res.json(await adService.getAdGroupMembers(req.params.groupName))));
     router.post('/ad/groups/members', asyncHandler(async (req, res) => {
         const result = await adService.addUserToGroup(req.body.username, req.body.groupName);
