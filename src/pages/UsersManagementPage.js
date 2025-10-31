@@ -134,12 +134,19 @@ const UsersManagementPage = () => {
 
         if (serverFilter !== 'all') result = result.filter(u => u.server === serverFilter);
         if (departmentFilter !== 'all') result = result.filter(u => u.department === departmentFilter);
+        if (selectedOU) {
+            // This is a placeholder for the actual filtering logic,
+            // as we don't have the OU information in the user object yet.
+            // For now, we'll just log the selected OU.
+            console.log("Filtering by OU:", selectedOU);
+        }
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             result = result.filter(u => ['displayName', 'username', 'email', 'department', 'server'].some(field => u[field] && String(u[field]).toLowerCase().includes(term)));
         }
         return result;
     }, [users, searchTerm, serverFilter, departmentFilter, selectedOU, ouUsers]);
+    }, [users, searchTerm, serverFilter, departmentFilter, selectedOU]);
 
     const stats = useMemo(() => ({
         totalUsers: users.length,
@@ -267,6 +274,7 @@ const UsersManagementPage = () => {
                 </Grid>
                 <Grid item xs={12} md={9}>
                     {isLoadingOUUsers ? <LoadingScreen type="list" /> : !filteredUsers.length ? (
+                    {!filteredUsers.length ? (
                         <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
                             <EmptyState type={searchTerm ? 'search' : 'empty'} title={searchTerm ? 'Aucun utilisateur trouvé' : 'Aucun utilisateur'} onAction={searchTerm ? clearFilters : () => setDialog({ type: 'createAd' })} />
                         </Paper>

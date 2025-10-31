@@ -339,3 +339,4 @@ async function getAdUsersInOU(ouDN) {
         throw new Error(parseAdError(e.message));
     }
 }
+};

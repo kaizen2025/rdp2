@@ -5,6 +5,8 @@ const path = require('path');
 
 const isElectron = 'electron' in process.versions;
 const isDev = isElectron ? require('electron-is-dev') : false;
+// Détecte si on est dans un environnement Electron packagé
+const isPackaged = process.mainModule && process.mainModule.filename.includes('app.asar');
 
 /**
  * Calcule le chemin de base de l'application de manière fiable
