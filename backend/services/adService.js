@@ -279,6 +279,35 @@ async function createAdUser(userData) {
 }
 
 
+async function getAdOUs(parentId = null) {
+    const parentOuDn = parentId ? `"${parentId}"` : '(Get-ADDomain).DistinguishedName';
+    const psScript = `
+        Import-Module ActiveDirectory -ErrorAction Stop
+        $searchBase = ${parentOuDn}
+
+        $ous = Get-ADOrganizationalUnit -Filter * -SearchBase $searchBase -SearchScope OneLevel | Select-Object Name, DistinguishedName
+
+        $result = @()
+        foreach ($ou in $ous) {
+            $childrenCount = (Get-ADOrganizationalUnit -Filter * -SearchBase $ou.DistinguishedName -SearchScope OneLevel).Count
+            $result += [PSCustomObject]@{
+                id          = $ou.DistinguishedName
+                name        = $ou.Name
+                hasChildren = $childrenCount -gt 0
+            }
+        }
+        $result | ConvertTo-Json -Compress
+    `;
+    try {
+        const jsonOutput = await executeEncodedPowerShell(psScript, 20000);
+        const ous = JSON.parse(jsonOutput || '[]');
+        return Array.isArray(ous) ? ous : [ous];
+    } catch (e) {
+        console.error(`Erreur lors de la récupération des OUs AD pour '${parentId || 'root'}':`, parseAdError(e.message));
+        throw new Error(parseAdError(e.message));
+    }
+}
+
 module.exports = {
     searchAdUsers,
     searchAdGroups, // ✅ EXPORT DE LA NOUVELLE FONCTION
@@ -290,4 +319,23 @@ module.exports = {
     enableAdUser,
     resetAdUserPassword,
     createAdUser,
+    getAdOUs,
+    getAdUsersInOU,
 };
+
+async function getAdUsersInOU(ouDN) {
+    const psScript = `
+        Import-Module ActiveDirectory -ErrorAction Stop
+        Get-ADUser -Filter * -SearchBase "${ouDN}" -SearchScope OneLevel |
+            Select-Object SamAccountName, DisplayName, EmailAddress, Enabled |
+            ConvertTo-Json -Compress
+    `;
+    try {
+        const jsonOutput = await executeEncodedPowerShell(psScript, 20000);
+        const users = JSON.parse(jsonOutput || '[]');
+        return Array.isArray(users) ? users : [users];
+    } catch (e) {
+        console.error(`Erreur lors de la récupération des utilisateurs de l'OU '${ouDN}':`, parseAdError(e.message));
+        throw new Error(parseAdError(e.message));
+    }
+}

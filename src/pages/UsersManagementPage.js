@@ -1,6 +1,6 @@
 // src/pages/UsersManagementPage.js - VERSION FINALE AVEC RENDU CONDITIONNEL
 
-import React, { useState, useMemo, useCallback, memo } from 'react';
+import React, { useState, useMemo, useCallback, memo, useEffect } from 'react';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { Box, Paper, Typography, Button, IconButton, Tooltip, CircularProgress, FormControl, InputLabel, Select, MenuItem, Chip, Grid, Checkbox } from '@mui/material';
@@ -19,6 +19,7 @@ import PageHeader from '../components/common/PageHeader';
 import SearchInput from '../components/common/SearchInput';
 import EmptyState from '../components/common/EmptyState';
 import LoadingScreen from '../components/common/LoadingScreen';
+import AdTreeView from '../components/ad-tree/AdTreeView';
 
 const AdGroupBadge = memo(({ groupName, isMember, onToggle, isLoading }) => {
     const isVpn = groupName === 'VPN';
@@ -83,6 +84,9 @@ const UsersManagementPage = () => {
     const [departmentFilter, setDepartmentFilter] = useState('all');
     const [dialog, setDialog] = useState({ type: null, data: null });
     const [selectedUsernames, setSelectedUsernames] = useState(new Set());
+    const [selectedOU, setSelectedOU] = useState(null);
+    const [ouUsers, setOuUsers] = useState([]);
+    const [isLoadingOUUsers, setIsLoadingOUUsers] = useState(false);
 
     const users = useMemo(() => (cache.excel_users && typeof cache.excel_users === 'object') ? Object.values(cache.excel_users).flat() : [], [cache.excel_users]);
     const vpnMembers = useMemo(() => new Set((cache['ad_groups:VPN'] || []).map(m => m.SamAccountName)), [cache]);
@@ -101,8 +105,33 @@ const UsersManagementPage = () => {
         departments: [...new Set(users.map(u => u.department).filter(Boolean))].sort()
     }), [users]);
 
+    useEffect(() => {
+        if (selectedOU) {
+            setIsLoadingOUUsers(true);
+            apiService.getAdUsersInOU(selectedOU)
+                .then(setOuUsers)
+                .catch(err => {
+                    showNotification('error', `Erreur: ${err.message}`);
+                    setOuUsers([]);
+                })
+                .finally(() => setIsLoadingOUUsers(false));
+        } else {
+            setOuUsers([]);
+        }
+    }, [selectedOU, showNotification]);
+
     const filteredUsers = useMemo(() => {
-        let result = users;
+        let result = selectedOU ? ouUsers.map(ouUser => {
+            const excelUser = users.find(u => u.username.toLowerCase() === ouUser.SamAccountName.toLowerCase());
+            return {
+                ...excelUser,
+                displayName: ouUser.DisplayName,
+                username: ouUser.SamAccountName,
+                email: ouUser.EmailAddress,
+                adEnabled: ouUser.Enabled ? 1 : 0,
+            };
+        }) : users;
+
         if (serverFilter !== 'all') result = result.filter(u => u.server === serverFilter);
         if (departmentFilter !== 'all') result = result.filter(u => u.department === departmentFilter);
         if (searchTerm) {
@@ -110,7 +139,7 @@ const UsersManagementPage = () => {
             result = result.filter(u => ['displayName', 'username', 'email', 'department', 'server'].some(field => u[field] && String(u[field]).toLowerCase().includes(term)));
         }
         return result;
-    }, [users, searchTerm, serverFilter, departmentFilter]);
+    }, [users, searchTerm, serverFilter, departmentFilter, selectedOU, ouUsers]);
 
     const stats = useMemo(() => ({
         totalUsers: users.length,
@@ -229,26 +258,36 @@ const UsersManagementPage = () => {
                 </Grid>
             </Paper>
 
-            {!filteredUsers.length ? (
-                <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
-                    <EmptyState type={searchTerm ? 'search' : 'empty'} title={searchTerm ? 'Aucun utilisateur trouvé' : 'Aucun utilisateur'} onAction={searchTerm ? clearFilters : () => setDialog({ type: 'createAd' })} />
-                </Paper>
-            ) : (
-                <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: 2, minHeight: 500 }}>
-                    <Box sx={{ px: 2, py: 1.5, backgroundColor: 'primary.main', color: 'white', display: 'flex', gap: 2, fontWeight: 600, alignItems: 'center' }}>
-                        <Checkbox
-                            indeterminate={selectedUsernames.size > 0 && selectedUsernames.size < filteredUsers.length}
-                            checked={filteredUsers.length > 0 && selectedUsernames.size === filteredUsers.length}
-                            onChange={handleSelectAll}
-                            sx={{ color: 'white', '&.Mui-checked': { color: 'white' }, '&.MuiCheckbox-indeterminate': { color: 'white' }, p: 0, mr: 1 }}
-                        />
-                        <Box sx={{ flex: '1 1 150px' }}>Utilisateur</Box><Box sx={{ flex: '0.8 1 100px' }}>Service</Box><Box sx={{ flex: '1.2 1 180px' }}>Email</Box><Box sx={{ flex: '1 1 160px' }}>Mots de passe</Box><Box sx={{ flex: '1 1 120px' }}>Groupes</Box><Box sx={{ flex: '0 0 auto', width: '180px' }}>Actions</Box>
-                    </Box>
-                    <Box sx={{ flex: 1, overflow: 'auto', minHeight: 400 }}>
-                        <AutoSizer>{({ height, width }) => (<List height={height} width={width} itemCount={filteredUsers.length} itemSize={80} itemKey={i => filteredUsers[i].username}>{Row}</List>)}</AutoSizer>
-                    </Box>
-                </Paper>
-            )}
+            <Grid container spacing={2}>
+                <Grid item xs={12} md={3}>
+                    <Paper elevation={2} sx={{ p: 2, borderRadius: 2, height: '100%' }}>
+                        <Typography variant="h6" sx={{ mb: 1 }}>Unités d'organisation</Typography>
+                        <AdTreeView onNodeSelect={(nodeId) => setSelectedOU(nodeId)} />
+                    </Paper>
+                </Grid>
+                <Grid item xs={12} md={9}>
+                    {isLoadingOUUsers ? <LoadingScreen type="list" /> : !filteredUsers.length ? (
+                        <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
+                            <EmptyState type={searchTerm ? 'search' : 'empty'} title={searchTerm ? 'Aucun utilisateur trouvé' : 'Aucun utilisateur'} onAction={searchTerm ? clearFilters : () => setDialog({ type: 'createAd' })} />
+                        </Paper>
+                    ) : (
+                        <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: 2, minHeight: 500 }}>
+                            <Box sx={{ px: 2, py: 1.5, backgroundColor: 'primary.main', color: 'white', display: 'flex', gap: 2, fontWeight: 600, alignItems: 'center' }}>
+                                <Checkbox
+                                    indeterminate={selectedUsernames.size > 0 && selectedUsernames.size < filteredUsers.length}
+                                    checked={filteredUsers.length > 0 && selectedUsernames.size === filteredUsers.length}
+                                    onChange={handleSelectAll}
+                                    sx={{ color: 'white', '&.Mui-checked': { color: 'white' }, '&.MuiCheckbox-indeterminate': { color: 'white' }, p: 0, mr: 1 }}
+                                />
+                                <Box sx={{ flex: '1 1 150px' }}>Utilisateur</Box><Box sx={{ flex: '0.8 1 100px' }}>Service</Box><Box sx={{ flex: '1.2 1 180px' }}>Email</Box><Box sx={{ flex: '1 1 160px' }}>Mots de passe</Box><Box sx={{ flex: '1 1 120px' }}>Groupes</Box><Box sx={{ flex: '0 0 auto', width: '180px' }}>Actions</Box>
+                            </Box>
+                            <Box sx={{ flex: 1, overflow: 'auto', minHeight: 400 }}>
+                                <AutoSizer>{({ height, width }) => (<List height={height} width={width} itemCount={filteredUsers.length} itemSize={80} itemKey={i => filteredUsers[i].username}>{Row}</List>)}</AutoSizer>
+                            </Box>
+                        </Paper>
+                    )}
+                </Grid>
+            </Grid>
             
             {/* ✅ Rendu conditionnel des dialogues */}
             {dialog.type === 'editExcel' && <UserDialog open={true} onClose={() => setDialog({ type: null })} user={dialog.data} onSave={handleSaveUser} servers={servers} />}
