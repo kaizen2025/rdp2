@@ -320,4 +320,23 @@ module.exports = {
     resetAdUserPassword,
     createAdUser,
     getAdOUs,
+    getAdUsersInOU,
+};
+
+async function getAdUsersInOU(ouDN) {
+    const psScript = `
+        Import-Module ActiveDirectory -ErrorAction Stop
+        Get-ADUser -Filter * -SearchBase "${ouDN}" -SearchScope OneLevel |
+            Select-Object SamAccountName, DisplayName, EmailAddress, Enabled |
+            ConvertTo-Json -Compress
+    `;
+    try {
+        const jsonOutput = await executeEncodedPowerShell(psScript, 20000);
+        const users = JSON.parse(jsonOutput || '[]');
+        return Array.isArray(users) ? users : [users];
+    } catch (e) {
+        console.error(`Erreur lors de la récupération des utilisateurs de l'OU '${ouDN}':`, parseAdError(e.message));
+        throw new Error(parseAdError(e.message));
+    }
+}
 };

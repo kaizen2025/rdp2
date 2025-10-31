@@ -1,6 +1,6 @@
 // src/pages/UsersManagementPage.js - VERSION FINALE AVEC RENDU CONDITIONNEL
 
-import React, { useState, useMemo, useCallback, memo } from 'react';
+import React, { useState, useMemo, useCallback, memo, useEffect } from 'react';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { Box, Paper, Typography, Button, IconButton, Tooltip, CircularProgress, FormControl, InputLabel, Select, MenuItem, Chip, Grid, Checkbox } from '@mui/material';
@@ -85,6 +85,8 @@ const UsersManagementPage = () => {
     const [dialog, setDialog] = useState({ type: null, data: null });
     const [selectedUsernames, setSelectedUsernames] = useState(new Set());
     const [selectedOU, setSelectedOU] = useState(null);
+    const [ouUsers, setOuUsers] = useState([]);
+    const [isLoadingOUUsers, setIsLoadingOUUsers] = useState(false);
 
     const users = useMemo(() => (cache.excel_users && typeof cache.excel_users === 'object') ? Object.values(cache.excel_users).flat() : [], [cache.excel_users]);
     const vpnMembers = useMemo(() => new Set((cache['ad_groups:VPN'] || []).map(m => m.SamAccountName)), [cache]);
@@ -103,8 +105,33 @@ const UsersManagementPage = () => {
         departments: [...new Set(users.map(u => u.department).filter(Boolean))].sort()
     }), [users]);
 
+    useEffect(() => {
+        if (selectedOU) {
+            setIsLoadingOUUsers(true);
+            apiService.getAdUsersInOU(selectedOU)
+                .then(setOuUsers)
+                .catch(err => {
+                    showNotification('error', `Erreur: ${err.message}`);
+                    setOuUsers([]);
+                })
+                .finally(() => setIsLoadingOUUsers(false));
+        } else {
+            setOuUsers([]);
+        }
+    }, [selectedOU, showNotification]);
+
     const filteredUsers = useMemo(() => {
-        let result = users;
+        let result = selectedOU ? ouUsers.map(ouUser => {
+            const excelUser = users.find(u => u.username.toLowerCase() === ouUser.SamAccountName.toLowerCase());
+            return {
+                ...excelUser,
+                displayName: ouUser.DisplayName,
+                username: ouUser.SamAccountName,
+                email: ouUser.EmailAddress,
+                adEnabled: ouUser.Enabled ? 1 : 0,
+            };
+        }) : users;
+
         if (serverFilter !== 'all') result = result.filter(u => u.server === serverFilter);
         if (departmentFilter !== 'all') result = result.filter(u => u.department === departmentFilter);
         if (selectedOU) {
@@ -118,6 +145,7 @@ const UsersManagementPage = () => {
             result = result.filter(u => ['displayName', 'username', 'email', 'department', 'server'].some(field => u[field] && String(u[field]).toLowerCase().includes(term)));
         }
         return result;
+    }, [users, searchTerm, serverFilter, departmentFilter, selectedOU, ouUsers]);
     }, [users, searchTerm, serverFilter, departmentFilter, selectedOU]);
 
     const stats = useMemo(() => ({
@@ -245,6 +273,7 @@ const UsersManagementPage = () => {
                     </Paper>
                 </Grid>
                 <Grid item xs={12} md={9}>
+                    {isLoadingOUUsers ? <LoadingScreen type="list" /> : !filteredUsers.length ? (
                     {!filteredUsers.length ? (
                         <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
                             <EmptyState type={searchTerm ? 'search' : 'empty'} title={searchTerm ? 'Aucun utilisateur trouvé' : 'Aucun utilisateur'} onAction={searchTerm ? clearFilters : () => setDialog({ type: 'createAd' })} />

@@ -1,12 +1,17 @@
 // src/components/ad-tree/AdTreeView.js
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { TreeView, TreeItem } from '@mui/lab';
 import { TreeView } from '@mui/x-tree-view/TreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { CircularProgress, Box } from '@mui/material';
 
+const AdTreeView = ({ onNodeSelect }) => {
+  const [treeData, setTreeData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null);
 const AdTreeView = () => {
   const [treeData, setTreeData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -78,12 +83,21 @@ const AdTreeView = () => {
     );
   }
 
+  const handleSelect = (event, nodeId) => {
+    setSelected(nodeId);
+    if (onNodeSelect) {
+      onNodeSelect(nodeId);
+    }
+  };
+
   return (
     <TreeView
       aria-label="ad-ou-tree"
       defaultCollapseIcon={<ExpandMoreIcon />}
       defaultExpandIcon={<ChevronRightIcon />}
       onNodeToggle={handleToggle}
+      onNodeSelect={handleSelect}
+      selected={selected}
       sx={{ height: 240, flexGrow: 1, maxWidth: 400, overflowY: 'auto' }}
     >
       {renderTree(treeData)}

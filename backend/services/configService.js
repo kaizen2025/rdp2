@@ -3,6 +3,8 @@
 const fs = require('fs');
 const path = require('path');
 
+const isElectron = 'electron' in process.versions;
+const isDev = isElectron ? require('electron-is-dev') : false;
 // Détecte si on est dans un environnement Electron packagé
 const isPackaged = process.mainModule && process.mainModule.filename.includes('app.asar');
 
@@ -11,14 +13,13 @@ const isPackaged = process.mainModule && process.mainModule.filename.includes('a
  * dans tous les environnements (dev, prod, forked process).
  */
 function getBasePath() {
-    if (isPackaged) {
-        // Dans l'app packagée, les ressources sont à la racine du dossier de l'app
-        // process.resourcesPath est la référence la plus sûre.
+    // Si l'application est packagée pour la production
+    if (isElectron && !isDev) {
+        // process.resourcesPath pointe vers le dossier des ressources
         return process.resourcesPath;
-    } else {
-        // En développement, la base est la racine du projet
-        return path.join(__dirname, '..', '..');
     }
+    // En développement (Electron ou serveur Node seul), la base est la racine du projet
+    return path.join(__dirname, '..', '..');
 }
 
 const basePath = getBasePath();

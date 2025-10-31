@@ -179,6 +179,14 @@ module.exports = (broadcast) => {
         res.json(await adService.getAdOUs(parentId || null));
     }));
 
+    router.get('/ad/ou-users', asyncHandler(async (req, res) => {
+        const { ouDN } = req.query;
+        if (!ouDN) {
+            return res.status(400).json({ error: 'Le paramètre ouDN est manquant.' });
+        }
+        res.json(await adService.getAdUsersInOU(ouDN));
+    }));
+
     router.get('/excel/users', asyncHandler(async (req, res) => res.json(await userService.getUsersByServer())));
     router.post('/excel/users/refresh', asyncHandler(async (req, res) => {
         excelService.invalidateCache();
