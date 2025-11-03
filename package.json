@@ -6,7 +6,7 @@
   "scripts": {
     "start": "react-scripts start",
     "electron": "electron . --no-sandbox",
-    "electron-dev": "concurrently \"npm start\" \"wait-on http://3002 && electron . --no-sandbox\"",
+    "electron-dev": "concurrently \"npm start\" \"wait-on http://3000 && electron . --no-sandbox\"",
     "dev": "npm run electron-dev",
     "dev-alt": "PORT=3003 react-scripts start",
     "build": "react-scripts build",
