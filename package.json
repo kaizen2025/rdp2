@@ -3,12 +3,21 @@
   "version": "3.0.31",
   "description": "DocuCortex IA - Gestionnaire avec Intelligence Artificielle",
   "author": "DocuCortex Team",
-  "main": "public/index.html",
+  "main": "main.js",
   "homepage": ".",
   "scripts": {
-    "start": "node -e \"console.log('🚀 DocuCortex IA - Version de base démarrée'); require('http').createServer((req,res)=>{res.writeHead(200,{'Content-Type':'text/html'});res.end('<h1>DocuCortex IA</h1><p>Version 3.0.31 - Application de base opérationnelle</p><p>Próchaines étapes: Ajout progressif des modules</p>');}).listen(3000,()=>console.log('✅ Serveur DocuCortex sur http://localhost:3000'));\"",
-    "dev": "npm start",
-    "test": "echo 'Tests désactivés temporairement'",
+    "start": "concurrently \"npm run dev:react\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",
+    "dev": "npm run start",
+    "dev:react": "react-scripts start",
+    "dev:server": "nodemon server.js",
+    "electron": "electron .",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "pack": "electron-builder --dir",
+    "dist": "npm run build && electron-builder",
+    "electron-app": "npm run build && NODE_ENV=production electron .",
+    "postinstall": "electron-builder install-app-deps",
     "add:react": "npm install react react-dom react-scripts",
     "add:mui": "npm install @mui/material @mui/icons-material @emotion/react @emotion/styled",
     "add:server": "npm install express cors body-parser multer",
@@ -19,10 +28,68 @@
     "install:full": "npm run add:react && npm run add:mui && npm run add:server && npm run add:db && npm run add:ai && npm run add:utils",
     "clean": "rm -rf node_modules package-lock.json"
   },
+  "build": {
+    "appId": "com.docucortex.ia",
+    "productName": "DocuCortex IA",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "build/**/*",
+      "main.js",
+      "server.js",
+      "node_modules/**/*"
+    ],
+    "extraResources": [],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.icns"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icon.png"
+    }
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
   "dependencies": {
     "http": "0.0.1-security",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-scripts": "^5.0.1"
+    "react-scripts": "^5.0.1",
+    "electron": "^28.0.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "body-parser": "^1.20.2",
+    "multer": "^1.4.5-lts.1",
+    "better-sqlite3": "^9.2.2",
+    "natural": "^6.7.0",
+    "compromise": "^14.10.0",
+    "brain.js": "^2.0.0-beta.15",
+    "axios": "^1.6.2",
+    "date-fns": "^2.30.0",
+    "jspdf": "^2.5.1",
+    "pdf-parse": "^1.1.1"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "wait-on": "^7.2.0",
+    "cross-env": "^7.0.3",
+    "electron-builder": "^24.6.4",
+    "nodemon": "^3.0.2"
   }
 }

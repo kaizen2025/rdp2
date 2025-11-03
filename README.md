@@ -1,63 +1,109 @@
-# 🚀 RDS Viewer - Anecoop
+# DocuCortex IA - Gestionnaire Intelligent avec Intelligence Artificielle
 
-Application web et de bureau pour la gestion centralisée des sessions RDS, du parc informatique, des prêts de matériel et des utilisateurs Active Directory.
+## Version 3.0.31 - Application Electron Complète
 
-## ✨ Fonctionnalités Clés
+### 🚀 Lancement Rapide
 
--   **Tableau de Bord Centralisé :** Vue d'ensemble de l'activité, des prêts en retard et du statut des serveurs.
--   **Gestion des Sessions RDS :** Visualisation en temps réel des sessions actives/déconnectées, envoi de messages, et actions de contrôle à distance (Shadow, RDP).
--   **Inventaire Matériel :** Gestion complète du parc d'ordinateurs, avec historique des prêts et des maintenances.
--   **Gestion des Prêts :** Création, modification, retour, et prolongation des prêts de matériel avec un système de notifications.
--   **Administration Active Directory :**
-    -   Gestion des membres des groupes de sécurité (VPN, Internet).
-    -   Création d'utilisateurs unifiée (AD + Fichier de suivi Excel).
-    -   Actions rapides sur les comptes (activer, désactiver, réinitialiser le mot de passe).
--   **Application de Bureau (Electron) :**
-    -   Intégration native avec les outils Windows (MSTSC, PowerShell).
-    -   Système de mise à jour automatique.
+Pour lancer l'application complète DocuCortex IA :
 
-## 🛠️ Architecture Technique
-
--   **Frontend :** React, Material-UI
--   **Backend :** Node.js, Express.js
--   **Base de Données :** SQLite (via `better-sqlite3`) pour les données persistantes (prêts, ordinateurs, etc.) et le cache.
--   **Source de Données Utilisateurs :** Fichier Excel partagé, synchronisé avec la base de données SQLite.
--   **Communication Temps Réel :** WebSockets
--   **Application de Bureau :** Electron, Electron Builder
-
-## ⚙️ Prérequis
-
--   **Node.js :** Version 20.x (LTS) recommandée.
--   **Accès Réseau :** L'application nécessite un accès en lecture/écriture au partage réseau où sont stockés `config.json`, la base de données SQLite et le fichier Excel.
-
-## 📦 Installation
-
-1.  **Cloner le dépôt :**
-    ```bash
-    git clone <URL_DU_DEPOT>
-    cd rdp
-    ```
-
-2.  **Installer les dépendances :**
-    ```bash
-    npm install
-    ```
-
-## 📝 Configuration
-
-1.  Naviguez vers le dossier `config/`.
-2.  Copiez `config.template.json` et renommez la copie en `config.json`.
-3.  Ouvrez `config.json` et remplissez **tous** les champs, notamment :
-    -   `databasePath` et `excelFilePath` : Chemins UNC (`\\serveur\partage\fichier`) vers vos fichiers de données.
-    -   `domain`, `username`, `password` : Identifiants d'un compte de service avec les droits nécessaires sur Active Directory.
-    -   `updateUrl` : URL où seront hébergées les mises à jour de l'application Electron.
-
-## 🚀 Lancement en Développement
-
-L'application dispose de deux modes de lancement principaux.
-
-### Mode Navigateur Web
-
-Idéal pour le développement rapide de l'interface.
 ```bash
-npm run test:app
+npm run dev
+```
+
+Ou pour une version standalone :
+
+```bash
+npm run electron-app
+```
+
+### 📋 Fonctionnalités
+
+- **Éditeur de Documents** : Interface de rédaction intuitive
+- **Analyse IA** : Analyse automatique des documents avec :
+  - Résumé intelligent
+  - Extraction de mots-clés
+  - Analyse de sentiment
+  - Classification automatique
+  - Suggestions d'amélioration
+- **Gestion des Documents** : Sauvegarde et historique
+- **Interface Moderne** : Design responsive avec React et Material-UI
+
+### 🛠️ Architecture
+
+- **Frontend** : React 19 + CSS moderne
+- **Backend** : Node.js + Express
+- **Application** : Electron pour bureau
+- **Base de Données** : SQLite (local)
+- **IA** : Simulation d'analyse de documents
+
+### 📁 Structure du Projet
+
+```
+docucortex-ia/
+├── main.js              # Point d'entrée Electron
+├── server.js            # Serveur backend API
+├── src/
+│   ├── App.js           # Interface principale
+│   ├── App.css          # Styles
+│   └── apiService.js    # Service API
+├── public/
+│   └── index.html       # Template HTML
+├── assets/
+│   └── icon.svg         # Icône de l'application
+├── data/                # Données SQLite
+└── build/               # Build React (généré)
+```
+
+### 🎯 Scripts Disponibles
+
+| Commande | Description |
+|----------|-------------|
+| `npm start` | Lancement avec serveur React |
+| `npm run dev` | Lancement développement complet |
+| `npm run electron-app` | Lancement Electron standalone |
+| `npm run build` | Construction de l'application |
+| `npm run pack` | Packaging Electron |
+| `npm run dist` | Création exécutable portable |
+
+### 🔧 Configuration
+
+L'application utilise :
+- Port React : 3000
+- Port API : 3001
+- Mode développement avec hot reload
+- Mode production pour Electron
+
+### 📊 État de l'Application
+
+L'application indique en temps réel :
+- 🟢 **Serveur en ligne** : API et fonctionnalités IA disponibles
+- 🔴 **Serveur hors ligne** : Mode lecture seule
+
+### 💾 Sauvegarde
+
+Les documents sont automatiquement sauvegardés dans :
+- `data/documents.json` pour les métadonnées
+- Base de données SQLite intégrée
+
+### 🎨 Interface Utilisateur
+
+- Design moderne avec dégradés
+- Interface responsive
+- Animations fluides
+- Thème sombre/clair automatique
+
+### 🚀 Préparation Production
+
+Pour créer un exécutable portable :
+
+```bash
+npm run dist
+```
+
+L'exécutable sera généré dans le dossier `dist-electron/`
+
+### 📞 Support
+
+Application développée par **DocuCortex Team**
+Version : 3.0.31
+Date : Novembre 2025

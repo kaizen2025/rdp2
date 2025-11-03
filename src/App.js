@@ -1,35 +1,56 @@
-// src/App.js - VERSION ELECTRON SIMPLIFIÉE
+// src/App.js - VERSION ELECTRON COMPLÈTE
 
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import apiService from './apiService';
 
 const App = () => {
   const [documents, setDocuments] = useState([]);
   const [currentDocument, setCurrentDocument] = useState('');
   const [analysis, setAnalysis] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isServerOnline, setIsServerOnline] = useState(true);
 
-  // Simuler l'IA d'analyse
+  // Charger les documents au démarrage
+  useEffect(() => {
+    const loadDocuments = async () => {
+      try {
+        await apiService.checkServerHealth();
+        setIsServerOnline(true);
+        
+        const docs = await apiService.getDocuments();
+        const formattedDocs = docs.map(doc => ({
+          id: doc.id,
+          title: doc.title,
+          content: doc.content.substring(0, 100) + (doc.content.length > 100 ? '...' : ''),
+          timestamp: new Date(doc.createdAt).toLocaleString(),
+          wordCount: doc.wordCount
+        }));
+        setDocuments(formattedDocs);
+      } catch (error) {
+        console.warn('Serveur non disponible ou documents non trouvés:', error);
+        setIsServerOnline(false);
+      }
+    };
+
+    loadDocuments();
+  }, []);
+
+  // Analyser un document avec l'IA
   const analyzeDocument = async (text) => {
+    if (!text.trim()) return;
+    
     setIsAnalyzing(true);
     
-    // Simulation d'analyse IA
-    setTimeout(() => {
-      const mockAnalysis = {
-        summary: "Analyse automatique du document effectuée.",
-        keywords: ["gestion", "intelligence", "artificielle", "workflow"],
-        sentiment: "positif",
-        category: "document_gestion",
-        confidence: 0.85,
-        suggestions: [
-          "Ajouter plus de détails techniques",
-          "Améliorer la structure des sections",
-          "Vérifier la cohérence des données"
-        ]
-      };
-      setAnalysis(mockAnalysis);
+    try {
+      const analysisResult = await apiService.analyzeDocument(text);
+      setAnalysis(analysisResult);
+    } catch (error) {
+      console.error('Erreur lors de l\'analyse:', error);
+      alert(`Erreur d'analyse: ${error.message}`);
+    } finally {
       setIsAnalyzing(false);
-    }, 2000);
+    }
   };
 
   const handleAnalyze = () => {
@@ -38,14 +59,26 @@ const App = () => {
     }
   };
 
-  const addDocument = () => {
-    const newDoc = {
-      id: Date.now(),
-      title: `Document ${documents.length + 1}`,
-      content: currentDocument.substring(0, 100) + '...',
-      timestamp: new Date().toLocaleString()
-    };
-    setDocuments([...documents, newDoc]);
+  const addDocument = async () => {
+    if (!currentDocument.trim()) return;
+    
+    try {
+      const title = `Document ${documents.length + 1}`;
+      const newDoc = await apiService.saveDocument(title, currentDocument);
+      setDocuments([...documents, {
+        id: newDoc.id,
+        title: newDoc.title,
+        content: currentDocument.substring(0, 100) + '...',
+        timestamp: new Date(newDoc.createdAt).toLocaleString(),
+        wordCount: newDoc.wordCount
+      }]);
+      
+      // Afficher un message de succès
+      alert('✅ Document sauvegardé avec succès !');
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde:', error);
+      alert(`Erreur de sauvegarde: ${error.message}`);
+    }
   };
 
   return (
@@ -55,7 +88,12 @@ const App = () => {
           <h1>🧠 DocuCortex IA</h1>
           <p>Gestionnaire Intelligent avec Intelligence Artificielle</p>
         </div>
-        <div className="version">Version 3.0.31 - Electron</div>
+        <div className="header-status">
+          <div className={`server-status ${isServerOnline ? 'online' : 'offline'}`}>
+            {isServerOnline ? '🟢 Serveur en ligne' : '🔴 Serveur hors ligne'}
+          </div>
+          <div className="version">Version 3.0.31 - Electron</div>
+        </div>
       </header>
 
       <div className="main-content">

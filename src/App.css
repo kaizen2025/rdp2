@@ -42,10 +42,35 @@ body {
   font-size: 0.9rem;
 }
 
+.header-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.server-status {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: white;
+}
+
+.server-status.online {
+  background: rgba(72, 187, 120, 0.3);
+  border: 1px solid rgba(72, 187, 120, 0.5);
+}
+
+.server-status.offline {
+  background: rgba(245, 101, 101, 0.3);
+  border: 1px solid rgba(245, 101, 101, 0.5);
+}
+
 .version {
   background: rgba(255, 255, 255, 0.2);
   color: white;
-  padding: 8px 16px;
+  padding: 6px 12px;
   border-radius: 20px;
   font-size: 0.8rem;
   font-weight: 500;
