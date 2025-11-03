@@ -32,10 +32,6 @@ const LoanDialog = ({ open, onClose, loan, onSave, users, itStaff, computers = [
     const [availableAccessories, setAvailableAccessories] = useState([]);
     const [userConfirmed, setUserConfirmed] = useState(false);
     const [errors, setErrors] = useState({});
-<<<<<<< HEAD
-=======
-    const [activeLoansForUser, setActiveLoansForUser] = useState([]);
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
     const isEditMode = !!loan;
 
     useEffect(() => {

@@ -24,10 +24,7 @@ import AttachFileIcon from '@mui/icons-material/AttachFile';
 import EmojiPicker from 'emoji-picker-react';
 
 import { useApp } from '../contexts/AppContext';
-<<<<<<< HEAD
 import { useUnreadMessages } from '../hooks/useUnreadMessages'; // ✅ NOUVEAU
-=======
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
 import apiService from '../services/apiService';
 import { getDmChannelKey } from '../utils/chatUtils';
 import StyledDialog from '../components/StyledDialog';
@@ -125,10 +122,7 @@ const DateDivider = memo(({ date }) => {
 
 const ChatDialog = ({ open, onClose, onlineTechnicians = [] }) => {
     const { currentTechnician, showNotification, events, config } = useApp();
-<<<<<<< HEAD
     const { markChannelAsRead } = useUnreadMessages(); // ✅ NOUVEAU hook
-=======
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
     const [currentChannel, setCurrentChannel] = useState('general');
     const [channels, setChannels] = useState([]);
     const [technicians, setTechnicians] = useState([]);
@@ -148,7 +142,6 @@ const ChatDialog = ({ open, onClose, onlineTechnicians = [] }) => {
     const loadMessages = useCallback(async (channelId) => { if (!channelId || !currentTechnician?.id) return; setIsLoading(true); setMessages([]); try { const msgs = await apiService.getChatMessages(channelId); setMessages(msgs || []); } catch (error) { showNotification('error', `Erreur chargement messages: ${error.message}`); setMessages([]); } finally { setIsLoading(false); } }, [currentTechnician, showNotification]);
     useEffect(() => { if (open) loadData(); }, [open, loadData]);
     useEffect(() => { if (open && currentChannel) loadMessages(currentChannel); }, [open, currentChannel, loadMessages]);
-<<<<<<< HEAD
     
     // ✅ NOUVEAU: Marquer le canal comme lu quand on change de canal ou quand de nouveaux messages arrivent
     useEffect(() => {
@@ -161,8 +154,6 @@ const ChatDialog = ({ open, onClose, onlineTechnicians = [] }) => {
         }
     }, [open, currentChannel, messages, markChannelAsRead]);
     
-=======
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
     useEffect(() => { const handleNewMessage = (msg) => { if (msg.channelId === currentChannel) setMessages(prev => [...prev, msg]); }; const handleUpdate = () => loadMessages(currentChannel); const unsubNew = events.on('chat_message_new', handleNewMessage); const unsubUpdate = events.on('chat_message_updated', handleUpdate); const unsubDelete = events.on('chat_message_deleted', handleUpdate); const unsubReaction = events.on('chat_reaction_toggled', handleUpdate); const unsubChannels = events.on('data_updated:chat_channels', loadData); return () => { unsubNew(); unsubUpdate(); unsubDelete(); unsubReaction(); unsubChannels(); }; }, [currentChannel, events, loadMessages, loadData]);
     useEffect(() => { if (!isLoading) scrollToBottom('auto'); }, [isLoading, scrollToBottom]);
     useEffect(() => { if (!isSending) scrollToBottom('smooth'); }, [messages, isSending, scrollToBottom]);

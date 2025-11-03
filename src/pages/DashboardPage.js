@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 // src/pages/DashboardPage.js - VERSION MODERNISÉE AVEC CACHE CENTRALISÉ
-=======
-// src/pages/DashboardPage.js - VERSION AMÉLIORÉE AVEC GRILLE RESPONSIVE
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
 
 import React, { memo, useMemo, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -17,10 +13,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import HistoryIcon from '@mui/icons-material/History';
 import AssignmentIcon from '@mui/icons-material/Assignment';
-<<<<<<< HEAD
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-=======
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
 import WarningIcon from '@mui/icons-material/Warning';
 import LaptopChromebookIcon from '@mui/icons-material/LaptopChromebook';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
@@ -67,7 +60,6 @@ const ServerStatusWidget = memo(() => {
     }, [fetchStatuses]);
 
     return (
-<<<<<<< HEAD
         <Paper elevation={2} sx={{ p: 1.5, height: '100%', borderRadius: 2 }}>
             <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center', fontWeight: 600, mb: 1 }}>
                 <DnsIcon sx={{ mr: 1, fontSize: 18, color: 'primary.main' }} />
@@ -75,21 +67,11 @@ const ServerStatusWidget = memo(() => {
             </Typography>
             {isLoading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}><CircularProgress size={20} /></Box>
-=======
-        <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
-            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600, display: 'flex', alignItems: 'center' }}>
-                <DnsIcon sx={{ mr: 1, color: 'primary.main' }} />
-                Statut Serveurs RDS
-            </Typography>
-            {isLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}><CircularProgress size={24} /></Box>
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
             ) : (
                 <List dense disablePadding sx={{ maxHeight: 180, overflowY: 'auto' }}>
                     {serversToPing.map(server => {
                         const status = statuses[server];
                         const online = status?.online;
-<<<<<<< HEAD
                         const message = status?.message || 'Vérification...';
                         return (
                             <ListItem key={server} disablePadding sx={{ mb: 0.3 }}>
@@ -103,18 +85,6 @@ const ServerStatusWidget = memo(() => {
                                         sx={{ width: '100%', justifyContent: 'flex-start', fontWeight: 500, fontSize: '0.75rem', height: 28 }}
                                     />
                                 </Tooltip>
-=======
-                        return (
-                            <ListItem key={server} disablePadding sx={{ mb: 0.5 }}>
-                                <Chip
-                                    icon={online ? <CheckCircleIcon /> : <CancelIcon />}
-                                    label={server}
-                                    color={online ? 'success' : 'error'}
-                                    variant="outlined"
-                                    size="small"
-                                    sx={{ width: '100%', justifyContent: 'flex-start' }}
-                                />
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
                             </ListItem>
                         );
                     })}
@@ -137,20 +107,13 @@ const ConnectedTechniciansWidget = memo(() => {
     };
 
     return (
-<<<<<<< HEAD
         <Paper elevation={2} sx={{ p: 1.5, height: '100%', borderRadius: 2 }}>
             <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center', fontWeight: 600, mb: 1 }}>
                 <PeopleIcon sx={{ mr: 1, fontSize: 18, color: 'secondary.main' }} />
-=======
-        <Paper elevation={2} sx={{ p: 2, height: '100%', minHeight: 150 }}>
-            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600, display: 'flex', alignItems: 'center' }}>
-                <PeopleIcon sx={{ mr: 1, color: 'secondary.main' }} />
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
                 Techniciens ({technicians.length})
             </Typography>
             <List dense disablePadding sx={{ maxHeight: 180, overflowY: 'auto' }}>
                 {technicians.length > 0 ? technicians.map(tech => (
-<<<<<<< HEAD
                     <ListItem key={tech.id} disableGutters sx={{ py: 0.3 }}>
                         <ListItemAvatar sx={{ minWidth: 32 }}>
                             <Avatar sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: 'secondary.main' }}>{tech.avatar}</Avatar>
@@ -162,21 +125,6 @@ const ConnectedTechniciansWidget = memo(() => {
                     </ListItem>
                 )) : (
                     <Typography variant="caption" color="text.secondary" sx={{ py: 2, textAlign: 'center', display: 'block' }}>Aucun technicien connecté</Typography>
-=======
-                    <ListItem key={tech.id} disableGutters>
-                        <ListItemAvatar sx={{ minWidth: 36 }}>
-                            <Avatar sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: 'secondary.light' }}>{tech.avatar}</Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                            primary={<Typography variant="body2" fontWeight={500}>{tech.name}</Typography>}
-                            secondary={<Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><AccessTimeIcon sx={{ fontSize: 14 }} /><Typography variant="caption">{calculateConnectionTime(tech.loginTime)}</Typography></Box>}
-                        />
-                    </ListItem>
-                )) : (
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100px' }}>
-                        <Typography variant="body2" color="text.secondary">Aucun technicien connecté</Typography>
-                    </Box>
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
                 )}
             </List>
         </Paper>
@@ -186,7 +134,6 @@ const ConnectedTechniciansWidget = memo(() => {
 const RecentActivityWidget = memo(() => {
     const { cache } = useCache();
     const activities = cache.loan_history || [];
-<<<<<<< HEAD
     const getActivityIcon = (e) => ({ created: <AssignmentIcon color="success" fontSize="small" />, returned: <CheckCircleIcon color="primary" fontSize="small" />, extended: <TrendingUpIcon color="info" fontSize="small" />, cancelled: <CancelIcon color="error" fontSize="small" /> }[e] || <HistoryIcon fontSize="small" />);
     const getActivityText = (act) => `${({ created: 'Prêt', returned: 'Retour', extended: 'Prolong.', cancelled: 'Annul.' }[act.eventType] || 'Action')}: ${act.computerName || 'N/A'}`;
 
@@ -203,31 +150,6 @@ const RecentActivityWidget = memo(() => {
                         />
                     </ListItem>
                 )) : <Typography variant="caption" color="text.secondary" sx={{ py: 2, textAlign: 'center', display: 'block' }}>Aucune activité récente</Typography>}
-=======
-    const getActivityIcon = (e) => ({ created: <AssignmentIcon color="success" fontSize="small" />, returned: <CheckCircleIcon color="primary" fontSize="small" />, extended: <HistoryIcon color="info" fontSize="small" />, cancelled: <CancelIcon color="error" fontSize="small" /> }[e] || <HistoryIcon fontSize="small" />);
-    const getActivityText = (act) => `${({ created: 'Prêt', returned: 'Retour', extended: 'Prolong.', cancelled: 'Annul.' }[act.eventType] || 'Action')}: ${act.computerName || 'N/A'}`;
-
-    return (
-        <Paper elevation={2} sx={{ p: 2, height: '100%', minHeight: 150 }}>
-            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600, display: 'flex', alignItems: 'center' }}>
-                <HistoryIcon sx={{ mr: 1, color: 'info.main' }} />
-                Activité Récente
-            </Typography>
-            <List dense disablePadding sx={{ maxHeight: 180, overflowY: 'auto' }}>
-                {activities.length > 0 ? activities.slice(0, 5).map(act => (
-                    <ListItem key={act.id} disableGutters>
-                        <ListItemAvatar sx={{ minWidth: 36 }}>{getActivityIcon(act.eventType)}</ListItemAvatar>
-                        <ListItemText
-                            primary={<Typography variant="body2">{getActivityText(act)}</Typography>}
-                            secondary={<Typography variant="caption">Par {act.by || 'Syst.'}</Typography>}
-                        />
-                    </ListItem>
-                )) : (
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100px' }}>
-                        <Typography variant="body2" color="text.secondary">Aucune activité récente</Typography>
-                    </Box>
-                )}
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
             </List>
         </Paper>
     );
@@ -265,18 +187,13 @@ const DashboardPage = () => {
     }
 
     return (
-<<<<<<< HEAD
         <Box sx={{ p: { xs: 1, sm: 2 }, maxHeight: '100vh', overflow: 'auto' }}>
-=======
-        <Box sx={{ p: { xs: 1, sm: 2 } }}>
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
             <PageHeader
                 title="Tableau de Bord"
                 subtitle="Vue d'ensemble de l'activité RDS et gestion des prêts"
                 icon={DashboardIcon}
             />
 
-<<<<<<< HEAD
             <Grid container spacing={{ xs: 1.5, sm: 2 }}>
                 <Grid item xs={12} sm={6} md={3}>
                     <StatCard title="Matériel Total" value={stats.computers.total} subtitle={`${stats.computers.available} disponibles`} icon={LaptopChromebookIcon} color="primary" loading={isLoading} onClick={() => navigate('/loans', { state: { initialTab: 1 }})} tooltip="Stock total d'ordinateurs et disponibilité" />
@@ -330,72 +247,6 @@ const DashboardPage = () => {
                             )) : <Typography variant="caption" color="text.secondary" sx={{ py: 2, textAlign: 'center', display: 'block' }}>Aucun prêt actif</Typography>}
                         </List>
                     </Paper>
-=======
-            <Grid container spacing={{ xs: 1.5, sm: 3 }}>
-                {/* Ligne des StatCards */}
-                <Grid item xs={12} sm={6} md={3}><StatCard title="Matériel Total" value={stats.computers.total} subtitle={`${stats.computers.available} disponibles`} icon={LaptopChromebookIcon} color="primary" loading={isLoading} onClick={() => navigate('/loans', { state: { initialTab: 1 }})} tooltip="Stock total d'ordinateurs" /></Grid>
-                <Grid item xs={12} sm={6} md={3}><StatCard title="Prêts Actifs" value={stats.loans.active} subtitle={`${stats.loans.reserved} réservés`} icon={AssignmentIcon} color="info" loading={isLoading} onClick={() => navigate('/loans', { state: { initialTab: 0 }})} tooltip="Prêts en cours et réservations" /></Grid>
-                <Grid item xs={12} sm={6} md={3}><StatCard title="En Retard" value={stats.loans.overdue + stats.loans.critical} subtitle={`${stats.loans.critical} critiques`} icon={ErrorOutlineIcon} color="error" loading={isLoading} onClick={() => navigate('/loans', { state: { initialTab: 0, preFilter: 'overdue' }})} tooltip="Prêts en retard" /></Grid>
-                <Grid item xs={12} sm={6} md={3}><StatCard title="Historique Total" value={stats.history.totalLoans} icon={HistoryIcon} color="secondary" loading={isLoading} onClick={() => navigate('/loans', { state: { initialTab: 3 }})} tooltip="Nombre total de prêts effectués" /></Grid>
-
-                {/* Colonne principale (plus large) */}
-                <Grid item xs={12} lg={8}>
-                    <Grid container spacing={3}>
-                        <Grid item xs={12}>
-                            <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
-                                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600, display: 'flex', alignItems: 'center' }}>
-                                    <WarningIcon sx={{ mr: 1, verticalAlign: 'bottom' }} color="warning" />
-                                    Prêts en Retard ({overdueLoans.length})
-                                </Typography>
-                                <List dense>
-                                    {overdueLoans.length > 0 ? overdueLoans.slice(0, 5).map(l => (
-                                        <ListItem key={l.id}>
-                                            <ListItemText 
-                                                primary={l.computerName} 
-                                                secondary={`${l.userDisplayName} - Retour prévu le ${new Date(l.expectedReturnDate).toLocaleDateString()}`} 
-                                            />
-                                        </ListItem>
-                                    )) : (
-                                        <Box sx={{ p: 2, textAlign: 'center' }}>
-                                            <Typography variant="body2" color="text.secondary">Aucun prêt en retard.</Typography>
-                                        </Box>
-                                    )}
-                                </List>
-                            </Paper>
-                        </Grid>
-                        <Grid item xs={12}>
-                            <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
-                                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600, display: 'flex', alignItems: 'center' }}>
-                                    <AssignmentIcon sx={{ mr: 1, verticalAlign: 'bottom' }} color="info" />
-                                    Prêts Actifs ({activeLoans.length})
-                                </Typography>
-                                <List dense>
-                                    {activeLoans.length > 0 ? activeLoans.slice(0, 5).map(l => (
-                                        <ListItem key={l.id}>
-                                            <ListItemText 
-                                                primary={l.computerName} 
-                                                secondary={`${l.userDisplayName} - Retour prévu le ${new Date(l.expectedReturnDate).toLocaleDateString()}`} 
-                                            />
-                                        </ListItem>
-                                    )) : (
-                                        <Box sx={{ p: 2, textAlign: 'center' }}>
-                                            <Typography variant="body2" color="text.secondary">Aucun prêt actif.</Typography>
-                                        </Box>
-                                    )}
-                                </List>
-                            </Paper>
-                        </Grid>
-                    </Grid>
-                </Grid>
-
-                {/* Colonne secondaire (plus étroite) */}
-                <Grid item xs={12} lg={4}>
-                    <Grid container spacing={3}>
-                        <Grid item xs={12}><ServerStatusWidget /></Grid>
-                        <Grid item xs={12}><ConnectedTechniciansWidget /></Grid>
-                        <Grid item xs={12}><RecentActivityWidget /></Grid>
-                    </Grid>
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
                 </Grid>
             </Grid>
         </Box>

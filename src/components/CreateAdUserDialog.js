@@ -1,8 +1,5 @@
-<<<<<<< HEAD
 // src/components/CreateAdUserDialog.js - VERSION FINALE AVEC MENTION SAGE
 
-=======
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
 import React, { useState, useEffect, useMemo } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Grid,
@@ -83,31 +80,20 @@ const CreateAdUserDialog = ({ open, onClose, onSuccess, servers, defaultOU = "OU
 
     useEffect(() => {
         if (open) {
-<<<<<<< HEAD
             setFormData({
                 username: '', firstName: '', lastName: '', displayName: '', email: '',
                 password: '', confirmPassword: '', officePassword: '',
                 server: servers?.[0] || '', department: '', ouPath: defaultOU,
                 changePasswordAtLogon: false, description: '', addToExcel: true, copyFromUser: null,
             });
-=======
-            setFormData(initialFormData);
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
             setError(''); setSuccess(''); setFieldErrors({});
         }
     }, [open, servers, defaultOU]);
 
     useEffect(() => {
-<<<<<<< HEAD
         if (formData.firstName && formData.lastName) {
             const firstInitial = formData.firstName.charAt(0).toLowerCase();
             const username = (firstInitial + formData.lastName.toLowerCase()).replace(/[^a-z0-9.-_]/g, '');
-=======
-        const { firstName, lastName } = formData;
-        if (firstName && lastName) {
-            const firstInitial = firstName.charAt(0).toLowerCase();
-            const username = (firstInitial + lastName.toLowerCase()).replace(/[^a-z0-9.-_]/g, '');
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
             setFormData(prev => ({ ...prev, username }));
         }
     }, [formData.firstName, formData.lastName]);

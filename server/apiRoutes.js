@@ -11,10 +11,7 @@ const chatService = require('../backend/services/chatService');
 const notificationService = require('../backend/services/notificationService');
 const technicianService = require('../backend/services/technicianService');
 const rdsService = require('../backend/services/rdsService');
-<<<<<<< HEAD
 const databaseService = require('../backend/services/databaseService');
-=======
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
 
 module.exports = (broadcast) => {
     const router = express.Router();
@@ -42,7 +39,6 @@ module.exports = (broadcast) => {
         }
         res.json({ status: 'ok', message: 'Le serveur est opérationnel.' });
     }));
-<<<<<<< HEAD
     
     // Route pour vérifier le mode offline/online
     router.get('/status', asyncHandler(async (req, res) => {
@@ -55,8 +51,6 @@ module.exports = (broadcast) => {
         });
     }));
     
-=======
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
     router.get('/config', asyncHandler(async (req, res) => res.json(configService.getConfig())));
     router.post('/config', asyncHandler(async (req, res) => {
         const result = await configService.saveConfig(req.body.newConfig);

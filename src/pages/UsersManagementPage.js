@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 // src/pages/UsersManagementPage.js - VERSION FINALE AVEC RENDU CONDITIONNEL
-=======
-// src/pages/UsersManagementPage.js - VERSION FINALE COMPLÈTE ET NETTOYÉE
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
 
 import React, { useState, useMemo, useCallback, memo, useEffect } from 'react';
 import { FixedSizeList as List } from 'react-window';
@@ -138,16 +134,12 @@ const UsersManagementPage = () => {
 
         if (serverFilter !== 'all') result = result.filter(u => u.server === serverFilter);
         if (departmentFilter !== 'all') result = result.filter(u => u.department === departmentFilter);
-<<<<<<< HEAD
         if (selectedOU) {
             // This is a placeholder for the actual filtering logic,
             // as we don't have the OU information in the user object yet.
             // For now, we'll just log the selected OU.
             console.log("Filtering by OU:", selectedOU);
         }
-=======
-        
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             result = result.filter(u => ['displayName', 'username', 'email', 'department', 'server'].some(field => u[field] && String(u[field]).toLowerCase().includes(term)));
@@ -190,22 +182,14 @@ const UsersManagementPage = () => {
         } catch (error) { showNotification('error', `Erreur: ${error.message}`); }
     }, [showNotification]);
 
-<<<<<<< HEAD
     const handleSelectUser = (username) => {
-=======
-    const handleSelectUser = useCallback((username) => {
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
         setSelectedUsernames(prev => {
             const newSelection = new Set(prev);
             if (newSelection.has(username)) newSelection.delete(username);
             else newSelection.add(username);
             return newSelection;
         });
-<<<<<<< HEAD
     };
-=======
-    }, []);
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
 
     const handleSelectAll = (event) => {
         if (event.target.checked) {
@@ -231,19 +215,11 @@ const UsersManagementPage = () => {
                 isSelected={selectedUsernames.has(user.username)}
             />
         );
-<<<<<<< HEAD
     }, [filteredUsers, vpnMembers, internetMembers, handleDeleteUser, handleConnectUserWithCredentials, invalidate, selectedUsernames]);
     
     const clearFilters = () => { setSearchTerm(''); setServerFilter('all'); setDepartmentFilter('all'); };
 
     if (isCacheLoading) {
-=======
-    }, [filteredUsers, vpnMembers, internetMembers, handleDeleteUser, handleConnectUserWithCredentials, invalidate, selectedUsernames, handleSelectUser]);
-    
-    const clearFilters = () => { setSearchTerm(''); setServerFilter('all'); setDepartmentFilter('all'); };
-
-    if (isCacheLoading && users.length === 0) {
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
         return <LoadingScreen type="list" items={8} />;
     }
 
@@ -296,22 +272,9 @@ const UsersManagementPage = () => {
                     </Paper>
                 </Grid>
                 <Grid item xs={12} md={9}>
-<<<<<<< HEAD
                     {isLoadingOUUsers ? <LoadingScreen type="list" /> : !filteredUsers.length ? (
                         <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
                             <EmptyState type={searchTerm ? 'search' : 'empty'} title={searchTerm ? 'Aucun utilisateur trouvé' : 'Aucun utilisateur'} onAction={searchTerm ? clearFilters : () => setDialog({ type: 'createAd' })} />
-=======
-                    {isLoadingOUUsers ? (
-                        <LoadingScreen type="list" />
-                    ) : !filteredUsers.length ? (
-                        <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
-                            <EmptyState 
-                                type={searchTerm || serverFilter !== 'all' || departmentFilter !== 'all' || selectedOU ? 'search' : 'empty'} 
-                                title={searchTerm ? 'Aucun utilisateur trouvé' : 'Aucun utilisateur dans cette UO'} 
-                                onAction={searchTerm ? clearFilters : () => setDialog({ type: 'createAd' })} 
-                                actionLabel={searchTerm ? 'Réinitialiser les filtres' : 'Ajouter un utilisateur'}
-                            />
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
                         </Paper>
                     ) : (
                         <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: 2, minHeight: 500 }}>
@@ -332,20 +295,11 @@ const UsersManagementPage = () => {
                 </Grid>
             </Grid>
             
-<<<<<<< HEAD
             {/* ✅ Rendu conditionnel des dialogues */}
             {dialog.type === 'editExcel' && <UserDialog open={true} onClose={() => setDialog({ type: null })} user={dialog.data} onSave={handleSaveUser} servers={servers} />}
             {dialog.type === 'print' && <PrintPreviewDialog open={true} onClose={() => setDialog({ type: null })} user={dialog.data} />}
             {dialog.type === 'adActions' && <AdActionsDialog open={true} onClose={() => setDialog({ type: null })} user={dialog.data} onActionComplete={handleRefresh} />}
             {dialog.type === 'createAd' && <CreateAdUserDialog open={true} onClose={() => setDialog({ type: null })} onSuccess={handleRefresh} servers={servers} />}
-=======
-            <React.Suspense fallback={<div />}>
-                {dialog.type === 'editExcel' && <UserDialog open={true} onClose={() => setDialog({ type: null })} user={dialog.data} onSave={handleSaveUser} servers={servers} />}
-                {dialog.type === 'print' && <PrintPreviewDialog open={true} onClose={() => setDialog({ type: null })} user={dialog.data} />}
-                {dialog.type === 'adActions' && <AdActionsDialog open={true} onClose={() => setDialog({ type: null })} user={dialog.data} onActionComplete={handleRefresh} />}
-                {dialog.type === 'createAd' && <CreateAdUserDialog open={true} onClose={() => setDialog({ type: null })} onSuccess={handleRefresh} servers={servers} />}
-            </React.Suspense>
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
         </Box>
     );
 };

@@ -47,6 +47,12 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import PaletteIcon from '@mui/icons-material/Palette';
 import DnsIcon from '@mui/icons-material/Dns';
+import SecurityIcon from '@mui/icons-material/Security'; // ✅ NOUVEAU - Pour permissions
+import SmartToyIcon from '@mui/icons-material/SmartToy'; // ✅ NOUVEAU - Pour GED/IA
+
+// ✅ NOUVEAUX COMPOSANTS - Panneaux de configuration avancés
+import UsersPermissionsPanel from '../components/settings/UsersPermissionsPanel';
+import GEDSettingsPanel from '../components/settings/GEDSettingsPanel';
 
 function TabPanel({ children, value, index }) {
     return <div hidden={value !== index}>{value === index && <Box sx={{ p: 3 }}>{children}</Box>}</div>;
@@ -177,6 +183,9 @@ const SettingsPage = ({ open, onClose }) => {
                     <Tab icon={<AssignmentIcon />} iconPosition="start" label="Prêts" />
                     <Tab icon={<NotificationsIcon />} iconPosition="start" label="Notifications" />
                     <Tab icon={<PaletteIcon />} iconPosition="start" label="Interface" />
+                    {/* ✅ NOUVEAUX ONGLETS */}
+                    <Tab icon={<SecurityIcon />} iconPosition="start" label="Permissions" />
+                    <Tab icon={<SmartToyIcon />} iconPosition="start" label="DocuCortex IA" />
                 </Tabs>
                 <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
                     <TabPanel value={currentTab} index={0}>
@@ -216,6 +225,16 @@ const SettingsPage = ({ open, onClose }) => {
                     <TabPanel value={currentTab} index={4}><Paper sx={{ p: 3 }}><Typography variant="h5" gutterBottom>Paramètres des Prêts</Typography><Grid container spacing={3}><Grid item xs={12} sm={6}><TextField label="Durée maximum (jours)" name="loans.maxLoanDays" type="number" value={editedConfig.loans?.maxLoanDays || 90} onChange={handleFieldChange} fullWidth /></Grid><Grid item xs={12} sm={6}><TextField label="Nombre max de prolongations" name="loans.maxExtensions" type="number" value={editedConfig.loans?.maxExtensions || 3} onChange={handleFieldChange} fullWidth /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="loans.autoNotifications" checked={editedConfig.loans?.autoNotifications ?? true} onChange={handleFieldChange} />} label="Activer les notifications automatiques" /></Grid></Grid></Paper></TabPanel>
                     <TabPanel value={currentTab} index={5}><Paper sx={{ p: 3 }}><Typography variant="h5" gutterBottom>Notifications</Typography><Grid container spacing={3}><Grid item xs={12}><FormControlLabel control={<Switch name="notifications.enabled" checked={editedConfig.notifications?.enabled ?? true} onChange={handleFieldChange} />} label="Activer les notifications système globales" /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="notifications.loanReminders" checked={editedConfig.notifications?.loanReminders ?? true} onChange={handleFieldChange} />} label="Activer les rappels avant échéance des prêts" /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="notifications.overdueLoanAlerts" checked={editedConfig.notifications?.overdueLoanAlerts ?? true} onChange={handleFieldChange} />} label="Activer les alertes pour les prêts en retard" /></Grid></Grid></Paper></TabPanel>
                     <TabPanel value={currentTab} index={6}><Paper sx={{ p: 3 }}><Typography variant="h5" gutterBottom>Interface</Typography><Grid container spacing={3}><Grid item xs={12} sm={6}><FormControl fullWidth><InputLabel>Thème</InputLabel><Select name="ui.theme" value={editedConfig.ui?.theme || 'light'} label="Thème" onChange={handleFieldChange}><MenuItem value="light">Clair</MenuItem><MenuItem value="dark">Sombre</MenuItem></Select></FormControl></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="ui.compactView" checked={editedConfig.ui?.compactView ?? false} onChange={handleFieldChange} />} label="Activer le mode compact" /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="ui.autoRefresh" checked={editedConfig.ui?.autoRefresh ?? true} onChange={handleFieldChange} />} label="Activer le rafraîchissement automatique" /></Grid></Grid></Paper></TabPanel>
+
+                    {/* ✅ NOUVEAU ONGLET - Permissions */}
+                    <TabPanel value={currentTab} index={7}>
+                        <UsersPermissionsPanel />
+                    </TabPanel>
+
+                    {/* ✅ NOUVEAU ONGLET - DocuCortex IA / GED */}
+                    <TabPanel value={currentTab} index={8}>
+                        <GEDSettingsPanel />
+                    </TabPanel>
                 </Box>
             </Box>
             <TechnicianDialog open={technicianDialog.open} onClose={() => setTechnicianDialog({ open: false, technician: null })} onSave={handleSaveTechnician} technician={technicianDialog.technician} />

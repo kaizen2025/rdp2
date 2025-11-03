@@ -17,10 +17,7 @@ const technicianService = require('../backend/services/technicianService');
 const userService = require('../backend/services/userService');
 const adCacheService = require('../backend/services/adCacheService');
 const apiRoutes = require('./apiRoutes');
-<<<<<<< HEAD
 const aiRoutes = require('./aiRoutes');
-=======
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
 const { findAllPorts, savePorts, isPortAvailable } = require('../backend/utils/portUtils');
 
 
@@ -61,7 +58,6 @@ app.use(express.json());
 
 function initializeWebSocket() {
     wss = new WebSocketServer({ port: WS_PORT });
-<<<<<<< HEAD
     
     // Configuration heartbeat pour détecter connexions mortes
     const heartbeatInterval = setInterval(() => {
@@ -92,14 +88,6 @@ function initializeWebSocket() {
     });
     
     console.log(`✅ WebSocket initialisé sur le port ${WS_PORT} avec heartbeat`);
-=======
-    wss.on('connection', ws => {
-        console.log('🔌 Nouveau client WebSocket connecté.');
-        ws.on('close', () => console.log('🔌 Client WebSocket déconnecté.'));
-        ws.on('error', (error) => console.error('❌ Erreur WebSocket:', error));
-    });
-    console.log(`✅ WebSocket initialisé sur le port ${WS_PORT}`);
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
 }
 
 function broadcast(data) {
@@ -178,7 +166,6 @@ async function startServer() {
         }
         console.log('✅ Configuration chargée.');
 
-<<<<<<< HEAD
         // Connexion à la base de données avec système de retry
         try {
             await databaseService.connectWithRetry();
@@ -188,19 +175,12 @@ async function startServer() {
             console.error('   L\'application va démarrer en mode dégradé.');
             console.error('   Certaines fonctionnalités seront limitées.');
         }
-=======
-        databaseService.connect();
-        console.log('✅ Base de données connectée.');
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
         
         // ✅ SUPPRESSION de la synchro bloquante ici
 
         initializeWebSocket();
         app.use('/api', apiRoutes(broadcast));
-<<<<<<< HEAD
         app.use('/api/ai', aiRoutes(broadcast));
-=======
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
         console.log('✅ Routes API configurées.');
         
         // Démarrage des tâches de fond APRÈS que le serveur soit prêt

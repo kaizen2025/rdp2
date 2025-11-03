@@ -1,10 +1,6 @@
 // src/components/loan-management/LoanList.js - NOUVEAU FICHIER COMPLET
 
-<<<<<<< HEAD
 import React, { useState, useMemo } from 'react';
-=======
-import React, { useState, useMemo, useCallback } from 'react';
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
 import {
     Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     Chip, Tooltip, IconButton, Grid, FormControl, InputLabel, Select, MenuItem, Button

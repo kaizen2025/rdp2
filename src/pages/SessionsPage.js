@@ -106,7 +106,6 @@ const SessionsPage = () => {
         };
     }, [sessions]);
 
-<<<<<<< HEAD
     const handleLaunchShadow = async (session) => {
         if (!window.electronAPI?.launchRdp) return showNotification('warning', 'Fonctionnalité disponible uniquement dans l\'application de bureau.');
         if (!session || !session.isActive) return showNotification('warning', 'La session doit être active.');
@@ -130,46 +129,6 @@ const SessionsPage = () => {
             const result = await window.electronAPI.launchRdp({ server: session.server, username: userInfo.username, password: userInfo.password });
             if (!result.success) throw new Error(result.error);
         } catch (err) { showNotification('error', `Erreur RDP: ${err.message}`); }
-=======
-    // ✅ AMÉLIORATION : Logique de Shadow plus claire
-    const handleLaunchShadow = async (session) => {
-        if (!window.electronAPI?.launchShadow) {
-            return showNotification('warning', 'Fonctionnalité disponible uniquement dans l\'application de bureau.');
-        }
-        if (!session || !session.isActive) {
-            return showNotification('warning', 'La session doit être active pour le Shadow.');
-        }
-        showNotification('info', `Lancement du Shadow pour ${session.username} sur ${session.server}...`);
-        try {
-            // Appel de la nouvelle fonction dédiée
-            const result = await window.electronAPI.launchShadow({ 
-                server: session.server, 
-                sessionId: session.sessionId 
-            });
-            if (!result.success) throw new Error(result.error);
-        } catch (err) {
-            showNotification('error', `Erreur Shadow: ${err.message}`);
-        }
-    };
-
-    // ✅ AMÉLIORATION : Logique de connexion RDP plus claire
-    const handleLaunchConnect = async (session) => {
-        if (!window.electronAPI?.launchRdpConnect) {
-            return showNotification('warning', 'Fonctionnalité disponible uniquement dans l\'application de bureau.');
-        }
-        if (!session) return;
-        
-        showNotification('info', `Lancement d'une connexion RDP vers ${session.server}...`);
-        try {
-            // Appel de la nouvelle fonction dédiée
-            const result = await window.electronAPI.launchRdpConnect({ 
-                server: session.server 
-            });
-            if (!result.success) throw new Error(result.error);
-        } catch (err) {
-            showNotification('error', `Erreur RDP: ${err.message}`);
-        }
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
     };
     
     if (isCacheLoading) {

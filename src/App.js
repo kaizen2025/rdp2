@@ -1,4 +1,4 @@
-// src/App.js - VERSION AVEC CACHE PROVIDER
+// src/App.js - VERSION FINALE
 
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router } from 'react-router-dom';
@@ -13,23 +13,18 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { fr } from 'date-fns/locale';
 
 import { AppProvider } from './contexts/AppContext';
-import { CacheProvider } from './contexts/CacheContext'; // ✅ IMPORT
+import { CacheProvider } from './contexts/CacheContext';
 import LoginPage from './pages/LoginPage';
 import MainLayout from './layouts/MainLayout';
 import ErrorBoundary from './components/common/ErrorBoundary';
-<<<<<<< HEAD
-import ToastNotificationSystem from './components/ToastNotificationSystem'; // ✅ NOUVEAU
-=======
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
 import apiService from './services/apiService';
 import theme from './styles/theme';
-import { Dialog } from '@mui/material'; // Importer Dialog
+import { Dialog } from '@mui/material';
 
-// ✅ CORRECTION ARIA-HIDDEN
-// On surcharge le comportement par défaut de tous les dialogues de l'application
+// Configuration par défaut des dialogues
 Dialog.defaultProps = {
     ...Dialog.defaultProps,
-    hideBackdrop: false, // Empêche MUI de mettre aria-hidden="true" sur le body
+    hideBackdrop: false,
 };
 
 function App() {
@@ -37,15 +32,6 @@ function App() {
     const [currentTechnician, setCurrentTechnician] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [configError, setConfigError] = useState(null);
-<<<<<<< HEAD
-    
-    // Placeholder pour future fonctionnalité de chat
-    const setChatDialogOpen = () => {
-        // TODO: Implémenter dialogue de chat
-        console.log('Chat dialog feature coming soon');
-    };
-=======
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
 
     useEffect(() => {
         const checkHealthAndAuth = async () => {
@@ -103,20 +89,11 @@ function App() {
                             </>
                         ) : (
                             <ErrorBoundary>
-                                {/* ✅ ENVELOPPER AVEC LE CACHE PROVIDER */}
                                 <CacheProvider>
                                     <ConfigErrorAlert />
                                     <MainLayout
                                         onLogout={handleLogout}
                                         currentTechnician={currentTechnician}
-<<<<<<< HEAD
-                                        onChatClick={() => setChatDialogOpen(true)}
-                                    />
-                                    {/* ✅ NOUVEAU: Système de notifications toast global */}
-                                    <ToastNotificationSystem 
-                                        onChatClick={() => setChatDialogOpen(true)}
-=======
->>>>>>> 450dedc5d374d1a778ce027ffc77fe956f62b2ea
                                     />
                                 </CacheProvider>
                             </ErrorBoundary>
