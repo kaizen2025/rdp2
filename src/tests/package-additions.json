@@ -1,0 +1,154 @@
+/**
+ * Ajouts pour package.json - Scripts pour les tests du Dashboard
+ * Ces scripts doivent être ajoutés au package.json principal du projet
+ */
+
+{
+  "scripts": {
+    // Scripts principaux pour les tests du dashboard
+    "test:dashboard": "npm test -- --testPathPattern='dashboard.*\\.test\\.js' --config=src/tests/jest.config.dashboard.js",
+    "test:dashboard:unit": "npm test -- --testPathPattern='dashboard\\.test\\.js' --config=src/tests/jest.config.dashboard.js",
+    "test:dashboard:integration": "npm test -- --testPathPattern='dashboard-integration\\.test\\.js' --config=src/tests/jest.config.dashboard.js",
+    "test:dashboard:performance": "PERFORMANCE_TESTS=true npm test -- --testPathPattern='dashboard-performance\\.test\\.js' --config=src/tests/jest.config.dashboard.js --runInBand",
+    
+    // Tests avec couverture
+    "test:dashboard:coverage": "npm test -- --coverage --testPathPattern='dashboard.*\\.test\\.js' --config=src/tests/jest.config.dashboard.js",
+    "test:dashboard:unit:coverage": "npm test -- --coverage --testPathPattern='dashboard\\.test\\.js' --config=src/tests/jest.config.dashboard.js",
+    
+    // Tests en mode watch
+    "test:dashboard:watch": "npm test -- --testPathPattern='dashboard.*\\.test\\.js' --config=src/tests/jest.config.dashboard.js --watch",
+    "test:dashboard:unit:watch": "npm test -- --testPathPattern='dashboard\\.test\\.js' --config=src/tests/jest.config.dashboard.js --watch",
+    "test:dashboard:integration:watch": "npm test -- --testPathPattern='dashboard-integration\\.test\\.js' --config=src/tests/jest.config.dashboard.js --watch",
+    
+    // Tests avec filtrage
+    "test:dashboard:filter": "npm test -- --testPathPattern='dashboard.*\\.test\\.js' --config=src/tests/jest.config.dashboard.js --testNamePattern",
+    "test:dashboard:component": "npm test -- --testPathPattern='dashboard.*\\.test\\.js' --config=src/tests/jest.config.dashboard.js --testNamePattern",
+    
+    // Tests de debug
+    "test:dashboard:debug": "npm test -- --testPathPattern='dashboard.*\\.test\\.js' --config=src/tests/jest.config.dashboard.js --verbose --detectOpenHandles",
+    "test:dashboard:performance:debug": "PERFORMANCE_TESTS=true DEBUG_MODE=true npm test -- --testPathPattern='dashboard-performance\\.test\\.js' --config=src/tests/jest.config.dashboard.js --runInBand --verbose",
+    
+    // Rapport de couverture avec format spécifique
+    "test:dashboard:coverage:report": "npm test -- --coverage --testPathPattern='dashboard.*\\.test\\.js' --config=src/tests/jest.config.dashboard.js --coverageReporters=html --coverageReporters=text-summary",
+    "test:dashboard:coverage:lcov": "npm test -- --coverage --testPathPattern='dashboard.*\\.test\\.js' --config=src/tests/jest.config.dashboard.js --coverageReporters=lcov",
+    
+    // Script pour ouvrir le rapport de couverture
+    "test:dashboard:coverage:open": "open coverage/dashboard/lcov-report/index.html || xdg-open coverage/dashboard/lcov-report/index.html || echo 'Rapport généré dans coverage/dashboard/lcov-report/index.html'",
+    
+    // Script pour nettoyer les résultats de test
+    "test:dashboard:clean": "rm -rf coverage/dashboard coverage/coverage-final.json test-results/dashboard-tests.xml",
+    
+    // Script pour analyser les performances
+    "test:dashboard:performance:analyze": "PERFORMANCE_TESTS=true npm test -- --testPathPattern='dashboard-performance\\.test\\.js' --config=src/tests/jest.config.dashboard.js --runInBand --verbose --silent",
+    
+    // Script pour vérifier la qualité du code
+    "test:dashboard:quality": "npm run test:dashboard:coverage && npm run lint:fix && npm run test:dashboard:performance:analyze",
+    
+    // Script pour les tests CI/CD
+    "test:dashboard:ci": "npm test -- --testPathPattern='dashboard.*\\.test\\.js' --config=src/tests/jest.config.dashboard.js --coverage --ci --watchAll=false --maxWorkers=2",
+    
+    // Script pour les tests de régression
+    "test:dashboard:regression": "npm test -- --testPathPattern='dashboard.*\\.test\\.js' --config=src/tests/jest.config.dashboard.js --updateSnapshot --coverage",
+    
+    // Script pour les tests de validation finale
+    "test:dashboard:validate": "npm run test:dashboard:clean && npm run test:dashboard:unit && npm run test:dashboard:integration && npm run test:dashboard:coverage && npm run test:dashboard:performance",
+    
+    // Script de développement avec hot reload
+    "test:dashboard:dev": "npm run test:dashboard:watch -- --testPathPattern='dashboard.*\\.test\\.js' --config=src/tests/jest.config.dashboard.js --verbose",
+    
+    // Script pour les tests d'accessibilité
+    "test:dashboard:a11y": "npm test -- --testPathPattern='dashboard.*\\.test\\.js' --config=src/tests/jest.config.dashboard.js --testNamePattern='accessibilité|ARIA|keyboard'",
+    
+    // Script pour les tests de responsive design
+    "test:dashboard:responsive": "npm test -- --testPathPattern='dashboard.*\\.test\\.js' --config=src/tests/jest.config.dashboard.js --testNamePattern='responsive|mobile|tablet'",
+    
+    // Script pour les tests d'export
+    "test:dashboard:export": "npm test -- --testPathPattern='dashboard.*\\.test\\.js' --config=src/tests/jest.config.dashboard.js --testNamePattern='export|Export'",
+    
+    // Script pour les tests de filtres
+    "test:dashboard:filters": "npm test -- --testPathPattern='dashboard.*\\.test\\.js' --config=src/tests/jest.config.dashboard.js --testNamePattern='filter|Filter'",
+    
+    // Script pour les tests de widgets
+    "test:dashboard:widgets": "npm test -- --testPathPattern='dashboard.*\\.test\\.js' --config=src/tests/jest.config.dashboard.js --testNamePattern='widget|Widget'",
+    
+    // Script pour les tests de performance critiques
+    "test:dashboard:performance:critical": "PERFORMANCE_TESTS=true npm test -- --testPathPattern='dashboard-performance\\.test\\.js' --config=src/tests/jest.config.dashboard.js --runInBand --testNamePattern='rendu initial|calculs statistiques'"
+  },
+  
+  "jest": {
+    "projects": [
+      {
+        "displayName": "dashboard-unit-tests",
+        "testMatch": ["<rootDir>/src/tests/dashboard.test.js"],
+        "testEnvironment": "jsdom",
+        "setupFilesAfterEnv": ["<rootDir>/tests/setup.js", "<rootDir>/src/tests/__mocks__/setupDashboardTests.js"],
+        "testTimeout": 10000
+      },
+      {
+        "displayName": "dashboard-integration-tests",
+        "testMatch": ["<rootDir>/src/tests/dashboard-integration.test.js"],
+        "testEnvironment": "jsdom",
+        "setupFilesAfterEnv": ["<rootDir>/tests/setup.js", "<rootDir>/src/tests/__mocks__/setupDashboardTests.js"],
+        "testTimeout": 15000
+      },
+      {
+        "displayName": "dashboard-performance-tests",
+        "testMatch": ["<rootDir>/src/tests/dashboard-performance.test.js"],
+        "testEnvironment": "jsdom",
+        "setupFilesAfterEnv": ["<rootDir>/tests/setup.js", "<rootDir>/src/tests/__mocks__/setupDashboardTests.js"],
+        "testTimeout": 60000,
+        "runInBand": true
+      }
+    ]
+  },
+  
+  "dependencies": {
+    "@testing-library/jest-dom": "^6.1.0",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/user-event": "^14.5.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "jest-junit": "^16.0.0",
+    "babel-jest": "^29.7.0",
+    "@babel/preset-env": "^7.23.0",
+    "@babel/preset-react": "^7.22.0"
+  },
+  
+  "devDependencies": {
+    "enzyme-to-json": "^3.6.2",
+    "jsdom": "^23.0.0"
+  }
+}
+
+/**
+ * Instructions d'installation et d'utilisation:
+ * 
+ * 1. Installation des dépendances:
+ *    npm install --save-dev @testing-library/jest-dom @testing-library/react @testing-library/user-event
+ *    npm install --save-dev jest jest-environment-jsdom jest-junit babel-jest @babel/preset-env @babel/preset-react
+ *    npm install --save-dev enzyme-to-json jsdom
+ * 
+ * 2. Configuration Babel (.babelrc ou babel.config.js):
+ *    {
+ *      "presets": [
+ *        ["@babel/preset-env", { "targets": { "node": "current" } }],
+ *        ["@babel/preset-react", { "runtime": "automatic" }]
+ *      ]
+ *    }
+ * 
+ * 3. Configuration Jest (déjà créée dans src/tests/jest.config.dashboard.js)
+ * 
+ * 4. Utilisation:
+ *    - Tests unitaires: npm run test:dashboard:unit
+ *    - Tests d'intégration: npm run test:dashboard:integration
+ *    - Tests de performance: npm run test:dashboard:performance
+ *    - Tous les tests: npm run test:dashboard
+ *    - Avec couverture: npm run test:dashboard:coverage
+ *    - En mode watch: npm run test:dashboard:watch
+ * 
+ * 5. Scripts bash disponibles:
+ *    - ./scripts/test-dashboard.sh --unit
+ *    - ./scripts/test-dashboard.sh --integration
+ *    - ./scripts/test-dashboard.sh --performance
+ *    - ./scripts/test-dashboard.sh --all --coverage
+ */

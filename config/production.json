@@ -1,0 +1,105 @@
+{
+  "environment": "production",
+  "version": "3.0.27",
+  "buildDate": "2025-11-04T06:43:50.000Z",
+  "server": {
+    "port": 3001,
+    "host": "localhost",
+    "maxConnections": 100,
+    "timeout": 30000,
+    "cors": {
+      "enabled": true,
+      "allowedOrigins": ["localhost:3000", "localhost:3001"],
+      "credentials": true
+    }
+  },
+  "database": {
+    "mode": "production",
+    "path": "./data/docucortex.db",
+    "backupPath": "./backups/",
+    "autoBackup": true,
+    "backupInterval": 24,
+    "vacuumEnabled": true,
+    "indexesEnabled": true,
+    "maxConnections": 10
+  },
+  "ai": {
+    "provider": "ollama",
+    "model": "llama3.2:3b",
+    "maxTokens": 2048,
+    "temperature": 0.7,
+    "timeout": 30000,
+    "cache": true,
+    "cacheTTL": 3600
+  },
+  "ocr": {
+    "enabled": true,
+    "languages": ["fr", "en", "es"],
+    "maxFileSize": 104857600,
+    "timeout": 60000,
+    "confidence": 0.8
+  },
+  "ged": {
+    "enabled": true,
+    "networkPath": "\\\\192.168.1.230\\Donnees",
+    "workingDirectory": "./data/ged/",
+    "autoIndex": true,
+    "scanInterval": 30,
+    "maxSearchResults": 10,
+    "embeddingModel": "local",
+    "supportedExtensions": ["pdf", "docx", "xlsx", "txt", "md", "jpg", "png", "pptx"]
+  },
+  "security": {
+    "sessionTimeout": 3600,
+    "maxLoginAttempts": 5,
+    "lockoutDuration": 300,
+    "passwordMinLength": 8,
+    "enableMFA": false,
+    "rateLimiting": {
+      "enabled": true,
+      "windowMs": 900000,
+      "max": 100
+    }
+  },
+  "electron": {
+    "autoUpdater": {
+      "enabled": true,
+      "checkForUpdates": true,
+      "autoDownload": false,
+      "autoInstall": false
+    },
+    "security": {
+      "nodeIntegration": false,
+      "contextIsolation": true,
+      "enableRemoteModule": false,
+      "webSecurity": true
+    },
+    "window": {
+      "width": 1400,
+      "height": 900,
+      "minWidth": 1200,
+      "minHeight": 700,
+      "frame": true,
+      "autoHideMenuBar": false
+    }
+  },
+  "monitoring": {
+    "enabled": true,
+    "logLevel": "info",
+    "maxLogSize": 10485760,
+    "logRetention": 7,
+    "healthCheck": true,
+    "healthInterval": 30000
+  },
+  "performance": {
+    "cache": {
+      "enabled": true,
+      "ttl": 3600,
+      "maxSize": 104857600
+    },
+    "compression": true,
+    "gzip": true,
+    "lazyLoading": true,
+    "bundleOptimization": true
+  }
+}

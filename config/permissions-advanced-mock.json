@@ -1,0 +1,388 @@
+{
+  "metadata": {
+    "generatedAt": "2025-11-03T23:45:44.636Z",
+    "version": "1.0.0",
+    "description": "Configuration mock avancée pour les tests de permissions granulaires"
+  },
+  "roles": {
+    "super_admin": {
+      "name": "Super Administrateur",
+      "description": "Accès complet à toutes les fonctionnalités",
+      "permissions": [
+        "*"
+      ],
+      "icon": "👑",
+      "color": "#d32f2f",
+      "priority": 100,
+      "metadata": {
+        "isSystem": true,
+        "canBeDeleted": false,
+        "inheritance": []
+      }
+    },
+    "admin": {
+      "name": "Administrateur",
+      "description": "Gestion complète de l'application",
+      "permissions": [
+        "dashboard:*",
+        "sessions:*",
+        "computers:*",
+        "loans:*",
+        "users:*",
+        "ad_management:*",
+        "chat_ged:*",
+        "ai_assistant:*",
+        "reports:*",
+        "settings:view",
+        "config:view"
+      ],
+      "icon": "👨‍💼",
+      "color": "#f57c00",
+      "priority": 90,
+      "metadata": {
+        "isSystem": true,
+        "canBeDeleted": false,
+        "inheritance": [
+          "super_admin"
+        ]
+      }
+    },
+    "ged_specialist": {
+      "name": "Spécialiste GED",
+      "description": "Expert en gestion documentaire et IA",
+      "permissions": [
+        "dashboard:view",
+        "chat_ged:*",
+        "ai_assistant:*",
+        "ged_upload:create",
+        "ged_delete:delete",
+        "ged_network_scan:admin",
+        "ged_index_manage:admin",
+        "ged_stats_view:view",
+        "reports:view",
+        "reports:export"
+      ],
+      "icon": "📚",
+      "color": "#9c27b0",
+      "priority": 85,
+      "metadata": {
+        "isSystem": true,
+        "canBeDeleted": false,
+        "inheritance": [
+          "admin"
+        ],
+        "specialties": [
+          "GED",
+          "AI",
+          "Document_Management"
+        ]
+      }
+    },
+    "manager": {
+      "name": "Manager",
+      "description": "Gestionnaire avec droits étendus",
+      "permissions": [
+        "dashboard:view",
+        "sessions:view",
+        "sessions:edit",
+        "computers:*",
+        "loans:*",
+        "users:view",
+        "users:edit",
+        "chat_ged:view",
+        "chat_ged:create",
+        "ai_assistant:view",
+        "reports:view",
+        "reports:export"
+      ],
+      "icon": "👔",
+      "color": "#1976d2",
+      "priority": 70,
+      "metadata": {
+        "isSystem": true,
+        "canBeDeleted": false,
+        "inheritance": [
+          "ged_specialist"
+        ],
+        "department": [
+          "management"
+        ]
+      }
+    },
+    "technician": {
+      "name": "Technicien",
+      "description": "Support technique",
+      "permissions": [
+        "dashboard:view",
+        "sessions:view",
+        "sessions:edit",
+        "sessions:disconnect",
+        "computers:view",
+        "computers:edit",
+        "loans:view",
+        "loans:create",
+        "users:view",
+        "chat_ged:view",
+        "ai_assistant:view",
+        "reports:view"
+      ],
+      "icon": "🔧",
+      "color": "#388e3c",
+      "priority": 50,
+      "metadata": {
+        "isSystem": true,
+        "canBeDeleted": false,
+        "inheritance": [
+          "manager"
+        ],
+        "level": "intermediate"
+      }
+    },
+    "viewer": {
+      "name": "Observateur",
+      "description": "Consultation uniquement",
+      "permissions": [
+        "dashboard:view",
+        "sessions:view",
+        "computers:view",
+        "loans:view",
+        "users:view",
+        "reports:view"
+      ],
+      "icon": "👁️",
+      "color": "#757575",
+      "priority": 10,
+      "metadata": {
+        "isSystem": true,
+        "canBeDeleted": false,
+        "inheritance": [
+          "technician"
+        ],
+        "accessLevel": "read-only"
+      }
+    },
+    "custom_role_1": {
+      "name": "Testeur GED",
+      "description": "Rôle personnalisé pour les tests GED",
+      "permissions": [
+        "dashboard:view",
+        "chat_ged:view",
+        "chat_ged:create",
+        "chat_ged:edit",
+        "ged_upload:create",
+        "ged_upload:edit",
+        "reports:view"
+      ],
+      "icon": "🧪",
+      "color": "#ff9800",
+      "priority": 60,
+      "metadata": {
+        "isSystem": false,
+        "canBeDeleted": true,
+        "inheritance": [
+          "viewer"
+        ],
+        "custom": true,
+        "testData": true
+      }
+    },
+    "custom_role_2": {
+      "name": "Superviseur Session",
+      "description": "Supervision exclusive des sessions",
+      "permissions": [
+        "dashboard:view",
+        "sessions:*",
+        "reports:view"
+      ],
+      "icon": "🎯",
+      "color": "#00bcd4",
+      "priority": 65,
+      "metadata": {
+        "isSystem": false,
+        "canBeDeleted": true,
+        "inheritance": [
+          "technician"
+        ],
+        "custom": true,
+        "specialization": "session_management"
+      }
+    }
+  },
+  "permissionPatterns": {
+    "wildcards": {
+      "description": "Patterns avec wildcards",
+      "examples": [
+        {
+          "pattern": "dashboard:*",
+          "matches": [
+            "dashboard:view",
+            "dashboard:edit",
+            "dashboard:create",
+            "dashboard:delete"
+          ],
+          "excluded": [
+            "sessions:view",
+            "users:view"
+          ]
+        },
+        {
+          "pattern": "sessions:*",
+          "matches": [
+            "sessions:view",
+            "sessions:edit",
+            "sessions:create",
+            "sessions:delete",
+            "sessions:disconnect"
+          ],
+          "excluded": [
+            "dashboard:view",
+            "loans:view"
+          ]
+        }
+      ]
+    },
+    "granularActions": {
+      "description": "Actions granulaires par module",
+      "examples": [
+        {
+          "module": "users",
+          "actions": [
+            "view",
+            "create",
+            "edit",
+            "delete"
+          ],
+          "combinations": [
+            "users:create + users:edit",
+            "users:view + users:create",
+            "users:view + users:edit + users:create"
+          ]
+        },
+        {
+          "module": "loans",
+          "actions": [
+            "view",
+            "create",
+            "edit",
+            "delete",
+            "export"
+          ],
+          "combinations": [
+            "loans:view + loans:create + loans:edit",
+            "loans:view + loans:export"
+          ]
+        }
+      ]
+    },
+    "specialPermissions": {
+      "description": "Permissions spéciales GED et IA",
+      "examples": [
+        {
+          "name": "GED Upload",
+          "permission": "ged_upload:create",
+          "dependencies": [
+            "chat_ged:view"
+          ],
+          "restrictions": "Max 100 files per day"
+        },
+        {
+          "name": "GED Network Scan",
+          "permission": "ged_network_scan:admin",
+          "dependencies": [
+            "ged_upload:create",
+            "ged_index_manage:admin"
+          ],
+          "restrictions": "Admin access required"
+        }
+      ]
+    }
+  },
+  "testConfiguration": {
+    "testUsers": [
+      {
+        "id": "test_user_1",
+        "username": "test.ged.specialist",
+        "role": "ged_specialist",
+        "permissions": [
+          "dashboard:view",
+          "chat_ged:*",
+          "ai_assistant:*"
+        ],
+        "metadata": {
+          "department": "IT",
+          "level": "senior",
+          "testScenario": "GED_FULL_ACCESS"
+        }
+      },
+      {
+        "id": "test_user_2",
+        "username": "test.manager.limited",
+        "role": "manager",
+        "permissions": [
+          "dashboard:view",
+          "sessions:view",
+          "loans:view"
+        ],
+        "metadata": {
+          "department": "Management",
+          "level": "junior",
+          "testScenario": "MANAGER_LIMITED"
+        }
+      }
+    ],
+    "edgeCases": [
+      {
+        "name": "Empty Permissions",
+        "permissions": [],
+        "expectedResults": {
+          "dashboard:view": false,
+          "any:permission": false
+        }
+      },
+      {
+        "name": "Invalid Format",
+        "permissions": [
+          "invalid-permission",
+          "malformed::permission"
+        ],
+        "expectedResults": {
+          "invalid-permission": false,
+          "malformed::permission": false
+        }
+      },
+      {
+        "name": "Mixed Valid Invalid",
+        "permissions": [
+          "dashboard:view",
+          "invalid:permission",
+          "sessions:view"
+        ],
+        "expectedResults": {
+          "dashboard:view": true,
+          "sessions:view": true,
+          "invalid:permission": false
+        }
+      }
+    ]
+  },
+  "monitoring": {
+    "metrics": {
+      "totalPermissionChecks": 0,
+      "averageResponseTime": 0,
+      "cacheHitRate": 0,
+      "errorRate": 0
+    },
+    "alerts": [
+      {
+        "condition": "errorRate > 0.05",
+        "message": "Taux d'erreur des permissions trop élevé",
+        "severity": "high"
+      },
+      {
+        "condition": "averageResponseTime > 100",
+        "message": "Temps de réponse des permissions dégradé",
+        "severity": "medium"
+      }
+    ]
+  }
+}

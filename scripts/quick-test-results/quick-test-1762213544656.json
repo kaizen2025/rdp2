@@ -1,0 +1,45 @@
+{
+  "timestamp": "2025-11-03T23:45:44.397Z",
+  "tests": [
+    {
+      "name": "Mock Data Validation",
+      "file": "/workspace/rdp/tests/permissions/mock-data/permissions-mock-data.js",
+      "status": "passed",
+      "output": "🔍 Validation des données mock...\n✅ Données mock valides\n📊 Résumé:\n   • Utilisateurs: 5\n   • Scénarios: 10\n   • Configurations de test: 4\n💾 Export des données mock prêt\n",
+      "duration": 93
+    },
+    {
+      "name": "Configuration Structure",
+      "file": "/workspace/rdp/config/config.json",
+      "status": "passed",
+      "details": {
+        "roleCount": 6,
+        "expectedRoles": 6,
+        "missingRoles": 0
+      },
+      "duration": 1
+    }
+  ],
+  "scripts": [
+    {
+      "name": "Permissions Validation Script",
+      "file": "/workspace/rdp/scripts/validate-granular-permissions.js",
+      "status": "passed",
+      "output": "🔐 VALIDATION DES PERMISSIONS GRANULAIRES - MODE PRODUCTION\n============================================================\n📅 Date: 11/3/2025, 11:45:44 PM\n📁 Projet: /workspace/rdp\n\n🔍 Validation de la configuration des rôles...\n✅ 6 rôles validés\n\n📋 Validation du fichier permissions.js...\n✅ Fichier permissions.js validé\n\n🔗 Vérification de la cohérence de granularité...\n📊 Rôles dans config.json: super_admin, admin, ged_specialist, manager, technician, viewer\n✅ Cohérence de granularité vérifiée\n\n",
+      "duration": 135,
+      "mockGenerated": {
+        "file": "/workspace/rdp/config/permissions-advanced-mock.json",
+        "roles": 8,
+        "hasMetadata": true
+      }
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "warnings": 0
+  },
+  "duration": 232,
+  "status": "unknown"
+}

@@ -1,0 +1,41 @@
+username,email,fullName,department
+validuser1,validuser1@anecoop.com,Utilisateur Valide 1,IT
+,invalid-email@,Utilisateur Sans Username,RH
+validuser2,validuser2@anecoop.com,Utilisateur Valide 2,Finance
+user@with!special,valid@email.com,Utilisateur Caractères Spéciaux,Marketing
+validuser3,validuser3@anecoop.com,Utilisateur Valide 3,IT
+,valid@anecoop.com,Utilisateur Sans Username,RH
+validuser4,validuser4@anecoop.com,Utilisateur Valide 4,Finance
+user-with-dots,invalid-email,Utilisateur Email Invalide,Marketing
+validuser5,validuser5@anecoop.com,Utilisateur Valide 5,IT
+validuser6,validuser6@anecoop.com,Utilisateur Valide 6,RH
+,valid@anecoop.com,Utilisateur Sans Username,Finance
+validuser7,validuser7@anecoop.com,Utilisateur Valide 7,Marketing
+user@with!@,valid@email.com,Utilisateur Username Special,IT
+validuser8,validuser8@anecoop.com,Utilisateur Valide 8,RH
+validuser9,validuser9@anecoop.com,Utilisateur Valide 9,Finance
+,invalid-email-format,Utilisateur Email Invalide,Marketing
+validuser10,validuser10@anecoop.com,Utilisateur Valide 10,IT
+user_with_underscore,valid@email.com,Utilisateur Underscore,RH
+validuser11,validuser11@anecoop.com,Utilisateur Valide 11,Finance
+validuser12,validuser12@anecoop.com,Utilisateur Valide 12,Marketing
+,valid@anecoop.com,Utilisateur Sans Username,IT
+validuser13,validuser13@anecoop.com,Utilisateur Valide 13,RH
+user@with#hash,valid@email.com,Utilisateur Hash,Finance
+validuser14,validuser14@anecoop.com,Utilisateur Valide 14,Marketing
+validuser15,validuser15@anecoop.com,Utilisateur Valide 15,IT
+,invalid-email,Utilisateur Email Invalide,RH
+validuser16,validuser16@anecoop.com,Utilisateur Valide 16,Finance
+user@with$dollar,valid@email.com,Utilisateur Dollar,Marketing
+validuser17,validuser17@anecoop.com,Utilisateur Valide 17,IT
+validuser18,validuser18@anecoop.com,Utilisateur Valide 18,RH
+,valid@anecoop.com,Utilisateur Sans Username,Finance
+validuser19,validuser19@anecoop.com,Utilisateur Valide 19,Marketing
+user@with%percent,valid@email.com,Utilisateur Pourcent,IT
+validuser20,validuser20@anecoop.com,Utilisateur Valide 20,RH
+validuser21,validuser21@anecoop.com,Utilisateur Valide 21,Finance
+,invalid-email-format,Utilisateur Email Invalide,Marketing
+validuser22,validuser22@anecoop.com,Utilisateur Valide 22,IT
+user_with.dots,valid@email.com,Utilisateur Points,RH
+validuser23,validuser23@anecoop.com,Utilisateur Valide 23,Finance
+validuser24,validuser24@anecoop.com,Utilisateur Valide 24,Marketing
