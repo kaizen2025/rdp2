@@ -18,7 +18,12 @@
     "lint:fix": "eslint src/**/*.{js,jsx} --fix",
     "format": "prettier --write \"src/**/*.{js,jsx,css,md}\"",
     "clean": "rimraf build node_modules/.cache",
-    "reset": "npm run clean && rm -rf node_modules package-lock.json && npm install"
+    "reset": "npm run clean && rm -rf node_modules package-lock.json && npm install",
+    "server:start": "node server/server.js",
+    "start:auto": "node scripts/start-react.js",
+    "test:app": "concurrently \"npm run server:start\" \"npm run start:auto\" --names \"SERVER,REACT\" --prefix-colors \"cyan,magenta\"",
+    "test:app:simple": "concurrently \"npm run server:start\" \"npm run start:auto\"",
+    "check-ports": "node -e \"const {findAllPorts} = require('./backend/utils/portUtils'); findAllPorts().then(console.log).catch(console.error);\""
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
