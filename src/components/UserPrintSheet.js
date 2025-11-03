@@ -1,4 +1,4 @@
-// src/components/UserPrintSheet.js - Version finale avec libellés SAGE
+// src/components/UserPrintSheet.js - VERSION NETTOYÉE
 
 import React, { forwardRef } from 'react';
 import Box from '@mui/material/Box';
@@ -8,9 +8,10 @@ import Grid from '@mui/material/Grid';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import {
-    Person, VpnKey, Email, Business, Computer,
+    VpnKey, Email, Business, Computer,
     Security, Phone, SupportAgent, Info
 } from '@mui/icons-material';
+// ✅ CORRECTION : Import de 'Person' supprimé car non utilisé
 
 import './UserPrintSheet.css';
 

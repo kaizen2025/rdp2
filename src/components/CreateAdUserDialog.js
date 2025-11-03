@@ -1,9 +1,7 @@
-// src/components/CreateAdUserDialog.js - VERSION FINALE AVEC MENTION SAGE
-
 import React, { useState, useEffect, useMemo } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Grid,
-    Alert, FormControlLabel, Checkbox, Typography, Box, CircularProgress,
+    Alert, FormControlLabel, Checkbox, Box, CircularProgress,
     Divider, FormControl, InputLabel, Select, MenuItem, Autocomplete, IconButton,
     InputAdornment, Tooltip, Chip
 } from '@mui/material';

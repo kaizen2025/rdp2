@@ -1,8 +1,8 @@
-// backend/services/adService.js - VERSION FINALE AVEC RECHERCHE DE GROUPES
+// backend/services/adService.js - VERSION CORRIGÉE
 
 const { executeEncodedPowerShell } = require('./powershellService');
+const databaseService = require('./databaseService');
 
-// ... (parseAdError et les autres fonctions existantes restent identiques)
 function parseAdError(errorMessage) {
     if (!errorMessage) return "Une erreur inconnue est survenue.";
     const lowerError = errorMessage.toLowerCase();
@@ -29,7 +29,6 @@ async function searchAdUsers(searchTerm) {
     }
 }
 
-// ✅ NOUVELLE FONCTION
 async function searchAdGroups(searchTerm) {
     const psScript = `
         Import-Module ActiveDirectory -ErrorAction Stop
@@ -40,15 +39,19 @@ async function searchAdGroups(searchTerm) {
         const jsonOutput = await executeEncodedPowerShell(psScript, 10000);
         const groups = JSON.parse(jsonOutput || '[]');
         const groupsArray = Array.isArray(groups) ? groups : [groups];
-        return groupsArray.map(g => g.Name); // Renvoie un tableau de noms de groupes
+        return groupsArray.map(g => g.Name);
     } catch (e) {
         console.error(`Erreur recherche de groupes AD pour '${searchTerm}':`, parseAdError(e.message));
         return [];
     }
 }
 
-// ... (toutes les autres fonctions comme getAdGroupMembers, addUserToGroup, etc. restent identiques)
 async function getAdGroupMembers(groupName) {
+    if (databaseService.isInOfflineMode()) {
+        console.warn(`⚠️  Mode offline activé - Impossible d'accéder aux groupes AD`);
+        return [];
+    }
+    
     const psScript = `
         Import-Module ActiveDirectory -ErrorAction Stop
         $groupName = "${groupName}"
@@ -73,7 +76,7 @@ async function getAdGroupMembers(groupName) {
         return membersArray.map(m => ({ ...m, sam: m.SamAccountName, name: m.Name || m.DisplayName }));
     } catch (e) {
         console.error(`Erreur lors de la récupération des membres du groupe AD '${groupName}':`, parseAdError(e.message));
-        throw new Error(parseAdError(e.message));
+        return [];
     }
 }
 
@@ -278,8 +281,12 @@ async function createAdUser(userData) {
     }
 }
 
-
 async function getAdOUs(parentId = null) {
+    if (databaseService.isInOfflineMode()) {
+        console.warn(`⚠️  Mode offline activé - Impossible d'accéder aux OUs Active Directory`);
+        return [];
+    }
+    
     const parentOuDn = parentId ? `"${parentId}"` : '(Get-ADDomain).DistinguishedName';
     const psScript = `
         Import-Module ActiveDirectory -ErrorAction Stop
@@ -304,26 +311,16 @@ async function getAdOUs(parentId = null) {
         return Array.isArray(ous) ? ous : [ous];
     } catch (e) {
         console.error(`Erreur lors de la récupération des OUs AD pour '${parentId || 'root'}':`, parseAdError(e.message));
-        throw new Error(parseAdError(e.message));
+        return [];
     }
 }
 
-module.exports = {
-    searchAdUsers,
-    searchAdGroups, // ✅ EXPORT DE LA NOUVELLE FONCTION
-    getAdGroupMembers,
-    addUserToGroup,
-    removeUserFromGroup,
-    getAdUserDetails,
-    disableAdUser,
-    enableAdUser,
-    resetAdUserPassword,
-    createAdUser,
-    getAdOUs,
-    getAdUsersInOU,
-};
-
 async function getAdUsersInOU(ouDN) {
+    if (databaseService.isInOfflineMode()) {
+        console.warn(`⚠️  Mode offline activé - Impossible d'accéder aux utilisateurs AD`);
+        return [];
+    }
+    
     const psScript = `
         Import-Module ActiveDirectory -ErrorAction Stop
         Get-ADUser -Filter * -SearchBase "${ouDN}" -SearchScope OneLevel |
@@ -336,7 +333,21 @@ async function getAdUsersInOU(ouDN) {
         return Array.isArray(users) ? users : [users];
     } catch (e) {
         console.error(`Erreur lors de la récupération des utilisateurs de l'OU '${ouDN}':`, parseAdError(e.message));
-        throw new Error(parseAdError(e.message));
+        return [];
     }
 }
+
+module.exports = {
+    searchAdUsers,
+    searchAdGroups,
+    getAdGroupMembers,
+    addUserToGroup,
+    removeUserFromGroup,
+    getAdUserDetails,
+    disableAdUser,
+    enableAdUser,
+    resetAdUserPassword,
+    createAdUser,
+    getAdOUs,
+    getAdUsersInOU,
 };

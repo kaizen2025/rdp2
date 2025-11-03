@@ -106,29 +106,44 @@ const SessionsPage = () => {
         };
     }, [sessions]);
 
+    // ✅ AMÉLIORATION : Logique de Shadow plus claire
     const handleLaunchShadow = async (session) => {
-        if (!window.electronAPI?.launchRdp) return showNotification('warning', 'Fonctionnalité disponible uniquement dans l\'application de bureau.');
-        if (!session || !session.isActive) return showNotification('warning', 'La session doit être active.');
-        showNotification('info', `Lancement du Shadow pour ${session.username}...`);
+        if (!window.electronAPI?.launchShadow) {
+            return showNotification('warning', 'Fonctionnalité disponible uniquement dans l\'application de bureau.');
+        }
+        if (!session || !session.isActive) {
+            return showNotification('warning', 'La session doit être active pour le Shadow.');
+        }
+        showNotification('info', `Lancement du Shadow pour ${session.username} sur ${session.server}...`);
         try {
-            const result = await window.electronAPI.launchRdp({ server: session.server, sessionId: session.sessionId });
+            // Appel de la nouvelle fonction dédiée
+            const result = await window.electronAPI.launchShadow({ 
+                server: session.server, 
+                sessionId: session.sessionId 
+            });
             if (!result.success) throw new Error(result.error);
-        } catch (err) { showNotification('error', `Erreur Shadow: ${err.message}`); }
+        } catch (err) {
+            showNotification('error', `Erreur Shadow: ${err.message}`);
+        }
     };
 
-    const handleLaunchConnect = async (session, userInfo) => {
-        if (!window.electronAPI?.launchRdp) return showNotification('warning', 'Fonctionnalité disponible uniquement dans l\'application de bureau.');
-        if (!session) return;
-        if (!userInfo?.password) {
-            showNotification('error', `Aucun mot de passe configuré pour ${userInfo?.username}. Connexion manuelle requise.`);
-            await window.electronAPI.launchRdp({ server: session.server });
-            return;
+    // ✅ AMÉLIORATION : Logique de connexion RDP plus claire
+    const handleLaunchConnect = async (session) => {
+        if (!window.electronAPI?.launchRdpConnect) {
+            return showNotification('warning', 'Fonctionnalité disponible uniquement dans l\'application de bureau.');
         }
-        showNotification('info', `Connexion RDP automatique vers ${session.server}...`);
+        if (!session) return;
+        
+        showNotification('info', `Lancement d'une connexion RDP vers ${session.server}...`);
         try {
-            const result = await window.electronAPI.launchRdp({ server: session.server, username: userInfo.username, password: userInfo.password });
+            // Appel de la nouvelle fonction dédiée
+            const result = await window.electronAPI.launchRdpConnect({ 
+                server: session.server 
+            });
             if (!result.success) throw new Error(result.error);
-        } catch (err) { showNotification('error', `Erreur RDP: ${err.message}`); }
+        } catch (err) {
+            showNotification('error', `Erreur RDP: ${err.message}`);
+        }
     };
     
     if (isCacheLoading) {

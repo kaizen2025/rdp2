@@ -1,18 +1,22 @@
-// electron/preload.js - Script de préchargement sécurisé
+// electron/preload.js - VERSION AMÉLIORÉE
 
 const { contextBridge, ipcRenderer } = require('electron');
 
 // Exposer des APIs sécurisées au renderer
 contextBridge.exposeInMainWorld('electronAPI', {
-    // Vérifier les mises à jour
-    checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
-
     // Obtenir la version de l'application
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+
+    // Vérifier les mises à jour
+    checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
 
     // Listener pour les événements de mise à jour
     onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, ...args) => callback(...args)),
     onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', (event, ...args) => callback(...args)),
+
+    // ✅ NOUVELLES FONCTIONS SPÉCIFIQUES
+    launchShadow: (params) => ipcRenderer.invoke('launch-shadow', params),
+    launchRdpConnect: (params) => ipcRenderer.invoke('launch-rdp-connect', params),
 
     // Lance le client Bureau à Distance natif (mstsc.exe)
     launchRdp: (params) => ipcRenderer.invoke('launch-rdp', params),

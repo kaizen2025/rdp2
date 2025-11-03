@@ -1,4 +1,4 @@
-// src/pages/UsersManagementPage.js - VERSION FINALE AVEC RENDU CONDITIONNEL
+// src/pages/UsersManagementPage.js - VERSION FINALE COMPLÈTE ET NETTOYÉE
 
 import React, { useState, useMemo, useCallback, memo, useEffect } from 'react';
 import { FixedSizeList as List } from 'react-window';
@@ -134,19 +134,13 @@ const UsersManagementPage = () => {
 
         if (serverFilter !== 'all') result = result.filter(u => u.server === serverFilter);
         if (departmentFilter !== 'all') result = result.filter(u => u.department === departmentFilter);
-        if (selectedOU) {
-            // This is a placeholder for the actual filtering logic,
-            // as we don't have the OU information in the user object yet.
-            // For now, we'll just log the selected OU.
-            console.log("Filtering by OU:", selectedOU);
-        }
+        
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             result = result.filter(u => ['displayName', 'username', 'email', 'department', 'server'].some(field => u[field] && String(u[field]).toLowerCase().includes(term)));
         }
         return result;
     }, [users, searchTerm, serverFilter, departmentFilter, selectedOU, ouUsers]);
-    }, [users, searchTerm, serverFilter, departmentFilter, selectedOU]);
 
     const stats = useMemo(() => ({
         totalUsers: users.length,
@@ -183,14 +177,14 @@ const UsersManagementPage = () => {
         } catch (error) { showNotification('error', `Erreur: ${error.message}`); }
     }, [showNotification]);
 
-    const handleSelectUser = (username) => {
+    const handleSelectUser = useCallback((username) => {
         setSelectedUsernames(prev => {
             const newSelection = new Set(prev);
             if (newSelection.has(username)) newSelection.delete(username);
             else newSelection.add(username);
             return newSelection;
         });
-    };
+    }, []);
 
     const handleSelectAll = (event) => {
         if (event.target.checked) {
@@ -216,11 +210,11 @@ const UsersManagementPage = () => {
                 isSelected={selectedUsernames.has(user.username)}
             />
         );
-    }, [filteredUsers, vpnMembers, internetMembers, handleDeleteUser, handleConnectUserWithCredentials, invalidate, selectedUsernames]);
+    }, [filteredUsers, vpnMembers, internetMembers, handleDeleteUser, handleConnectUserWithCredentials, invalidate, selectedUsernames, handleSelectUser]);
     
     const clearFilters = () => { setSearchTerm(''); setServerFilter('all'); setDepartmentFilter('all'); };
 
-    if (isCacheLoading) {
+    if (isCacheLoading && users.length === 0) {
         return <LoadingScreen type="list" items={8} />;
     }
 
@@ -273,10 +267,16 @@ const UsersManagementPage = () => {
                     </Paper>
                 </Grid>
                 <Grid item xs={12} md={9}>
-                    {isLoadingOUUsers ? <LoadingScreen type="list" /> : !filteredUsers.length ? (
-                    {!filteredUsers.length ? (
+                    {isLoadingOUUsers ? (
+                        <LoadingScreen type="list" />
+                    ) : !filteredUsers.length ? (
                         <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
-                            <EmptyState type={searchTerm ? 'search' : 'empty'} title={searchTerm ? 'Aucun utilisateur trouvé' : 'Aucun utilisateur'} onAction={searchTerm ? clearFilters : () => setDialog({ type: 'createAd' })} />
+                            <EmptyState 
+                                type={searchTerm || serverFilter !== 'all' || departmentFilter !== 'all' || selectedOU ? 'search' : 'empty'} 
+                                title={searchTerm ? 'Aucun utilisateur trouvé' : 'Aucun utilisateur dans cette UO'} 
+                                onAction={searchTerm ? clearFilters : () => setDialog({ type: 'createAd' })} 
+                                actionLabel={searchTerm ? 'Réinitialiser les filtres' : 'Ajouter un utilisateur'}
+                            />
                         </Paper>
                     ) : (
                         <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: 2, minHeight: 500 }}>
@@ -297,11 +297,12 @@ const UsersManagementPage = () => {
                 </Grid>
             </Grid>
             
-            {/* ✅ Rendu conditionnel des dialogues */}
-            {dialog.type === 'editExcel' && <UserDialog open={true} onClose={() => setDialog({ type: null })} user={dialog.data} onSave={handleSaveUser} servers={servers} />}
-            {dialog.type === 'print' && <PrintPreviewDialog open={true} onClose={() => setDialog({ type: null })} user={dialog.data} />}
-            {dialog.type === 'adActions' && <AdActionsDialog open={true} onClose={() => setDialog({ type: null })} user={dialog.data} onActionComplete={handleRefresh} />}
-            {dialog.type === 'createAd' && <CreateAdUserDialog open={true} onClose={() => setDialog({ type: null })} onSuccess={handleRefresh} servers={servers} />}
+            <React.Suspense fallback={<div />}>
+                {dialog.type === 'editExcel' && <UserDialog open={true} onClose={() => setDialog({ type: null })} user={dialog.data} onSave={handleSaveUser} servers={servers} />}
+                {dialog.type === 'print' && <PrintPreviewDialog open={true} onClose={() => setDialog({ type: null })} user={dialog.data} />}
+                {dialog.type === 'adActions' && <AdActionsDialog open={true} onClose={() => setDialog({ type: null })} user={dialog.data} onActionComplete={handleRefresh} />}
+                {dialog.type === 'createAd' && <CreateAdUserDialog open={true} onClose={() => setDialog({ type: null })} onSuccess={handleRefresh} servers={servers} />}
+            </React.Suspense>
         </Box>
     );
 };
