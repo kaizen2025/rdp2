@@ -22,11 +22,113 @@
     "VPN": { "name": "VPN", "description": "Accès VPN distant", "type": "Sécurité" },
     "Sortants_responsables": { "name": "Sortants_responsables", "description": "Accès Internet complet", "type": "Sécurité" }
   },
+  "roles": {
+    "super_admin": {
+      "name": "Super Administrateur",
+      "description": "Accès complet à toutes les fonctionnalités",
+      "permissions": ["*"],
+      "icon": "👑",
+      "color": "#d32f2f",
+      "priority": 100
+    },
+    "admin": {
+      "name": "Administrateur",
+      "description": "Gestion complète sauf configuration système",
+      "permissions": [
+        "dashboard:view",
+        "sessions:*",
+        "users:*",
+        "servers:*",
+        "ad_groups:*",
+        "loans:*",
+        "chat_ged:view",
+        "chat_ged:search",
+        "ai_assistant:view",
+        "reports:*",
+        "notifications:*"
+      ],
+      "icon": "🔑",
+      "color": "#f57c00",
+      "priority": 90
+    },
+    "ged_specialist": {
+      "name": "Spécialiste GED",
+      "description": "Expert en gestion documentaire et DocuCortex IA",
+      "permissions": [
+        "dashboard:view",
+        "chat_ged:*",
+        "ai_assistant:*",
+        "ged_upload:create",
+        "ged_delete:delete",
+        "ged_network_scan:admin",
+        "ged_index_manage:admin",
+        "reports:view",
+        "reports:export"
+      ],
+      "icon": "📚",
+      "color": "#9c27b0",
+      "priority": 80
+    },
+    "manager": {
+      "name": "Manager",
+      "description": "Supervision et consultation",
+      "permissions": [
+        "dashboard:view",
+        "sessions:view",
+        "users:view",
+        "servers:view",
+        "loans:view",
+        "loans:create",
+        "loans:edit",
+        "chat_ged:view",
+        "chat_ged:search",
+        "ai_assistant:view",
+        "reports:view",
+        "reports:export"
+      ],
+      "icon": "👔",
+      "color": "#1976d2",
+      "priority": 60
+    },
+    "technician": {
+      "name": "Technicien",
+      "description": "Gestion quotidienne des sessions et utilisateurs",
+      "permissions": [
+        "dashboard:view",
+        "sessions:view",
+        "sessions:disconnect",
+        "users:view",
+        "users:edit",
+        "servers:view",
+        "loans:view",
+        "loans:create",
+        "chat_ged:view",
+        "ai_assistant:view"
+      ],
+      "icon": "🔧",
+      "color": "#388e3c",
+      "priority": 40
+    },
+    "viewer": {
+      "name": "Observateur",
+      "description": "Consultation uniquement",
+      "permissions": [
+        "dashboard:view",
+        "sessions:view",
+        "users:view",
+        "servers:view",
+        "reports:view"
+      ],
+      "icon": "👁️",
+      "color": "#757575",
+      "priority": 20
+    }
+  },
   "it_technicians": [
-    { "id": "kevin_bivia", "name": "Kevin BIVIA", "position": "Chef de projet", "email": "kevin.bivia@anecoop.fr", "isActive": true, "permissions": ["admin", "config", "loans", "users", "servers", "reports"], "avatar": "KB" },
-    { "id": "meher_benhassine", "name": "Meher BENHASSINE", "position": "Chef de projet", "email": "meher.benhassine@anecoop.fr", "isActive": true, "permissions": ["admin", "loans", "users", "servers", "reports"], "avatar": "MB" },
-    { "id": "christelle_moles", "name": "Christelle MOLES", "position": "Responsable informatique", "email": "christelle.moles@anecoop.fr", "isActive": true, "permissions": ["admin", "config", "loans", "users", "servers", "reports"], "avatar": "CM" },
-    { "id": "macha_anton", "name": "Macha ANTON", "position": "Alternante informatique", "email": "macha.anton@anecoop.fr", "isActive": true, "permissions": ["loans", "users", "reports"], "avatar": "MA" }
+    { "id": "kevin_bivia", "name": "Kevin BIVIA", "position": "Chef de projet", "email": "kevin.bivia@anecoop.fr", "isActive": true, "role": "super_admin", "avatar": "KB" },
+    { "id": "meher_benhassine", "name": "Meher BENHASSINE", "position": "Chef de projet", "email": "meher.benhassine@anecoop.fr", "isActive": true, "role": "admin", "avatar": "MB" },
+    { "id": "christelle_moles", "name": "Christelle MOLES", "position": "Responsable informatique", "email": "christelle.moles@anecoop.fr", "isActive": true, "role": "admin", "avatar": "CM" },
+    { "id": "macha_anton", "name": "Macha ANTON", "position": "Alternante informatique", "email": "macha.anton@anecoop.fr", "isActive": true, "role": "technician", "avatar": "MA" }
   ],
   "it_staff": ["Kevin BIVIA", "Meher BENHASSINE", "Macha ANTON", "Christelle MOLES"],
   "loans": { "maxLoanDays": 90, "maxExtensions": 3, "autoNotifications": true },

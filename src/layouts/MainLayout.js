@@ -18,6 +18,8 @@ import {
 
 import { useApp } from '../contexts/AppContext';
 import { useUnreadMessages } from '../hooks/useUnreadMessages'; // ✅ NOUVEAU
+import { usePermissions } from '../hooks/usePermissions'; // ✅ NOUVEAU - Système de permissions
+import ProtectedRoute from '../components/auth/ProtectedRoute'; // ✅ NOUVEAU - Protection des routes
 import apiService from '../services/apiService';
 
 // Lazy load pages
@@ -38,22 +40,25 @@ const LoadingFallback = () => (
     </Box>
 );
 
-const navItems = [
-    { text: 'Tableau de bord', path: '/dashboard', icon: <DashboardIcon /> },
-    { text: 'Sessions RDS', path: '/sessions', icon: <ComputerIcon /> },
-    { text: 'Utilisateurs', path: '/users', icon: <PeopleIcon /> },
-    { text: 'Serveurs', path: '/servers', icon: <DnsIcon /> },
-    { text: 'Groupes AD', path: '/ad-groups', icon: <GroupWorkIcon /> },
-    { text: 'Gestion Prêts', path: '/loans', icon: <LaptopChromebookIcon /> },
-    { text: 'Assistant IA', path: '/ai-assistant', icon: <SmartToyIcon /> },
-];
+// Mapping des icônes pour les modules
+const moduleIcons = {
+    'dashboard': <DashboardIcon />,
+    'sessions': <ComputerIcon />,
+    'users': <PeopleIcon />,
+    'servers': <DnsIcon />,
+    'ad_groups': <GroupWorkIcon />,
+    'loans': <LaptopChromebookIcon />,
+    'ai_assistant': <SmartToyIcon />,
+    'chat_ged': <ChatIcon />,
+};
 
 function MainLayout({ onLogout, currentTechnician, onChatClick }) {
     const navigate = useNavigate();
     const location = useLocation();
     const { events, isOnline, notifications: toastNotifications } = useApp();
     const { unreadCount } = useUnreadMessages(); // ✅ NOUVEAU hook pour messages non lus
-    
+    const { getAccessibleModules, getUserRole, hasPermission } = usePermissions(); // ✅ NOUVEAU - Permissions
+
     const [userMenuAnchor, setUserMenuAnchor] = useState(null);
     const [chatOpen, setChatOpen] = useState(false);
     const [notificationsPanelOpen, setNotificationsPanelOpen] = useState(false);
@@ -61,6 +66,17 @@ function MainLayout({ onLogout, currentTechnician, onChatClick }) {
     const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
     const [activeSessionsCount, setActiveSessionsCount] = useState(0);
     const [settingsOpen, setSettingsOpen] = useState(false);
+
+    // ✅ NOUVEAU - Menu dynamique basé sur les permissions
+    const accessibleModules = getAccessibleModules();
+    const userRole = getUserRole();
+    const navItems = accessibleModules.map(module => ({
+        text: module.label,
+        path: module.path,
+        icon: moduleIcons[module.id] || <DashboardIcon />,
+        badge: module.badge,
+        badgeColor: module.badgeColor
+    }));
 
     const currentTab = navItems.findIndex(item => location.pathname.startsWith(item.path));
 
@@ -97,6 +113,24 @@ function MainLayout({ onLogout, currentTechnician, onChatClick }) {
 
                     <Chip label={isOnline ? "En ligne" : "Hors ligne"} color={isOnline ? "success" : "error"} size="small" sx={{ mr: 2 }} />
                     <Tooltip title={`${activeSessionsCount} session(s) active(s)`}><Chip icon={<ComputerIcon />} label={activeSessionsCount} color="primary" size="small" sx={{ mr: 2 }} onClick={() => navigate('/sessions')} /></Tooltip>
+
+                    {/* ✅ NOUVEAU - Badge de rôle utilisateur */}
+                    {userRole && (
+                        <Tooltip title={userRole.description || userRole.name}>
+                            <Chip
+                                icon={<span style={{ fontSize: '16px' }}>{userRole.icon}</span>}
+                                label={userRole.name}
+                                size="small"
+                                sx={{
+                                    mr: 2,
+                                    bgcolor: userRole.color || '#757575',
+                                    color: 'white',
+                                    fontWeight: 'bold',
+                                    '& .MuiChip-icon': { color: 'white' }
+                                }}
+                            />
+                        </Tooltip>
+                    )}
 
                     <Tooltip title="Chat"><IconButton color="inherit" onClick={() => { setChatOpen(true); if (onChatClick) onChatClick(); }}><Badge badgeContent={unreadCount} color="error"><ChatIcon /></Badge></IconButton></Tooltip>
                     <Tooltip title="Notifications"><IconButton color="inherit" onClick={() => setNotificationsPanelOpen(true)}><Badge badgeContent={unreadNotifsCount} color="error"><NotificationsIcon /></Badge></IconButton></Tooltip>
@@ -142,7 +176,24 @@ function MainLayout({ onLogout, currentTechnician, onChatClick }) {
                         allowScrollButtonsMobile
                     >
                         {navItems.map((item) => (
-                            <Tab key={item.path} label={item.text} icon={item.icon} iconPosition="start" />
+                            <Tab
+                                key={item.path}
+                                label={
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        {item.text}
+                                        {item.badge && (
+                                            <Chip
+                                                label={item.badge}
+                                                size="small"
+                                                color={item.badgeColor || 'default'}
+                                                sx={{ height: '20px', fontSize: '0.7rem' }}
+                                            />
+                                        )}
+                                    </Box>
+                                }
+                                icon={item.icon}
+                                iconPosition="start"
+                            />
                         ))}
                     </Tabs>
                 </Paper>
@@ -151,13 +202,50 @@ function MainLayout({ onLogout, currentTechnician, onChatClick }) {
                     <Suspense fallback={<LoadingFallback />}>
                         <Routes>
                             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                            <Route path="/dashboard" element={<DashboardPage />} />
-                            <Route path="/sessions" element={<SessionsPage />} />
-                            <Route path="/users" element={<UsersManagementPage />} />
-                            <Route path="/servers" element={<ConnectionsPage />} />
-                            <Route path="/ad-groups" element={<AdGroupsPage />} />
-                            <Route path="/loans" element={<ComputerLoansPage />} />
-                            <Route path="/ai-assistant" element={<AIAssistantPage />} />
+
+                            {/* ✅ NOUVEAU - Routes protégées par permissions */}
+                            <Route path="/dashboard" element={
+                                <ProtectedRoute requiredPermission="dashboard:view">
+                                    <DashboardPage />
+                                </ProtectedRoute>
+                            } />
+
+                            <Route path="/sessions" element={
+                                <ProtectedRoute requiredPermission="sessions:view">
+                                    <SessionsPage />
+                                </ProtectedRoute>
+                            } />
+
+                            <Route path="/users" element={
+                                <ProtectedRoute requiredPermission="users:view">
+                                    <UsersManagementPage />
+                                </ProtectedRoute>
+                            } />
+
+                            <Route path="/servers" element={
+                                <ProtectedRoute requiredPermission="servers:view">
+                                    <ConnectionsPage />
+                                </ProtectedRoute>
+                            } />
+
+                            <Route path="/ad-groups" element={
+                                <ProtectedRoute requiredPermission="ad_groups:view">
+                                    <AdGroupsPage />
+                                </ProtectedRoute>
+                            } />
+
+                            <Route path="/loans" element={
+                                <ProtectedRoute requiredPermission="loans:view">
+                                    <ComputerLoansPage />
+                                </ProtectedRoute>
+                            } />
+
+                            <Route path="/ai-assistant" element={
+                                <ProtectedRoute requiredPermission="ai_assistant:view">
+                                    <AIAssistantPage />
+                                </ProtectedRoute>
+                            } />
+
                             <Route path="*" element={<Navigate to="/dashboard" replace />} />
                         </Routes>
                     </Suspense>

@@ -47,14 +47,20 @@ import {
 import ChatInterfaceDocuCortex from '../components/AI/ChatInterfaceDocuCortex';
 import DocumentUploader from '../components/AI/DocumentUploader';
 import NetworkConfigPanel from '../components/AI/NetworkConfigPanel';
+import PermissionGate from '../components/auth/PermissionGate'; // ✅ NOUVEAU - Protection des actions
+import { usePermissions } from '../hooks/usePermissions'; // ✅ NOUVEAU - Vérification permissions
 import apiService from '../services/apiService';
 
 const AIAssistantPage = () => {
+    // ✅ NOUVEAU - Hook de permissions
+    const { hasPermission, getUserRole } = usePermissions();
+
     // États principaux
     const [currentTab, setCurrentTab] = useState(0);
     const [chatMode, setChatMode] = useState('docucortex'); // 'classic' ou 'docucortex'
     const [documents, setDocuments] = useState([]);
     const [statistics, setStatistics] = useState(null);
+    const [error, setError] = useState(null); // ✅ NOUVEAU - Gestion des erreurs
     
     // États pour les sessions de chat
     const [classicSessionId] = useState(() => {
@@ -122,12 +128,16 @@ const AIAssistantPage = () => {
     const loadDocuments = async () => {
         try {
             setIsProcessing(true);
+            setError(null); // ✅ Reset error
             const data = await apiService.getAIDocuments();
             if (data.success) {
                 setDocuments(data.documents);
+            } else {
+                setError('Impossible de charger les documents.');
             }
         } catch (error) {
             console.error('Erreur chargement documents:', error);
+            setError('Erreur lors du chargement des documents. Veuillez réessayer.'); // ✅ User-friendly error
         } finally {
             setIsProcessing(false);
         }
@@ -138,9 +148,12 @@ const AIAssistantPage = () => {
             const data = await apiService.getAIStatistics();
             if (data.success) {
                 setStatistics(data);
+            } else {
+                console.warn('Statistiques non disponibles');
             }
         } catch (error) {
             console.error('Erreur chargement statistiques:', error);
+            // ✅ Ne pas bloquer l'UI si les stats ne se chargent pas
         }
     };
 
@@ -170,13 +183,17 @@ const AIAssistantPage = () => {
 
         try {
             setIsProcessing(true);
+            setError(null); // ✅ Reset error
             const data = await apiService.deleteAIDocument(documentToDelete);
             if (data.success) {
                 loadDocuments();
                 loadStatistics();
+            } else {
+                setError('Impossible de supprimer le document.'); // ✅ User-friendly error
             }
         } catch (error) {
             console.error('Erreur suppression document:', error);
+            setError('Erreur lors de la suppression du document. Veuillez réessayer.'); // ✅ User-friendly error
         } finally {
             setDeleteDialogOpen(false);
             setDocumentToDelete(null);
@@ -277,11 +294,22 @@ const AIAssistantPage = () => {
 
     return (
         <Box sx={{ p: 3, height: '100%', overflow: 'hidden' }}>
+            {/* ✅ NOUVEAU - Affichage des erreurs globales */}
+            {error && (
+                <Alert
+                    severity="error"
+                    onClose={() => setError(null)}
+                    sx={{ mb: 2 }}
+                >
+                    {error}
+                </Alert>
+            )}
+
             {/* En-tête DocuCortex */}
-            <Box sx={{ 
-                mb: 3, 
-                display: 'flex', 
-                alignItems: 'center', 
+            <Box sx={{
+                mb: 3,
+                display: 'flex',
+                alignItems: 'center',
                 justifyContent: 'space-between',
                 p: 2,
                 borderRadius: 2,
@@ -399,9 +427,10 @@ const AIAssistantPage = () => {
                     }}
                 >
                     <Tab icon={<BotIcon />} label={`Chat ${chatMode === 'classic' ? 'Classique' : 'DocuCortex'}`} />
-                    <Tab icon={<UploadIcon />} label="Upload" />
+                    {/* ✅ NOUVEAU - Afficher les tabs selon les permissions */}
+                    {hasPermission('ged_upload:create') && <Tab icon={<UploadIcon />} label="Upload" />}
                     <Tab icon={<DocumentIcon />} label="Documents" />
-                    <Tab icon={<NetworkIcon />} label="Config Réseau" />
+                    {hasPermission('ged_network_scan:admin') && <Tab icon={<NetworkIcon />} label="Config Réseau" />}
                     <Tab label="Historique & Favoris" />
                     <Tab label="Préférences" />
                 </Tabs>
@@ -452,23 +481,35 @@ const AIAssistantPage = () => {
                         </Box>
                     )}
 
-                    {/* Onglet Upload */}
+                    {/* Onglet Upload - ✅ PROTÉGÉ PAR PERMISSION */}
                     {currentTab === 1 && (
-                        <Box sx={{ p: 3, overflowY: 'auto', height: '100%' }}>
-                            <Typography variant="h6" gutterBottom>
-                                Ajouter des documents
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                                Uploadez vos documents pour permettre à DocuCortex de répondre à vos questions.
-                                Tous les fichiers sont traités localement et indexés pour la recherche intelligente.
-                            </Typography>
-                            {isProcessing && (
-                                <Alert severity="warning" sx={{ mb: 2 }}>
-                                    Traitement en cours, veuillez patienter...
-                                </Alert>
-                            )}
-                            <DocumentUploader onUploadComplete={handleUploadComplete} />
-                        </Box>
+                        <PermissionGate
+                            permission="ged_upload:create"
+                            fallback={
+                                <Box sx={{ p: 3 }}>
+                                    <Alert severity="warning">
+                                        Vous n'avez pas les permissions nécessaires pour uploader des documents.
+                                        Contactez votre administrateur pour obtenir l'accès.
+                                    </Alert>
+                                </Box>
+                            }
+                        >
+                            <Box sx={{ p: 3, overflowY: 'auto', height: '100%' }}>
+                                <Typography variant="h6" gutterBottom>
+                                    Ajouter des documents
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                                    Uploadez vos documents pour permettre à DocuCortex de répondre à vos questions.
+                                    Tous les fichiers sont traités localement et indexés pour la recherche intelligente.
+                                </Typography>
+                                {isProcessing && (
+                                    <Alert severity="warning" sx={{ mb: 2 }}>
+                                        Traitement en cours, veuillez patienter...
+                                    </Alert>
+                                )}
+                                <DocumentUploader onUploadComplete={handleUploadComplete} />
+                            </Box>
+                        </PermissionGate>
                     )}
 
                     {/* Onglet Documents */}
@@ -533,19 +574,24 @@ const AIAssistantPage = () => {
                                                             return null;
                                                         }
                                                     })()}
-                                                    <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                                                        <IconButton
-                                                            edge="end"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setDocumentToDelete(doc.id);
-                                                                setDeleteDialogOpen(true);
-                                                            }}
-                                                            color="error"
-                                                        >
-                                                            <DeleteIcon />
-                                                        </IconButton>
-                                                    </Box>
+                                                    {/* ✅ NOUVEAU - Bouton supprimer protégé par permission */}
+                                                    <PermissionGate permission="ged_delete:delete">
+                                                        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                                                            <Tooltip title="Supprimer le document">
+                                                                <IconButton
+                                                                    edge="end"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setDocumentToDelete(doc.id);
+                                                                        setDeleteDialogOpen(true);
+                                                                    }}
+                                                                    color="error"
+                                                                >
+                                                                    <DeleteIcon />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                        </Box>
+                                                    </PermissionGate>
                                                 </CardContent>
                                             </Card>
                                         </Grid>
@@ -555,11 +601,23 @@ const AIAssistantPage = () => {
                         </Box>
                     )}
 
-                    {/* Onglet Configuration Réseau */}
+                    {/* Onglet Configuration Réseau - ✅ PROTÉGÉ PAR PERMISSION */}
                     {currentTab === 3 && (
-                        <Box sx={{ p: 3, overflowY: 'auto', height: '100%' }}>
-                            <NetworkConfigPanel />
-                        </Box>
+                        <PermissionGate
+                            permission="ged_network_scan:admin"
+                            fallback={
+                                <Box sx={{ p: 3 }}>
+                                    <Alert severity="warning">
+                                        Vous n'avez pas les permissions nécessaires pour accéder à la configuration réseau.
+                                        Contactez votre administrateur pour obtenir l'accès.
+                                    </Alert>
+                                </Box>
+                            }
+                        >
+                            <Box sx={{ p: 3, overflowY: 'auto', height: '100%' }}>
+                                <NetworkConfigPanel />
+                            </Box>
+                        </PermissionGate>
                     )}
 
                     {/* Onglet Historique & Favoris */}
