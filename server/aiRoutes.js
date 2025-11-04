@@ -1670,5 +1670,319 @@ module.exports = (broadcast) => {
         res.json(result);
     }));
 
+    // ==================== NOUVELLES ROUTES POUR FRONTEND DOCUCORTEX ====================
+
+    /**
+     * POST /ai/ocr - Route principale OCR pour OCRPanel
+     */
+    router.post('/ocr', upload.single('file'), asyncHandler(async (req, res) => {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                error: 'Aucun fichier fourni'
+            });
+        }
+
+        const ocrService = require('../backend/services/ai/ocrService');
+
+        const languages = req.body.languages || 'fra+eng+spa';
+        const autoAnalyze = req.body.autoAnalyze === 'true';
+
+        try {
+            const result = await ocrService.recognizeText(req.file.buffer, {
+                languages: languages
+            });
+
+            if (result.success && autoAnalyze && ollamaService.connectionStatus.connected) {
+                // Analyse automatique avec Ollama
+                const analysis = await ollamaService.generateResponse(
+                    `Analyse ce texte extrait par OCR et fournis un résumé:\n\n${result.text}`,
+                    { maxTokens: 300 }
+                );
+
+                if (analysis.success) {
+                    result.analysis = analysis.response;
+                }
+            }
+
+            res.json(result);
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }));
+
+    /**
+     * POST /ai/analyze - Analyse de texte brut
+     */
+    router.post('/analyze', asyncHandler(async (req, res) => {
+        const { text, analysisType } = req.body;
+
+        if (!text) {
+            return res.status(400).json({
+                success: false,
+                error: 'Texte requis'
+            });
+        }
+
+        try {
+            let result = {
+                success: true,
+                stats: {
+                    wordCount: text.split(/\s+/).length,
+                    charCount: text.length,
+                    sentenceCount: text.split(/[.!?]+/).length - 1
+                }
+            };
+
+            switch (analysisType) {
+                case 'complete':
+                    // Analyse complète avec Ollama
+                    const summary = await ollamaService.summarizeText(text, 200);
+                    const keywords = await ollamaService.extractKeywords(text, 10);
+                    const sentiment = await ollamaService.analyzeSentiment(text);
+
+                    result.summary = summary.success ? summary.summary : null;
+                    result.keywords = keywords.success ? keywords.keywords : [];
+                    result.sentiment = sentiment.success ? sentiment : null;
+                    break;
+
+                case 'keywords':
+                    const keywordsResult = await ollamaService.extractKeywords(text, 15);
+                    result.keywords = keywordsResult.success ? keywordsResult.keywords : [];
+                    break;
+
+                case 'sentiment':
+                    const sentimentResult = await ollamaService.analyzeSentiment(text);
+                    result.sentiment = sentimentResult.success ? sentimentResult : null;
+                    break;
+
+                case 'summary':
+                    const summaryResult = await ollamaService.summarizeText(text, 200);
+                    result.summary = summaryResult.success ? summaryResult.summary : null;
+                    break;
+
+                default:
+                    result.summary = text.substring(0, 200) + '...';
+            }
+
+            res.json(result);
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }));
+
+    /**
+     * POST /ai/documents/:id/analyze - Analyse d'un document indexé
+     */
+    router.post('/documents/:id/analyze', asyncHandler(async (req, res) => {
+        const documentId = parseInt(req.params.id);
+        const { analysisType } = req.body;
+
+        try {
+            const document = aiDatabaseService.getAIDocumentById(documentId);
+
+            if (!document) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Document non trouvé'
+                });
+            }
+
+            // Récupérer le contenu
+            const content = document.content || document.text_content || '';
+
+            if (!content) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Document sans contenu'
+                });
+            }
+
+            // Réutiliser la route /ai/analyze
+            const analysisResult = await (async () => {
+                let result = {
+                    success: true,
+                    stats: {
+                        wordCount: content.split(/\s+/).length,
+                        charCount: content.length,
+                        sentenceCount: content.split(/[.!?]+/).length - 1,
+                        language: document.language
+                    }
+                };
+
+                if (analysisType === 'complete') {
+                    const summary = await ollamaService.summarizeText(content, 200);
+                    const keywords = await ollamaService.extractKeywords(content, 10);
+                    const sentiment = await ollamaService.analyzeSentiment(content);
+
+                    result.summary = summary.success ? summary.summary : null;
+                    result.keywords = keywords.success ? keywords.keywords : [];
+                    result.sentiment = sentiment.success ? sentiment : null;
+                }
+
+                return result;
+            })();
+
+            res.json(analysisResult);
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }));
+
+    /**
+     * POST /ai/summarize - Résumé de texte brut
+     */
+    router.post('/summarize', asyncHandler(async (req, res) => {
+        const { text, maxLength, style } = req.body;
+
+        if (!text) {
+            return res.status(400).json({
+                success: false,
+                error: 'Texte requis'
+            });
+        }
+
+        try {
+            const result = await ollamaService.summarizeText(text, maxLength || 200);
+
+            if (result.success) {
+                res.json({
+                    success: true,
+                    summary: result.summary,
+                    originalLength: text.length,
+                    summaryLength: result.summary.length,
+                    compression: Math.round((1 - result.summary.length / text.length) * 100),
+                    processingTime: result.processingTime
+                });
+            } else {
+                res.status(500).json(result);
+            }
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }));
+
+    /**
+     * POST /ai/documents/:id/summarize - Résumé d'un document indexé
+     */
+    router.post('/documents/:id/summarize', asyncHandler(async (req, res) => {
+        const documentId = parseInt(req.params.id);
+        const { maxLength, style } = req.body;
+
+        try {
+            const document = aiDatabaseService.getAIDocumentById(documentId);
+
+            if (!document) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Document non trouvé'
+                });
+            }
+
+            const content = document.content || document.text_content || '';
+
+            if (!content) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Document sans contenu'
+                });
+            }
+
+            const result = await ollamaService.summarizeText(content, maxLength || 200);
+
+            if (result.success) {
+                res.json({
+                    success: true,
+                    summary: result.summary,
+                    originalLength: content.length,
+                    summaryLength: result.summary.length,
+                    compression: Math.round((1 - result.summary.length / content.length) * 100),
+                    documentId: documentId,
+                    filename: document.filename
+                });
+            } else {
+                res.status(500).json(result);
+            }
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }));
+
+    /**
+     * GET /ai/documents/:id/keywords - Extraction mots-clés document
+     */
+    router.get('/documents/:id/keywords', asyncHandler(async (req, res) => {
+        const documentId = parseInt(req.params.id);
+
+        try {
+            const document = aiDatabaseService.getAIDocumentById(documentId);
+
+            if (!document) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Document non trouvé'
+                });
+            }
+
+            const content = document.content || document.text_content || '';
+            const result = await ollamaService.extractKeywords(content, 10);
+
+            res.json(result);
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }));
+
+    /**
+     * POST /ai/sentiment - Analyse de sentiment
+     */
+    router.post('/sentiment', asyncHandler(async (req, res) => {
+        const { text } = req.body;
+
+        if (!text) {
+            return res.status(400).json({
+                success: false,
+                error: 'Texte requis'
+            });
+        }
+
+        try {
+            const result = await ollamaService.analyzeSentiment(text);
+            res.json(result);
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }));
+
+    /**
+     * GET /ai/ocr/statistics - Statistiques OCR
+     */
+    router.get('/ocr/statistics', asyncHandler(async (req, res) => {
+        const ocrService = require('../backend/services/ai/ocrService');
+        const stats = ocrService.getStatistics();
+        res.json(stats);
+    }));
+
     return router;
 };

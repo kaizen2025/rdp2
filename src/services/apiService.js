@@ -165,6 +165,60 @@ class ApiService {
     // Administration
     resetAI = async () => this.request('/ai/reset', { method: 'POST' })
     cleanupAI = async () => this.request('/ai/cleanup', { method: 'POST' })
+
+    // ✅ OCR - Optical Character Recognition
+    processOCR = async (formData) => this.request('/ai/ocr', {
+        method: 'POST',
+        body: formData // FormData avec file + options
+    })
+    getOCRStatistics = async () => this.request('/ai/ocr/statistics')
+
+    // ✅ Analyse de documents
+    analyzeAIDocument = async (documentId, analysisType = 'complete') => this.request('/ai/documents/' + documentId + '/analyze', {
+        method: 'POST',
+        body: JSON.stringify({ analysisType })
+    })
+    analyzeText = async (text, analysisType = 'complete') => this.request('/ai/analyze', {
+        method: 'POST',
+        body: JSON.stringify({ text, analysisType })
+    })
+
+    // ✅ Résumés de documents
+    summarizeAIDocument = async (documentId, options = {}) => this.request('/ai/documents/' + documentId + '/summarize', {
+        method: 'POST',
+        body: JSON.stringify(options)
+    })
+    summarizeText = async (text, options = {}) => this.request('/ai/summarize', {
+        method: 'POST',
+        body: JSON.stringify({ text, ...options })
+    })
+
+    // ✅ Extraction d'entités et mots-clés
+    extractKeywords = async (documentId) => this.request('/ai/documents/' + documentId + '/keywords')
+    extractEntities = async (documentId) => this.request('/ai/documents/' + documentId + '/entities')
+
+    // ✅ Analyse de sentiment
+    analyzeSentiment = async (text) => this.request('/ai/sentiment', {
+        method: 'POST',
+        body: JSON.stringify({ text })
+    })
+
+    // ✅ Préférences utilisateur
+    getUserPreferences = async () => this.request('/ai/preferences')
+    saveUserPreferences = async (preferences) => this.request('/ai/preferences', {
+        method: 'POST',
+        body: JSON.stringify(preferences)
+    })
+
+    // ✅ Export de conversations
+    exportConversation = async (sessionId, mode) => this.request(`/ai/conversations/${sessionId}/export?mode=${mode}`)
+
+    // ✅ Prévisualisation de documents
+    getDocumentPreview = async (documentId) => this.request(`/ai/documents/${documentId}/preview`)
+    downloadDocument = async (documentId) => {
+        // Téléchargement direct
+        window.open(`${this.baseURL}/ai/documents/${documentId}/download`, '_blank');
+    }
 }
 
 // Création d'une instance unique (singleton) pour toute l'application
