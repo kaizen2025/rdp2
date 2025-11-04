@@ -20,7 +20,7 @@ const initializeApiService = async () => {
   try {
     // 1. Découvrir le port de l'API en utilisant une URL relative.
     //    Cela fonctionne car le serveur React et le serveur API sont sur le même 'hôte'.
-    console.log('[ApiService] 🔍 Découverte du port de l'API...');
+    console.log('[ApiService] 🔍 Découverte du port de l\'API...');
     const response = await initialApi.get('/api/ports');
 
     if (response.data.success && response.data.ports.http) {
