@@ -2,6 +2,17 @@
   "name": "docucortex-ia",
   "version": "3.0.31",
   "description": "DocuCortex IA - Gestionnaire Intelligent avec Intelligence Artificielle",
+  "author": {
+    "name": "DocuCortex Team",
+    "email": "contact@docucortex.com",
+    "url": "https://www.docucortex.com"
+  },
+  "homepage": "https://www.docucortex.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/docucortex/docucortex-ia.git"
+  },
+  "license": "MIT",
   "main": "main.js",
   "scripts": {
     "start": "react-scripts start",
@@ -31,7 +42,15 @@
     "start:auto": "node scripts/start-react.js",
     "test:app": "concurrently \"npm run server:start\" \"npm run start:auto\" --names \"SERVER,REACT\" --prefix-colors \"cyan,magenta\"",
     "test:app:simple": "concurrently \"npm run server:start\" \"npm run start:auto\"",
-    "check-ports": "node -e \"const {findAllPorts} = require('./backend/utils/portUtils'); findAllPorts().then(console.log).catch(console.error);\""
+    "check-ports": "node -e \"const {findAllPorts} = require('./backend/utils/portUtils'); findAllPorts().then(console.log).catch(console.error);\"",
+    "generate-icons": "node generate-icons.js",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "build:win": "npm run build && electron-builder --win",
+    "build:linux": "npm run build && electron-builder --linux",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:all": "npm run build && electron-builder -mwl",
+    "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -89,6 +108,7 @@
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
     "date-fns": "^2.30.0",
+    "electron-builder": "^24.9.1",
     "enzyme-to-json": "^3.6.2",
     "eslint": "^8.54.0",
     "eslint-config-react-app": "^7.0.1",
@@ -98,9 +118,11 @@
     "jest": "^27.5.1",
     "jest-environment-jsdom": "^29.7.0",
     "jest-junit": "^16.0.0",
+    "png2icons": "^2.0.1",
     "prettier": "^3.1.0",
     "rimraf": "^5.0.5",
     "serve": "^14.2.1",
+    "sharp": "^0.33.0",
     "supertest": "^6.3.3",
     "ts-jest": "^29.1.0",
     "wait-on": "^7.2.0",
@@ -143,5 +165,174 @@
     "node": ">=16.0.0",
     "npm": ">=8.0.0"
   },
-  "proxy": "http://localhost:5000"
+  "proxy": "http://localhost:5000",
+  "build": {
+    "appId": "com.docucortex.ia",
+    "productName": "DocuCortex IA",
+    "copyright": "Copyright © 2025 DocuCortex Team",
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "files": [
+      "build/**/*",
+      "main.js",
+      "server.js",
+      "backend/**/*",
+      "node_modules/**/*",
+      "package.json",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/*.d.ts",
+      "!**/node_modules/.bin",
+      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!.editorconfig",
+      "!**/._*",
+      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+      "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
+      "!**/{appveyor.yml,.travis.yml,circle.yml}",
+      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+    ],
+    "extraResources": [
+      {
+        "from": "data",
+        "to": "data",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "config",
+        "to": "config",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "ia32"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icons/icon.ico",
+      "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+      "publisherName": "DocuCortex Team",
+      "verifyUpdateCodeSignature": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "installerIcon": "build/icons/icon.ico",
+      "uninstallerIcon": "build/icons/icon.ico",
+      "installerHeaderIcon": "build/icons/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "DocuCortex IA",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true,
+      "menuCategory": "DocuCortex",
+      "include": "build/installer.nsh",
+      "language": "1036"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-Portable.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm",
+        "snap"
+      ],
+      "icon": "build/icons",
+      "category": "Office",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "description": "DocuCortex IA - Gestionnaire Intelligent de Documents avec Intelligence Artificielle",
+      "synopsis": "Gestionnaire intelligent de documents",
+      "vendor": "DocuCortex Team",
+      "maintainer": "contact@docucortex.com",
+      "desktop": {
+        "Name": "DocuCortex IA",
+        "Type": "Application",
+        "GenericName": "Document Manager",
+        "Comment": "Gestionnaire Intelligent de Documents",
+        "Categories": "Office;DocumentManagement;",
+        "Keywords": "document;manager;ai;intelligence;artificial;",
+        "StartupNotify": "true",
+        "Terminal": "false"
+      }
+    },
+    "deb": {
+      "depends": [
+        "gconf2",
+        "gconf-service",
+        "libnotify4",
+        "libappindicator1",
+        "libxtst6",
+        "libnss3"
+      ],
+      "priority": "optional",
+      "afterInstall": "build/scripts/after-install.sh",
+      "afterRemove": "build/scripts/after-remove.sh"
+    },
+    "rpm": {
+      "depends": [
+        "libXScrnSaver"
+      ],
+      "afterInstall": "build/scripts/after-install.sh",
+      "afterRemove": "build/scripts/after-remove.sh"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "build/icons/icon.icns",
+      "category": "public.app-category.business",
+      "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+      "darkModeSupport": true,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "background": "build/icons/dmg-background.png",
+      "window": {
+        "width": 540,
+        "height": 380
+      }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "docucortex",
+        "repo": "docucortex-ia",
+        "releaseType": "release"
+      }
+    ],
+    "compression": "normal",
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/sharp/**/*",
+      "**/data/**/*"
+    ],
+    "npmRebuild": true,
+    "nodeGypRebuild": false
+  }
 }
