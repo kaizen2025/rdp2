@@ -79,20 +79,51 @@ function createWindow() {
         autoHideMenuBar: true, frame: true, show: false
     });
 
-    const devUrl = 'http://localhost:3000';
-    const prodPath = path.join(__dirname, '..', 'build', 'index.html');
-
     if (isDev) {
-        logToUI('info', `[Main] Chargement de l'URL de développement: ${devUrl}`);
-        mainWindow.loadURL(devUrl).catch(err => {
-            logToUI('error', `[Main] ❌ Impossible de charger l'URL de dev: ${err.message}`);
-            dialog.showErrorBox('Erreur de chargement', `Impossible de se connecter au serveur de développement React. Vérifiez qu'il est bien démarré.\n\nErreur: ${err.message}`);
-        });
-        mainWindow.webContents.openDevTools();
+        // --- NOUVELLE LOGIQUE D'ATTENTE ROBUSTE ---
+        const reactPortFilePath = path.join(__dirname, '..', '.react-port.json');
+        let maxRetries = 20;
+        const retryDelay = 1000;
+
+        const loadDevUrl = () => {
+            if (fs.existsSync(reactPortFilePath)) {
+                try {
+                    const { port } = JSON.parse(fs.readFileSync(reactPortFilePath, 'utf8'));
+                    const devUrl = `http://localhost:${port}`;
+                    logToUI('info', `[Main] ✅ Serveur React détecté sur le port ${port}. Chargement de l'URL: ${devUrl}`);
+
+                    mainWindow.loadURL(devUrl).catch(err => {
+                        logToUI('error', `[Main] ❌ Impossible de charger l'URL de dev après l'avoir trouvée: ${err.message}`);
+                        dialog.showErrorBox('Erreur de chargement', `Impossible de se connecter au serveur de développement React même après avoir détecté le port.\n\nErreur: ${err.message}`);
+                    });
+                    mainWindow.webContents.openDevTools();
+
+                } catch (error) {
+                    logToUI('error', `[Main] Erreur à la lecture de .react-port.json: ${error.message}`);
+                    if (maxRetries > 0) {
+                        maxRetries--;
+                        setTimeout(loadDevUrl, retryDelay);
+                    } else {
+                        dialog.showErrorBox('Erreur Critique', 'Impossible de lire le port du serveur React. Le fichier .react-port.json est peut-être corrompu.');
+                    }
+                }
+            } else {
+                 logToUI('info', `[Main] En attente du serveur React... (Tentatives restantes: ${maxRetries})`);
+                if (maxRetries > 0) {
+                    maxRetries--;
+                    setTimeout(loadDevUrl, retryDelay);
+                } else {
+                    dialog.showErrorBox('Erreur de Démarrage', 'Le serveur de développement React n\'a pas démarré à temps. Veuillez vérifier la console pour les erreurs.');
+                }
+            }
+        };
+
+        loadDevUrl();
+        // --- FIN DE LA NOUVELLE LOGIQUE ---
     } else {
+        const prodPath = path.join(__dirname, '..', 'build', 'index.html');
         logToUI('info', `[Main] Chargement du fichier de production: ${prodPath}`);
         mainWindow.loadFile(prodPath).catch(err => logToUI('error', `[Main] ❌ Impossible de charger le fichier de prod: ${err.message}`));
-        // mainWindow.webContents.openDevTools({ mode: 'detach' }); // Décommenter pour débug en prod
     }
 
     mainWindow.once('ready-to-show', () => {

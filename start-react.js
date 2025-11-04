@@ -1,55 +1,81 @@
 const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
 
 const portsFilePath = path.join(__dirname, '.ports.json');
-const maxRetries = 10;
-const retryDelay = 500; // 0.5 seconds
+const reactPortFilePath = path.join(__dirname, '.react-port.json');
+const maxRetries = 20; // Increased retries for slower systems
+const retryDelay = 1000; // Increased delay to 1 second
 
 let currentAttempt = 0;
 
-function startReact() {
-  try {
-    const ports = JSON.parse(fs.readFileSync(portsFilePath, 'utf8'));
-    const reactPort = ports.react;
+function startReact(reactPort) {
+  console.log(`[React Starter] Attempting to start React dev server on port ${reactPort}...`);
 
-    if (!reactPort) {
-      throw new Error('React port not found in .ports.json');
+  const command = 'react-scripts';
+  const args = ['start'];
+  const options = {
+    env: { ...process.env, PORT: reactPort.toString() },
+    shell: true // Use shell to handle command correctly on Windows
+  };
+
+  const child = spawn(command, args, options);
+
+  child.stdout.on('data', (data) => {
+    const output = data.toString();
+    console.log(`[React Dev Server] ${output}`);
+
+    // Detect when React is ready
+    if (output.includes('You can now view docucortex-ia in the browser')) {
+      console.log(`[React Starter] React server is ready on port ${reactPort}.`);
+      // Signal that React is ready by writing to a file
+      fs.writeFileSync(reactPortFilePath, JSON.stringify({ port: reactPort }));
     }
+  });
 
-    console.log(`[React Starter] Found port ${reactPort}, starting dev server...`);
+  child.stderr.on('data', (data) => {
+    console.error(`[React Dev Server ERROR] ${data.toString()}`);
+  });
 
-    const command = `cross-env PORT=${reactPort} react-scripts start`;
-    const child = exec(command);
-
-    child.stdout.pipe(process.stdout);
-    child.stderr.pipe(process.stderr);
-
-  } catch (error) {
-    console.error(`[React Starter] Failed to read port on attempt ${currentAttempt + 1}:`, error.message);
-    if (currentAttempt < maxRetries) {
-      currentAttempt++;
-      setTimeout(waitForPortsFile, retryDelay);
-    } else {
-      console.error('[React Starter] Max retries reached. Could not start React server.');
-      process.exit(1);
+  child.on('close', (code) => {
+    console.log(`[React Starter] React dev server process exited with code ${code}.`);
+    // Clean up the react port file on exit
+    if (fs.existsSync(reactPortFilePath)) {
+      fs.unlinkSync(reactPortFilePath);
     }
-  }
+  });
 }
 
 function waitForPortsFile() {
   if (fs.existsSync(portsFilePath)) {
-    console.log('[React Starter] .ports.json detected. Proceeding to start React.');
-    startReact();
-  } else {
-    if (currentAttempt < maxRetries) {
-      console.log(`[React Starter] Waiting for .ports.json... (Attempt ${currentAttempt + 1}/${maxRetries})`);
-      currentAttempt++;
-      setTimeout(waitForPortsFile, retryDelay);
-    } else {
-      console.error('[React Starter] Max retries reached. .ports.json was not created in time.');
-      process.exit(1);
+    try {
+      const ports = JSON.parse(fs.readFileSync(portsFilePath, 'utf8'));
+      const reactPort = ports.react;
+
+      if (!reactPort) {
+        throw new Error('React port not found in .ports.json');
+      }
+
+      console.log(`[React Starter] Found React port ${reactPort} in .ports.json.`);
+      startReact(reactPort);
+
+    } catch (error) {
+      console.error(`[React Starter] Error reading .ports.json: ${error.message}`);
+      retryWait();
     }
+  } else {
+    console.log(`[React Starter] Waiting for .ports.json... (Attempt ${currentAttempt + 1}/${maxRetries})`);
+    retryWait();
+  }
+}
+
+function retryWait() {
+  if (currentAttempt < maxRetries) {
+    currentAttempt++;
+    setTimeout(waitForPortsFile, retryDelay);
+  } else {
+    console.error('[React Starter] Max retries reached. .ports.json was not created in time.');
+    process.exit(1);
   }
 }
 
