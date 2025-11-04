@@ -1,7 +1,7 @@
 {
-  "http": 3004,
-  "websocket": 3004,
-  "react": 3004,
-  "timestamp": "2025-11-03T22:29:22.336Z",
-  "pid": 5326
+  "http": 3002,
+  "websocket": 3003,
+  "react": 3000,
+  "timestamp": "2025-11-04T10:24:25.350Z",
+  "pid": 18996
 }
