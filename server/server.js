@@ -179,6 +179,24 @@ async function startServer() {
         // ✅ SUPPRESSION de la synchro bloquante ici
 
         initializeWebSocket();
+
+        // --- NOUVEL ENDPOINT POUR LA DÉCOUVERTE DES PORTS ---
+        app.get('/api/ports', (req, res) => {
+            try {
+                const portsFilePath = path.join(__dirname, '..', '.ports.json');
+                if (fs.existsSync(portsFilePath)) {
+                    const ports = JSON.parse(fs.readFileSync(portsFilePath, 'utf8'));
+                    res.json({ success: true, ports });
+                } else {
+                    // En production ou si le fichier n'existe pas, retourner les ports par défaut
+                    res.json({ success: true, ports: { http: API_PORT, websocket: WS_PORT } });
+                }
+            } catch (error) {
+                res.status(500).json({ success: false, message: 'Erreur à la lecture des ports.' });
+            }
+        });
+        // --- FIN DE L'ENDPOINT ---
+
         app.use('/api', apiRoutes(broadcast));
         app.use('/api/ai', aiRoutes(broadcast));
         console.log('✅ Routes API configurées.');
