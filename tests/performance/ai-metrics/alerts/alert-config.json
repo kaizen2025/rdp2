@@ -1,0 +1,316 @@
+{
+  "global": {
+    "responseTime": {
+      "critical": 5000,
+      "high": 3000,
+      "warning": 2000,
+      "good": 1000
+    },
+    "successRate": {
+      "critical": 80,
+      "high": 85,
+      "warning": 90,
+      "good": 95
+    },
+    "throughput": {
+      "critical": 1,
+      "high": 2,
+      "warning": 5,
+      "good": 10
+    },
+    "cpuUsage": {
+      "critical": 95,
+      "high": 85,
+      "warning": 75,
+      "good": 60
+    },
+    "memoryUsage": {
+      "critical": 95,
+      "high": 85,
+      "warning": 75,
+      "good": 60
+    },
+    "networkLatency": {
+      "critical": 1000,
+      "high": 500,
+      "warning": 200,
+      "good": 100
+    },
+    "networkPacketLoss": {
+      "critical": 10,
+      "high": 5,
+      "warning": 2,
+      "good": 1
+    }
+  },
+  "services": {
+    "ollama": {
+      "responseTime": {
+        "multiplier": 1.5,
+        "critical": 7500,
+        "high": 4500,
+        "warning": 3000,
+        "good": 1500
+      },
+      "memoryUsage": {
+        "multiplier": 1.2,
+        "critical": 90,
+        "high": 80,
+        "warning": 70,
+        "good": 55
+      },
+      "tokensPerSecond": {
+        "critical": 10,
+        "high": 15,
+        "warning": 25,
+        "good": 35
+      }
+    },
+    "easyocr": {
+      "responseTime": {
+        "multiplier": 2.0,
+        "critical": 10000,
+        "high": 6000,
+        "warning": 4000,
+        "good": 3000
+      },
+      "processingTime": {
+        "critical": 15000,
+        "high": 8000,
+        "warning": 5000,
+        "good": 2000
+      },
+      "accuracy": {
+        "critical": 85,
+        "high": 90,
+        "warning": 95,
+        "good": 98
+      },
+      "confidence": {
+        "critical": 0.7,
+        "high": 0.8,
+        "warning": 0.9,
+        "good": 0.95
+      }
+    },
+    "docucortex-ai": {
+      "responseTime": {
+        "multiplier": 1.2,
+        "critical": 6000,
+        "high": 3600,
+        "warning": 2400,
+        "good": 1200
+      },
+      "throughput": {
+        "multiplier": 1.5,
+        "critical": 1.5,
+        "high": 3,
+        "warning": 7.5,
+        "good": 15
+      },
+      "chatResponseTime": {
+        "critical": 8000,
+        "high": 5000,
+        "warning": 3000,
+        "good": 1500
+      },
+      "searchResponseTime": {
+        "critical": 3000,
+        "high": 2000,
+        "warning": 1000,
+        "good": 500
+      }
+    },
+    "ged": {
+      "responseTime": {
+        "multiplier": 0.8,
+        "critical": 4000,
+        "high": 2400,
+        "warning": 1600,
+        "good": 800
+      },
+      "successRate": {
+        "multiplier": 1.1,
+        "critical": 88,
+        "high": 93.5,
+        "warning": 99,
+        "good": 100
+      },
+      "uploadSpeed": {
+        "critical": 1,
+        "high": 2,
+        "warning": 5,
+        "good": 10,
+        "unit": "MB/s"
+      },
+      "indexingSpeed": {
+        "critical": 10,
+        "high": 20,
+        "warning": 50,
+        "good": 100,
+        "unit": "docs/min"
+      }
+    },
+    "network": {
+      "latency": {
+        "critical": 1500,
+        "high": 750,
+        "warning": 300,
+        "good": 150
+      },
+      "packetLoss": {
+        "critical": 15,
+        "high": 7.5,
+        "warning": 3,
+        "good": 1.5
+      },
+      "bandwidth": {
+        "critical": 1,
+        "high": 5,
+        "warning": 20,
+        "good": 50,
+        "unit": "MB/s"
+      }
+    }
+  },
+  "metadata": {
+    "version": "1.0",
+    "lastModified": "2025-11-04T07:55:33Z",
+    "description": "Configuration des seuils d'alerte pour les métriques IA - DocuCortex",
+    "author": "Système de Métriques IA",
+    "categories": [
+      "performance",
+      "reliability", 
+      "system",
+      "network",
+      "ai-services"
+    ],
+    "tags": [
+      "ollama",
+      "easyocr", 
+      "docucortex",
+      "ged",
+      "alerting",
+      "monitoring"
+    ]
+  },
+  "alertRules": {
+    "escalation": {
+      "critical": {
+        "delay": 30000,
+        "maxEscalations": 3,
+        "notifications": ["email", "slack", "sms"]
+      },
+      "high": {
+        "delay": 60000,
+        "maxEscalations": 2,
+        "notifications": ["email", "slack"]
+      },
+      "warning": {
+        "delay": 120000,
+        "maxEscalations": 1,
+        "notifications": ["slack"]
+      }
+    },
+    "recovery": {
+      "autoResolve": true,
+      "minDuration": 300000,
+      "confirmStability": 60000
+    },
+    "notifications": {
+      "email": {
+        "enabled": true,
+        "recipients": [
+          "admin@docucortex.com",
+          "devops@docucortex.com"
+        ]
+      },
+      "slack": {
+        "enabled": true,
+        "webhook": "${SLACK_WEBHOOK_URL}",
+        "channel": "#alerts"
+      },
+      "sms": {
+        "enabled": false,
+        "numbers": []
+      }
+    }
+  },
+  "monitoring": {
+    "intervals": {
+      "checkFrequency": 1000,
+      "alertCheck": 5000,
+      "statisticsUpdate": 30000
+    },
+    "retention": {
+      "metricsHistory": 86400000,
+      "alertHistory": 604800000,
+      "logRetention": 2592000000
+    },
+    "sampling": {
+      "enabled": true,
+      "rate": 0.1,
+      "maxSamples": 1000
+    }
+  },
+  "thresholds": {
+    "multiMetricAlerts": {
+      "degradedPerformance": {
+        "conditions": [
+          {
+            "metric": "responseTime",
+            "threshold": "warning",
+            "duration": 300000
+          },
+          {
+            "metric": "successRate", 
+            "threshold": "warning",
+            "duration": 300000
+          }
+        ],
+        "action": "composite_warning"
+      },
+      "systemOverload": {
+        "conditions": [
+          {
+            "metric": "cpuUsage",
+            "threshold": "high",
+            "duration": 60000
+          },
+          {
+            "metric": "memoryUsage",
+            "threshold": "high", 
+            "duration": 60000
+          }
+        ],
+        "action": "composite_critical"
+      }
+    }
+  },
+  "customization": {
+    "ui": {
+      "refreshInterval": 2000,
+      "chartIntervals": {
+        "realtime": 5000,
+        "hourly": 60000,
+        "daily": 300000
+      },
+      "colors": {
+        "critical": "#e74c3c",
+        "high": "#f39c12", 
+        "warning": "#f1c40f",
+        "good": "#27ae60",
+        "excellent": "#2ecc71"
+      }
+    },
+    "reporting": {
+      "enabled": true,
+      "formats": ["json", "csv", "pdf"],
+      "schedule": {
+        "daily": "08:00",
+        "weekly": "monday 09:00",
+        "monthly": "1st 10:00"
+      }
+    }
+  }
+}
