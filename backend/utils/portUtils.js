@@ -20,8 +20,9 @@ function isPortAvailable(port) {
         });
 
         server.once('listening', () => {
-            server.close();
-            resolve(true);
+            server.close(() => {
+                setTimeout(() => resolve(true), 100);
+            });
         });
 
         server.listen(port, '0.0.0.0');
