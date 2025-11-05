@@ -1,217 +1,115 @@
-// src/App.js - VERSION ELECTRON COMPLÈTE
+// src/App.js - VERSION AVEC VÉRIFICATION DE SANTÉ DU SERVEUR ET THÈME MODERNE
 
 import React, { useState, useEffect } from 'react';
-import './App.css';
-import apiService from './apiService';
+import { HashRouter as Router } from 'react-router-dom';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
+import AlertTitle from '@mui/material/AlertTitle';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { fr } from 'date-fns/locale';
 
-const App = () => {
-  const [documents, setDocuments] = useState([]);
-  const [currentDocument, setCurrentDocument] = useState('');
-  const [analysis, setAnalysis] = useState(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isServerOnline, setIsServerOnline] = useState(true);
+import { AppProvider } from './contexts/AppContext';
+import { CacheProvider } from './contexts/CacheContext';
+import LoginPage from './pages/LoginPage';
+import MainLayout from './layouts/MainLayout';
+import ErrorBoundary from './components/common/ErrorBoundary';
+import apiService from './services/apiService';
+import theme from './styles/theme'; // Importer le nouveau thème moderne
 
-  // Charger les documents au démarrage
-  useEffect(() => {
-    const loadDocuments = async () => {
-      try {
-        await apiService.checkServerHealth();
-        setIsServerOnline(true);
-        
-        const docs = await apiService.getDocuments();
-        const formattedDocs = docs.map(doc => ({
-          id: doc.id,
-          title: doc.title,
-          content: doc.content.substring(0, 100) + (doc.content.length > 100 ? '...' : ''),
-          timestamp: new Date(doc.createdAt).toLocaleString(),
-          wordCount: doc.wordCount
-        }));
-        setDocuments(formattedDocs);
-      } catch (error) {
-        console.warn('Serveur non disponible ou documents non trouvés:', error);
-        setIsServerOnline(false);
-      }
+function App() {
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [currentTechnician, setCurrentTechnician] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [configError, setConfigError] = useState(null); // Nouvel état pour l'erreur de config
+
+    useEffect(() => {
+        const checkHealthAndAuth = async () => {
+            try {
+                // Étape 1: Vérifier la santé du serveur
+                await apiService.checkServerHealth();
+                setConfigError(null); // Si tout va bien, on s'assure qu'il n'y a pas de message d'erreur
+            } catch (error) {
+                // Si le serveur renvoie une erreur (ex: 503), on affiche le message
+                const errorMessage = error.response?.data?.message || error.message || "Erreur de communication avec le serveur.";
+                setConfigError(errorMessage);
+            }
+
+            // Étape 2: Vérifier l'authentification locale (ne change pas)
+            // On peut tenter de s'authentifier même si le serveur a un problème de config,
+            // car l'admin pourrait avoir besoin d'accéder à la page des paramètres.
+            const storedTechnicianId = localStorage.getItem('currentTechnicianId');
+            if (storedTechnicianId) {
+                // Idéalement, on devrait valider le technicien auprès de l'API ici
+                setCurrentTechnician({ id: storedTechnicianId }); // Simulation simple
+                setIsAuthenticated(true);
+            }
+
+            setIsLoading(false);
+        };
+
+        checkHealthAndAuth();
+    }, []);
+
+    const handleLoginSuccess = (technician) => {
+        setCurrentTechnician(technician);
+        setIsAuthenticated(true);
     };
 
-    loadDocuments();
-  }, []);
+    const handleLogout = () => {
+        apiService.logout();
+        setIsAuthenticated(false);
+        setCurrentTechnician(null);
+    };
 
-  // Analyser un document avec l'IA
-  const analyzeDocument = async (text) => {
-    if (!text.trim()) return;
-    
-    setIsAnalyzing(true);
-    
-    try {
-      const analysisResult = await apiService.analyzeDocument(text);
-      setAnalysis(analysisResult);
-    } catch (error) {
-      console.error('Erreur lors de l\'analyse:', error);
-      alert(`Erreur d'analyse: ${error.message}`);
-    } finally {
-      setIsAnalyzing(false);
+    if (isLoading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                <CircularProgress />
+            </Box>
+        );
     }
-  };
 
-  const handleAnalyze = () => {
-    if (currentDocument.trim()) {
-      analyzeDocument(currentDocument);
-    }
-  };
+    // Le rendu conditionnel du bandeau d'erreur
+    const ConfigErrorAlert = () => (
+        configError && (
+            <Alert severity="error" sx={{ m: 2, borderRadius: 1 }}>
+                <AlertTitle>Erreur Critique du Serveur</AlertTitle>
+                {configError}
+            </Alert>
+        )
+    );
 
-  const addDocument = async () => {
-    if (!currentDocument.trim()) return;
-    
-    try {
-      const title = `Document ${documents.length + 1}`;
-      const newDoc = await apiService.saveDocument(title, currentDocument);
-      setDocuments([...documents, {
-        id: newDoc.id,
-        title: newDoc.title,
-        content: currentDocument.substring(0, 100) + '...',
-        timestamp: new Date(newDoc.createdAt).toLocaleString(),
-        wordCount: newDoc.wordCount
-      }]);
-      
-      // Afficher un message de succès
-      alert('✅ Document sauvegardé avec succès !');
-    } catch (error) {
-      console.error('Erreur lors de la sauvegarde:', error);
-      alert(`Erreur de sauvegarde: ${error.message}`);
-    }
-  };
-
-  return (
-    <div className="app">
-      <header className="header">
-        <div className="logo">
-          <h1>🧠 DocuCortex IA</h1>
-          <p>Gestionnaire Intelligent avec Intelligence Artificielle</p>
-        </div>
-        <div className="header-status">
-          <div className={`server-status ${isServerOnline ? 'online' : 'offline'}`}>
-            {isServerOnline ? '🟢 Serveur en ligne' : '🔴 Serveur hors ligne'}
-          </div>
-          <div className="version">Version 3.0.31 - Electron</div>
-        </div>
-      </header>
-
-      <div className="main-content">
-        <div className="editor-section">
-          <h2>📝 Éditeur de Document</h2>
-          <textarea
-            value={currentDocument}
-            onChange={(e) => setCurrentDocument(e.target.value)}
-            placeholder="Commencez à écrire votre document ici..."
-            className="editor-textarea"
-          />
-          <div className="editor-controls">
-            <button 
-              onClick={handleAnalyze}
-              disabled={!currentDocument.trim() || isAnalyzing}
-              className="analyze-btn"
-            >
-              {isAnalyzing ? '🔄 Analyse en cours...' : '🤖 Analyser avec l\'IA'}
-            </button>
-            <button 
-              onClick={addDocument}
-              disabled={!currentDocument.trim()}
-              className="save-btn"
-            >
-              💾 Sauvegarder
-            </button>
-          </div>
-        </div>
-
-        <div className="analysis-section">
-          <h2>🔍 Analyse IA</h2>
-          
-          {isAnalyzing && (
-            <div className="loading">
-              <div className="spinner"></div>
-              <p>Analyse en cours...</p>
-            </div>
-          )}
-
-          {analysis && (
-            <div className="analysis-results">
-              <div className="analysis-card">
-                <h3>📊 Résumé</h3>
-                <p>{analysis.summary}</p>
-              </div>
-
-              <div className="analysis-card">
-                <h3>🏷️ Mots-clés</h3>
-                <div className="keywords">
-                  {analysis.keywords.map((keyword, index) => (
-                    <span key={index} className="keyword-tag">{keyword}</span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="analysis-card">
-                <h3>😊 Sentiment</h3>
-                <span className={`sentiment ${analysis.sentiment}`}>
-                  {analysis.sentiment === 'positif' ? '😊 Positif' : 
-                   analysis.sentiment === 'négatif' ? '😔 Négatif' : '😐 Neutre'}
-                </span>
-              </div>
-
-              <div className="analysis-card">
-                <h3>📁 Catégorie</h3>
-                <p>{analysis.category}</p>
-                <div className="confidence">
-                  <span>Confiance: {Math.round(analysis.confidence * 100)}%</span>
-                  <div className="confidence-bar">
-                    <div 
-                      className="confidence-fill" 
-                      style={{width: `${analysis.confidence * 100}%`}}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="analysis-card">
-                <h3>💡 Suggestions</h3>
-                <ul className="suggestions">
-                  {analysis.suggestions.map((suggestion, index) => (
-                    <li key={index}>{suggestion}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
-
-          {!analysis && !isAnalyzing && (
-            <div className="empty-analysis">
-              <p>Aucune analyse disponible. Écrivez un document et cliquez sur "Analyser avec l'IA".</p>
-            </div>
-          )}
-        </div>
-
-        <div className="documents-section">
-          <h2>📚 Documents Récents</h2>
-          <div className="documents-list">
-            {documents.length === 0 ? (
-              <p className="empty-list">Aucun document sauvegardé</p>
-            ) : (
-              documents.map((doc) => (
-                <div key={doc.id} className="document-item">
-                  <h4>{doc.title}</h4>
-                  <p>{doc.content}</p>
-                  <small>{doc.timestamp}</small>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      <footer className="footer">
-        <p>🚀 Application Electron + React • Développé par DocuCortex Team</p>
-      </footer>
-    </div>
-  );
-};
+    return (
+        <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={fr}>
+                <AppProvider>
+                    <Router>
+                        {!isAuthenticated ? (
+                            <>
+                                <ConfigErrorAlert />
+                                <LoginPage onLoginSuccess={handleLoginSuccess} />
+                            </>
+                        ) : (
+                            <ErrorBoundary>
+                                <CacheProvider>
+                                    <ConfigErrorAlert />
+                                    <MainLayout
+                                        onLogout={handleLogout}
+                                        currentTechnician={currentTechnician}
+                                    />
+                                </CacheProvider>
+                            </ErrorBoundary>
+                        )}
+                    </Router>
+                </AppProvider>
+            </LocalizationProvider>
+        </ThemeProvider>
+    );
+}
 
 export default App;
