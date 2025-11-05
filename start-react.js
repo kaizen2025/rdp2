@@ -20,16 +20,22 @@ function startReact(reactPort) {
   };
 
   const child = spawn(command, args, options);
+  let fullOutput = ''; // Accumuler l'output complet
+  let portFileWritten = false;
 
   child.stdout.on('data', (data) => {
     const output = data.toString();
     console.log(`[React Dev Server] ${output}`);
 
-    // Detect when React is ready
-    if (output.includes('You can now view docucortex-ia in the browser')) {
-      console.log(`[React Starter] React server is ready on port ${reactPort}.`);
+    fullOutput += output;
+
+    // Detect when React is ready - vérifier l'output accumulé
+    if (!portFileWritten && (fullOutput.includes('webpack compiled successfully') || fullOutput.includes('Compiled successfully'))) {
+      console.log(`[React Starter] ✅ React server is ready on port ${reactPort}.`);
       // Signal that React is ready by writing to a file
       fs.writeFileSync(reactPortFilePath, JSON.stringify({ port: reactPort }));
+      console.log(`[React Starter] ✅ Fichier .react-port.json créé avec port ${reactPort}`);
+      portFileWritten = true;
     }
   });
 
