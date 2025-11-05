@@ -1,7 +1,7 @@
 // src/pages/AdGroupsPage.js - VERSION FINALE AVEC IMPORTS CORRIGÉS
 
 import React, { useState, useMemo, memo, useCallback, useEffect } from 'react';
-import { FixedSizeList } from 'react-window';
+import { List as FixedSizeList } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { Box, Paper, Typography, Button, IconButton, Tooltip, CircularProgress, InputAdornment, Chip, FormControl, InputLabel, Select, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemText, ListItemIcon, Divider, TextField } from '@mui/material';
 

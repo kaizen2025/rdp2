@@ -1,7 +1,7 @@
 // src/pages/UsersManagementPage.js - VERSION FINALE AVEC RENDU CONDITIONNEL
 
 import React, { useState, useMemo, useCallback, memo, useEffect } from 'react';
-import { FixedSizeList as List } from 'react-window';
+import { List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { Box, Paper, Typography, Button, IconButton, Tooltip, CircularProgress, FormControl, InputLabel, Select, MenuItem, Chip, Grid, Checkbox } from '@mui/material';
 import { PersonAdd as PersonAddIcon, Refresh as RefreshIcon, Clear as ClearIcon, Edit as EditIcon, Delete as DeleteIcon, Print as PrintIcon, VpnKey as VpnKeyIcon, Language as LanguageIcon, Settings as SettingsIcon, Person as PersonIcon, Dns as DnsIcon, Login as LoginIcon, Circle as CircleIcon } from '@mui/icons-material';
