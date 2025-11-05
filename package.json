@@ -12,7 +12,7 @@
     "electron:dev": "electron .",
     "dev": "concurrently \"npm run server:start\" \"npm run start\"",
     "electron:start": "concurrently \"npm run server:start\" \"npm run start\" \"npm run electron:dev\"",
-    "build:exe": "npm run build && electron-builder --win portable"
+    "build:exe": "npm run build && electron-builder --win portable --config electron-builder.json"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -50,16 +50,6 @@
     "electron-builder": "^25.1.8",
     "react-scripts": "5.0.1",
     "rimraf": "^6.0.1"
-  },
-  "build": {
-    "appId": "com.docucortex.ia",
-    "productName": "DocuCortex IA",
-    "win": {
-      "target": "portable"
-    },
-    "portable": {
-      "artifactName": "DocuCortex-IA-^${version}-portable.exe"
-    }
   },
   "browserslist": {
     "production": [
