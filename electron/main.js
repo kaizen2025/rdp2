@@ -53,11 +53,17 @@ function startServer() {
 
         logToUI('info', '[Main] ✅ Fichier serveur trouvé, démarrage...');
 
+        // Configurer NODE_PATH pour que le serveur forké trouve les modules npm
+        const nodeModulesPath = path.join(unpackedPath, 'node_modules');
+        logToUI('info', `[Main] Configuration NODE_PATH: ${nodeModulesPath}`);
+
         const serverProcess = fork(serverPath, [], {
             silent: true,
-            env: { 
-                ...process.env, 
-                RUNNING_IN_ELECTRON: 'true' // ✅ LA CORRECTION CRUCIALE
+            env: {
+                ...process.env,
+                RUNNING_IN_ELECTRON: 'true',
+                NODE_PATH: nodeModulesPath, // ✅ CRITIQUE: Permet de trouver express, better-sqlite3, etc.
+                PORT: '3002'
             }
         });
 
