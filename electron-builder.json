@@ -40,13 +40,7 @@
   "compression": "maximum",
   "asar": true,
   "asarUnpack": [
-    "node_modules/bcrypt/**/*",
-    "node_modules/better-sqlite3/**/*",
-    "node_modules/tesseract.js/**/*",
-    "node_modules/natural/**/*",
-    "node_modules/node-nlp/**/*",
-    "node_modules/pdf-parse/**/*",
-    "node_modules/mammoth/**/*",
+    "node_modules/**/*",
     "backend/**/*",
     "server/**/*",
     "config/**/*"
