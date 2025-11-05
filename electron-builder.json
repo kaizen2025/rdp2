@@ -29,14 +29,12 @@
     {
       "from": "config",
       "to": "config",
-      "filter": ["**/*"],
-      "comment": "Config.json with network database path"
+      "filter": ["**/*"]
     },
     {
       "from": "data",
       "to": "data",
-      "filter": ["**/*"],
-      "comment": "Empty folder for OFFLINE mode fallback (no database included)"
+      "filter": ["**/*"]
     }
   ],
   "compression": "maximum",
