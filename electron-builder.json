@@ -1,9 +1,11 @@
 {
-  "appId": "com.anecoop.docucortex",
-  "productName": "DocuCortex IA",
+  "appId": "com.anecoop.rdsviewer",
+  "productName": "RDS Viewer",
   "copyright": "Copyright © 2025 Anecoop",
   "extraMetadata": {
-    "main": "electron/main.js"
+    "main": "electron/main.js",
+    "name": "rds-viewer",
+    "version": "3.0.26"
   },
   "directories": {
     "buildResources": "assets",
@@ -40,7 +42,15 @@
   "asarUnpack": [
     "node_modules/bcrypt/**/*",
     "node_modules/better-sqlite3/**/*",
-    "node_modules/tesseract.js/**/*"
+    "node_modules/tesseract.js/**/*",
+    "node_modules/natural/**/*",
+    "node_modules/node-nlp/**/*",
+    "node_modules/pdf-parse/**/*",
+    "node_modules/mammoth/**/*",
+    "backend/**/*",
+    "server/**/*",
+    "config/**/*",
+    "data/**/*"
   ],
   "win": {
     "target": [
@@ -60,19 +70,26 @@
   "nsis": {
     "oneClick": false,
     "allowToChangeInstallationDirectory": true,
+    "allowElevation": true,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "DocuCortex IA",
+    "shortcutName": "RDS Viewer",
     "installerIcon": "assets/icon.ico",
     "uninstallerIcon": "assets/icon.ico",
     "installerHeaderIcon": "assets/icon.ico",
     "license": "LICENSE",
     "language": "1036",
-    "deleteAppDataOnUninstall": false
+    "deleteAppDataOnUninstall": false,
+    "runAfterFinish": true,
+    "menuCategory": true,
+    "displayLanguageSelector": true,
+    "perMachine": false
   },
   "portable": {
     "artifactName": "${productName}-${version}-Portable.${ext}",
-    "requestExecutionLevel": "user"
+    "requestExecutionLevel": "user",
+    "useZip": false,
+    "splashImage": "assets/icon.png"
   },
   "linux": {
     "target": [
@@ -90,12 +107,12 @@
       }
     ],
     "icon": "assets/icon.png",
-    "category": "Office;Utility",
+    "category": "Office;Utility;Network",
     "artifactName": "${productName}-${version}.${ext}",
     "maintainer": "Anecoop <support@anecoop.com>",
     "vendor": "Anecoop",
-    "synopsis": "Gestionnaire Intelligent avec Intelligence Artificielle",
-    "description": "DocuCortex IA - Gestionnaire de documents avec intelligence artificielle intégrée pour Anecoop"
+    "synopsis": "Gestionnaire RDS avec Intelligence Artificielle",
+    "description": "RDS Viewer - Gestionnaire de sessions RDS, prêts d'ordinateurs et documents avec IA intégrée (DocuCortex) pour Anecoop"
   },
   "mac": {
     "target": [

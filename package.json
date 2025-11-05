@@ -1,7 +1,7 @@
 {
-  "name": "docucortex-ia",
+  "name": "rds-viewer",
   "version": "3.0.26",
-  "description": "DocuCortex IA - Gestionnaire avec Intelligence Artificielle",
+  "description": "RDS Viewer - Gestionnaire de sessions RDS avec Intelligence Artificielle (DocuCortex)",
   "author": "Anecoop <support@anecoop.com>",
   "main": "electron/main.js",
   "homepage": "./",
@@ -12,7 +12,13 @@
     "electron:dev": "electron .",
     "dev": "concurrently \"npm run server:start\" \"npm run start\"",
     "electron:start": "concurrently \"npm run server:start\" \"npm run start\" \"npm run electron:dev\"",
-    "build:exe": "npm run build && electron-builder --win portable --config electron-builder.json"
+    "build:exe": "npm run build && electron-builder --win portable --config electron-builder.json",
+    "build:portable": "cross-env NODE_ENV=production npm run build && electron-builder --win portable --x64",
+    "build:installer": "cross-env NODE_ENV=production npm run build && electron-builder --win nsis --x64",
+    "build:all": "cross-env NODE_ENV=production npm run build && electron-builder --win --x64",
+    "build:linux": "cross-env NODE_ENV=production npm run build && electron-builder --linux",
+    "build:mac": "cross-env NODE_ENV=production npm run build && electron-builder --mac",
+    "dist": "npm run build:all"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
