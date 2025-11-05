@@ -12,7 +12,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { fr } from 'date-fns/locale';
 
-import { AppProvider } from './contexts/AppContext';
+import { AppProvider, useApp } from './contexts/AppContext';
 import { CacheProvider } from './contexts/CacheContext';
 import LoginPage from './pages/LoginPage';
 import MainLayout from './layouts/MainLayout';
@@ -20,11 +20,12 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 import apiService from './services/apiService';
 import theme from './styles/theme'; // Importer le nouveau thème moderne
 
-function App() {
+// ✅ CORRECTION: Composant interne pour accéder au contexte et éviter la boucle infinie
+function AppContent() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [currentTechnician, setCurrentTechnician] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [configError, setConfigError] = useState(null); // Nouvel état pour l'erreur de config
+    const [configError, setConfigError] = useState(null);
+    const { currentTechnician, setCurrentTechnician } = useApp(); // ✅ Utiliser le contexte
 
     useEffect(() => {
         const checkHealthAndAuth = async () => {
@@ -44,7 +45,8 @@ function App() {
             const storedTechnicianId = localStorage.getItem('currentTechnicianId');
             if (storedTechnicianId) {
                 // Idéalement, on devrait valider le technicien auprès de l'API ici
-                setCurrentTechnician({ id: storedTechnicianId }); // Simulation simple
+                const technicianData = { id: storedTechnicianId }; // Simulation simple
+                setCurrentTechnician(technicianData); // ✅ Mettre à jour le contexte
                 setIsAuthenticated(true);
             }
 
@@ -52,17 +54,17 @@ function App() {
         };
 
         checkHealthAndAuth();
-    }, []);
+    }, [setCurrentTechnician]);
 
     const handleLoginSuccess = (technician) => {
-        setCurrentTechnician(technician);
+        setCurrentTechnician(technician); // ✅ Mettre à jour le contexte
         setIsAuthenticated(true);
     };
 
     const handleLogout = () => {
         apiService.logout();
         setIsAuthenticated(false);
-        setCurrentTechnician(null);
+        setCurrentTechnician(null); // ✅ Nettoyer le contexte
     };
 
     if (isLoading) {
@@ -84,28 +86,35 @@ function App() {
     );
 
     return (
+        <Router>
+            {!isAuthenticated ? (
+                <>
+                    <ConfigErrorAlert />
+                    <LoginPage onLoginSuccess={handleLoginSuccess} />
+                </>
+            ) : (
+                <ErrorBoundary>
+                    <CacheProvider>
+                        <ConfigErrorAlert />
+                        <MainLayout
+                            onLogout={handleLogout}
+                            currentTechnician={currentTechnician}
+                        />
+                    </CacheProvider>
+                </ErrorBoundary>
+            )}
+        </Router>
+    );
+}
+
+// ✅ Composant principal wrapper avec tous les providers
+function App() {
+    return (
         <ThemeProvider theme={theme}>
             <CssBaseline />
             <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={fr}>
                 <AppProvider>
-                    <Router>
-                        {!isAuthenticated ? (
-                            <>
-                                <ConfigErrorAlert />
-                                <LoginPage onLoginSuccess={handleLoginSuccess} />
-                            </>
-                        ) : (
-                            <ErrorBoundary>
-                                <CacheProvider>
-                                    <ConfigErrorAlert />
-                                    <MainLayout
-                                        onLogout={handleLogout}
-                                        currentTechnician={currentTechnician}
-                                    />
-                                </CacheProvider>
-                            </ErrorBoundary>
-                        )}
-                    </Router>
+                    <AppContent />
                 </AppProvider>
             </LocalizationProvider>
         </ThemeProvider>
