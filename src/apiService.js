@@ -18,34 +18,75 @@ const api = axios.create({
 // --- NOUVELLE LOGIQUE D'INITIALISATION ASYNCHRONE ---
 const initializeApiService = async () => {
   try {
-    // 1. Découvrir le port de l'API en utilisant une URL relative.
-    //    Cela fonctionne car le serveur React et le serveur API sont sur le même 'hôte'.
+    // Détecter si on est dans Electron ou chargé depuis file://
+    const isElectron = window.location.protocol === 'file:' ||
+                       window.navigator.userAgent.toLowerCase().includes('electron');
+
     console.log('[ApiService] 🔍 Découverte du port de l\'API...');
-    const response = await initialApi.get('/api/ports');
+    console.log('[ApiService] Environnement:', isElectron ? 'Electron (file://)' : 'Browser (http://)');
 
-    if (response.data.success && response.data.ports.http) {
-      const apiPort = response.data.ports.http;
-      const baseURL = `http://localhost:${apiPort}/api`;
+    let apiPort = 3002; // Port par défaut en production Electron
 
-      // 2. Configurer l'instance principale d'Axios avec la bonne URL de base.
-      api.defaults.baseURL = baseURL;
+    if (!isElectron) {
+      // En développement (browser), découverte du port via URL relative
+      console.log('[ApiService] Mode DEV - Découverte du port dynamique...');
+      const response = await initialApi.get('/api/ports');
 
-      console.log(`[ApiService] ✅ Configuration réussie. API sur: ${baseURL}`);
-
-      // Mettre en place les intercepteurs sur l'instance configurée
-      setupInterceptors();
-
-      return true; // Succès de l'initialisation
+      if (response.data.success && response.data.ports.http) {
+        apiPort = response.data.ports.http;
+        console.log(`[ApiService] Port découvert: ${apiPort}`);
+      } else {
+        throw new Error('La réponse de /api/ports est invalide.');
+      }
     } else {
-      throw new Error('La réponse de /api/ports est invalide.');
+      // En production Electron, utiliser le port fixe
+      console.log('[ApiService] Mode ELECTRON - Utilisation du port fixe 3002');
     }
+
+    const baseURL = `http://localhost:${apiPort}/api`;
+
+    // 2. Configurer l'instance principale d'Axios avec la bonne URL de base.
+    api.defaults.baseURL = baseURL;
+
+    console.log(`[ApiService] ✅ Configuration réussie. API sur: ${baseURL}`);
+
+    // Mettre en place les intercepteurs sur l'instance configurée
+    setupInterceptors();
+
+    // 3. Vérifier que le serveur répond
+    console.log('[ApiService] 🔍 Vérification de la disponibilité du serveur...');
+    try {
+      await api.get('/health', { timeout: 3000 });
+      console.log('[ApiService] ✅ Serveur backend disponible !');
+    } catch (healthError) {
+      console.warn('[ApiService] ⚠️ Le serveur ne répond pas immédiatement, retry dans 2s...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      await api.get('/health', { timeout: 5000 });
+      console.log('[ApiService] ✅ Serveur backend disponible (après retry) !');
+    }
+
+    return true; // Succès de l'initialisation
   } catch (error) {
     console.error('❌ [ApiService] ERREUR CRITIQUE: Impossible de configurer l\'API.', error.message);
+    console.error('❌ [ApiService] Détails:', error);
+
     // Afficher une alerte ou un message à l'utilisateur ici pourrait être une bonne idée
-    document.body.innerHTML = `<div style="text-align: center; margin-top: 50px; font-family: sans-serif; color: red;">
-      <h1>Erreur Critique</h1>
-      <p>Impossible de communiquer avec le serveur backend. L'application ne peut pas démarrer.</p>
-      <p>Veuillez vérifier que le serveur est bien lancé et accessible.</p>
+    document.body.innerHTML = `<div style="text-align: center; margin-top: 50px; font-family: sans-serif; color: white; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 50px;">
+      <h1 style="font-size: 48px; margin-bottom: 20px;">⚠️ Erreur Critique</h1>
+      <p style="font-size: 20px; margin-bottom: 30px;">Impossible de communiquer avec le serveur backend.</p>
+      <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; margin: 20px auto; max-width: 600px; text-align: left;">
+        <h3>Détails de l'erreur :</h3>
+        <pre style="text-align: left; white-space: pre-wrap; word-wrap: break-word;">${error.message}</pre>
+      </div>
+      <p style="font-size: 16px; margin-top: 30px;">Veuillez vérifier que :</p>
+      <ul style="list-style: none; padding: 0; font-size: 16px; line-height: 2;">
+        <li>✓ Le serveur backend est bien lancé</li>
+        <li>✓ Le port 3002 est accessible</li>
+        <li>✓ Aucun firewall ne bloque la connexion</li>
+      </ul>
+      <button onclick="window.location.reload()" style="margin-top: 30px; padding: 15px 30px; font-size: 18px; background: white; color: #667eea; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+        🔄 Réessayer
+      </button>
     </div>`;
     return Promise.reject('Échec de l\'initialisation de l\'API');
   }
