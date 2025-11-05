@@ -29,12 +29,14 @@
     {
       "from": "config",
       "to": "config",
-      "filter": ["**/*"]
+      "filter": ["**/*"],
+      "comment": "Config.json with network database path"
     },
     {
       "from": "data",
       "to": "data",
-      "filter": ["**/*"]
+      "filter": ["**/*"],
+      "comment": "Empty folder for OFFLINE mode fallback (no database included)"
     }
   ],
   "compression": "maximum",
@@ -49,8 +51,7 @@
     "node_modules/mammoth/**/*",
     "backend/**/*",
     "server/**/*",
-    "config/**/*",
-    "data/**/*"
+    "config/**/*"
   ],
   "win": {
     "target": [
