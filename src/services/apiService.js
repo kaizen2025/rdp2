@@ -150,8 +150,8 @@ class ApiService {
     deleteAIDocument = async (id) => this.request(`/ai/documents/${id}`, { method: 'DELETE' })
     searchAIDocuments = async (query, maxResults = 5, minScore = 0.1) => this.request('/ai/documents/search', { method: 'POST', body: JSON.stringify({ query, maxResults, minScore }) })
     
-    // Conversations
-    sendAIMessage = async (sessionId, message, userId = null) => this.request('/ai/chat', { method: 'POST', body: JSON.stringify({ sessionId, message, userId }) })
+    // Conversations - ✅ Using enhanced endpoint with Ollama support
+    sendAIMessage = async (sessionId, message, userId = null, aiProvider = 'ollama') => this.request('/ai/chat/enhanced', { method: 'POST', body: JSON.stringify({ sessionId, message, userId, aiProvider }) })
     getAIConversationHistory = async (sessionId, limit = 50) => this.request(`/ai/conversations/${sessionId}?limit=${limit}`)
     getAllAIConversations = async (limit = 50) => this.request(`/ai/conversations?limit=${limit}`)
     

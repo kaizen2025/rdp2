@@ -33,6 +33,8 @@ const LoginPage = ({ onLoginSuccess }) => {
     const [connectedUsers, setConnectedUsers] = useState([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
 
+    const [fullConfig, setFullConfig] = useState(null); // ✅ AJOUT: Stocker la config complète
+
     useEffect(() => {
         const loadInitialData = async () => {
             try {
@@ -40,6 +42,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                     apiService.getConfig(),
                     apiService.getConnectedTechnicians()
                 ]);
+                setFullConfig(config); // ✅ AJOUT: Sauvegarder config complète pour roles
                 const configuredTechnicians = config.it_technicians || [];
                 setTechnicians(configuredTechnicians);
                 setConnectedUsers(Array.isArray(connected) ? connected.map(c => c.id) : []);
@@ -69,11 +72,29 @@ const LoginPage = ({ onLoginSuccess }) => {
         try {
             // TODO: Remplacer la logique de mot de passe par un vrai appel API d'authentification
             if (password === 'admin') {
+                // ✅ CORRECTION CRITIQUE: Enrichir le technicien avec les permissions de son rôle
+                const enrichedTechnician = { ...selectedTechnician };
+
+                // Charger les permissions depuis config.roles
+                if (fullConfig && fullConfig.roles && selectedTechnician.role) {
+                    const roleConfig = fullConfig.roles[selectedTechnician.role];
+                    if (roleConfig && roleConfig.permissions) {
+                        enrichedTechnician.permissions = roleConfig.permissions;
+                        console.log(`✅ Permissions chargées pour ${selectedTechnician.name}:`, roleConfig.permissions);
+                    } else {
+                        console.warn(`⚠️ Rôle "${selectedTechnician.role}" introuvable, permissions par défaut appliquées`);
+                        enrichedTechnician.permissions = ['dashboard:view']; // Permission minimale
+                    }
+                } else {
+                    console.warn('⚠️ Config non disponible, permissions par défaut');
+                    enrichedTechnician.permissions = ['dashboard:view'];
+                }
+
                 // CORRECTION : Appel de la méthode "login" qui existe dans l'instance d'apiService
-                await apiService.login(selectedTechnician);
-                
-                setCurrentTechnician(selectedTechnician); 
-                onLoginSuccess(selectedTechnician);
+                await apiService.login(enrichedTechnician);
+
+                setCurrentTechnician(enrichedTechnician);
+                onLoginSuccess(enrichedTechnician);
             } else {
                 setError('Mot de passe incorrect (utilisez "admin" pour la démo).');
             }

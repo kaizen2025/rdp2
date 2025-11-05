@@ -156,7 +156,7 @@ export const MODULES = {
     id: 'dashboard',
     label: 'Tableau de bord',
     icon: '📊',
-    path: '/',
+    path: '/dashboard',  // ✅ CHANGÉ de '/' vers '/dashboard' pour éviter conflits de routing
     description: 'Vue d\'ensemble de l\'activité',
     requiredPermission: 'dashboard:view'
   },
@@ -170,15 +170,6 @@ export const MODULES = {
     requiredPermission: 'sessions:view'
   },
 
-  COMPUTERS: {
-    id: 'computers',
-    label: 'Ordinateurs',
-    icon: '💻',
-    path: '/computers',
-    description: 'Inventaire du parc informatique',
-    requiredPermission: 'computers:view'
-  },
-
   LOANS: {
     id: 'loans',
     label: 'Prêts',
@@ -188,52 +179,21 @@ export const MODULES = {
     requiredPermission: 'loans:view'
   },
 
-  USERS: {
-    id: 'users',
-    label: 'Utilisateurs AD',
-    icon: '👥',
-    path: '/users',
-    description: 'Gestion des utilisateurs Active Directory',
-    requiredPermission: 'users:view'
-  },
-
-  CHAT_GED: {
-    id: 'chat_ged',
-    label: 'Chat GED',
-    icon: '🤖',
-    path: '/chat-ged',
-    description: 'Assistant IA pour la gestion documentaire',
-    requiredPermission: 'chat_ged:view',
-    badge: 'NEW',
-    badgeColor: 'success'
-  },
-
   AI_ASSISTANT: {
     id: 'ai_assistant',
-    label: 'Assistant IA',
-    icon: '✨',
+    label: 'DocuCortex IA',  // ✅ RENOMMÉ pour être plus explicite
+    icon: '🤖',
     path: '/ai-assistant',
-    description: 'Gestion des documents et IA',
+    description: 'Assistant IA documentaire avec Ollama/Llama et OCR',
     requiredPermission: 'ai_assistant:view'
-  },
-
-  REPORTS: {
-    id: 'reports',
-    label: 'Rapports',
-    icon: '📈',
-    path: '/reports',
-    description: 'Rapports et statistiques',
-    requiredPermission: 'reports:view'
-  },
-
-  SETTINGS: {
-    id: 'settings',
-    label: 'Paramètres',
-    icon: '⚙️',
-    path: '/settings',
-    description: 'Configuration de l\'application',
-    requiredPermission: 'settings:view'
   }
+
+  // ❌ SUPPRIMÉS (non utilisés ou doublons):
+  // - COMPUTERS: Onglet "Ordinateurs" pas nécessaire
+  // - USERS: "Utilisateurs AD" remplacé par gestion dans Settings
+  // - CHAT_GED: Doublon avec AI_ASSISTANT
+  // - REPORTS: Pas implémenté/utilisé
+  // - SETTINGS: Disponible uniquement dans le menu utilisateur (profil)
 };
 
 // ==================== HELPERS ====================
@@ -242,6 +202,11 @@ export const MODULES = {
  * Obtenir un rôle par son ID
  */
 export const getRoleById = (roleId) => {
+  // ✅ PROTECTION: Vérifier que ROLES est défini
+  if (!ROLES || typeof ROLES !== 'object') {
+    console.error('❌ ROLES is undefined or invalid in getRoleById');
+    return null;
+  }
   return Object.values(ROLES).find(role => role.id === roleId);
 };
 
@@ -249,6 +214,11 @@ export const getRoleById = (roleId) => {
  * Obtenir les rôles triés par priorité
  */
 export const getSortedRoles = () => {
+  // ✅ PROTECTION: Vérifier que ROLES est défini
+  if (!ROLES || typeof ROLES !== 'object') {
+    console.error('❌ ROLES is undefined or invalid in getSortedRoles');
+    return [];
+  }
   return Object.values(ROLES).sort((a, b) => b.priority - a.priority);
 };
 
@@ -289,6 +259,12 @@ export const inferRoleFromPermissions = (permissions) => {
  */
 export const getAccessibleModules = (permissions) => {
   if (!permissions || permissions.length === 0) return [];
+
+  // ✅ PROTECTION: Vérifier que MODULES est défini
+  if (!MODULES || typeof MODULES !== 'object') {
+    console.error('❌ MODULES is undefined or invalid in getAccessibleModules');
+    return [];
+  }
 
   return Object.values(MODULES).filter(module => {
     // Si super admin, tout est accessible

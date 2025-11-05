@@ -78,7 +78,12 @@ function MainLayout({ onLogout, currentTechnician, onChatClick }) {
         badgeColor: module.badgeColor
     }));
 
-    const currentTab = navItems.findIndex(item => location.pathname.startsWith(item.path));
+    // ✅ FIX: Meilleure logique pour détecter l'onglet actif
+    // Chercher correspondance exacte d'abord, puis par startsWith (du plus long au plus court)
+    const currentTab = navItems.findIndex(item =>
+        location.pathname === item.path ||
+        (location.pathname.startsWith(item.path) && item.path !== '/')
+    );
 
     const refreshData = useCallback(async () => {
         try {
