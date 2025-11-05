@@ -4,7 +4,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const log = require('electron-log');
-const { exec, fork } = require('child_process');
+const { exec } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const isDev = require('electron-is-dev');
@@ -33,56 +33,55 @@ logToUI('info', '[Main] ===================================================');
 
 function startServer() {
     if (!isDev) {
-        logToUI('info', '[Main] Environnement de production détecté. Démarrage du serveur Node.js interne...');
+        logToUI('info', '[Main] 🚀 Environnement de production détecté. Démarrage du serveur Node.js interne...');
 
-        // En mode packagé, server/ est dans app.asar.unpacked (asarUnpack)
-        const appPath = app.getAppPath();
-        const unpackedPath = appPath.replace('app.asar', 'app.asar.unpacked');
-        const serverPath = path.join(unpackedPath, 'server', 'server.js');
+        try {
+            // En mode packagé, server/ est dans app.asar.unpacked (asarUnpack)
+            const appPath = app.getAppPath();
+            const unpackedPath = appPath.replace('app.asar', 'app.asar.unpacked');
 
-        logToUI('info', `[Main] Chemin app: ${appPath}`);
-        logToUI('info', `[Main] Chemin unpacked: ${unpackedPath}`);
-        logToUI('info', `[Main] Chemin du serveur: ${serverPath}`);
+            logToUI('info', `[Main] Chemin app: ${appPath}`);
+            logToUI('info', `[Main] Chemin unpacked: ${unpackedPath}`);
 
-        // Vérifier que le fichier serveur existe
-        if (!fs.existsSync(serverPath)) {
-            logToUI('error', `[Main] ❌ ERREUR: Fichier serveur introuvable: ${serverPath}`);
-            dialog.showErrorBox('Erreur Serveur', `Le fichier serveur est introuvable.\n\nChemin attendu: ${serverPath}\n\nVeuillez réinstaller l'application.`);
-            return;
-        }
+            // ✅ SOLUTION ROBUSTE: Configurer NODE_PATH AVANT require()
+            const nodeModulesPath = path.join(unpackedPath, 'node_modules');
+            process.env.NODE_PATH = nodeModulesPath;
+            require('module').Module._initPaths(); // Reload module paths
 
-        logToUI('info', '[Main] ✅ Fichier serveur trouvé, démarrage...');
+            logToUI('info', `[Main] ✅ NODE_PATH configuré: ${nodeModulesPath}`);
 
-        // Configurer NODE_PATH pour que le serveur forké trouve les modules npm
-        const nodeModulesPath = path.join(unpackedPath, 'node_modules');
-        logToUI('info', `[Main] Configuration NODE_PATH: ${nodeModulesPath}`);
+            // Configurer les variables d'environnement pour le serveur
+            process.env.RUNNING_IN_ELECTRON = 'true';
+            process.env.PORT = '3002';
 
-        const serverProcess = fork(serverPath, [], {
-            silent: true,
-            env: {
-                ...process.env,
-                RUNNING_IN_ELECTRON: 'true',
-                NODE_PATH: nodeModulesPath, // ✅ CRITIQUE: Permet de trouver express, better-sqlite3, etc.
-                PORT: '3002'
+            // Changer le répertoire de travail pour le serveur
+            const serverDir = path.join(unpackedPath, 'server');
+            const serverPath = path.join(serverDir, 'server.js');
+
+            logToUI('info', `[Main] Chemin du serveur: ${serverPath}`);
+
+            // Vérifier que le fichier serveur existe
+            if (!fs.existsSync(serverPath)) {
+                throw new Error(`Fichier serveur introuvable: ${serverPath}`);
             }
-        });
 
-        serverProcess.stdout.on('data', (data) => logToUI('info', `[Server] ${data.toString().trim()}`));
-        serverProcess.stderr.on('data', (data) => logToUI('error', `[Server ERROR] ${data.toString().trim()}`));
-        serverProcess.on('error', (err) => {
-            logToUI('error', '[Main] ❌ Erreur critique du processus serveur:', err);
-            dialog.showErrorBox('Erreur Serveur Interne', `Le processus serveur a rencontré une erreur fatale: ${err.message}`);
+            logToUI('info', '[Main] ✅ Fichier serveur trouvé, chargement...');
+
+            // ✅ DÉMARRER LE SERVEUR DANS LE PROCESSUS ELECTRON (pas de fork)
+            // Cela garantit que tous les modules sont accessibles
+            require(serverPath);
+
+            logToUI('info', '[Main] ✅ Serveur backend chargé et démarré avec succès');
+
+        } catch (error) {
+            logToUI('error', `[Main] ❌ ERREUR FATALE lors du démarrage du serveur: ${error.message}`);
+            logToUI('error', `[Main] Stack trace: ${error.stack}`);
+            dialog.showErrorBox(
+                'Erreur Serveur Critique',
+                `Impossible de démarrer le serveur backend:\n\n${error.message}\n\nL'application va se fermer.\n\nConsultez les logs pour plus de détails.`
+            );
             app.quit();
-        });
-        serverProcess.on('exit', (code) => {
-            if (code !== 0) logToUI('error', `[Main] ⚠️ Le processus serveur s'est arrêté avec le code d'erreur: ${code}`);
-            else logToUI('info', '[Main] Le processus serveur s\'est terminé proprement.');
-        });
-        app.on('will-quit', () => {
-            logToUI('info', '[Main] Arrêt du processus serveur...');
-            serverProcess.kill();
-        });
-        logToUI('info', '[Main] ✅ Processus serveur démarré.');
+        }
     } else {
         logToUI('info', '[Main] Mode développement. Le serveur backend est géré par un processus externe.');
     }
