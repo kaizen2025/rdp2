@@ -10,24 +10,14 @@ echo   Build Rapide - Portable EXE
 echo ======================================
 echo.
 
-echo [1/3] Nettoyage du build précédent...
+echo [1/2] Nettoyage du build précédent...
 if exist dist rmdir /s /q dist
 if exist build rmdir /s /q build
 echo       ✓ Nettoyé
 
 echo.
-echo [2/3] Compilation du frontend...
-call npm run build
-if %ERRORLEVEL% NEQ 0 (
-    echo [ERREUR] Build échoué !
-    pause
-    exit /b 1
-)
-echo       ✓ Compilé
-
-echo.
-echo [3/3] Génération de l'exécutable...
-call npx electron-builder --win portable --config electron-builder.json
+echo [2/2] Build complet (React + Electron)...
+call npm run build:exe
 if %ERRORLEVEL% NEQ 0 (
     echo [ERREUR] Génération échouée !
     pause
