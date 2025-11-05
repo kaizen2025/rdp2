@@ -2,6 +2,7 @@
   "name": "docucortex-ia",
   "version": "3.0.26",
   "description": "DocuCortex IA - Gestionnaire avec Intelligence Artificielle",
+  "author": "Anecoop <support@anecoop.com>",
   "main": "electron/main.js",
   "homepage": "./",
   "scripts": {

@@ -35,9 +35,12 @@
   "compression": "maximum",
   "asar": true,
   "asarUnpack": [
-    "node_modules/sharp/**/*",
-    "node_modules/bcrypt/**/*"
+    "node_modules/bcrypt/**/*",
+    "node_modules/better-sqlite3/**/*",
+    "node_modules/tesseract.js/**/*"
   ],
+  "npmRebuild": false,
+  "buildDependenciesFromSource": false,
   "win": {
     "target": [
       {
@@ -67,7 +70,8 @@
     "deleteAppDataOnUninstall": false
   },
   "portable": {
-    "artifactName": "${productName}-${version}-Portable.${ext}"
+    "artifactName": "${productName}-${version}-Portable.${ext}",
+    "requestExecutionLevel": "user"
   },
   "linux": {
     "target": [
