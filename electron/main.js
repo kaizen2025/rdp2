@@ -34,8 +34,24 @@ logToUI('info', '[Main] ===================================================');
 function startServer() {
     if (!isDev) {
         logToUI('info', '[Main] Environnement de production détecté. Démarrage du serveur Node.js interne...');
-        const serverPath = path.join(__dirname, '..', 'server', 'server.js');
+
+        // En mode packagé, server/ est dans app.asar.unpacked (asarUnpack)
+        const appPath = app.getAppPath();
+        const unpackedPath = appPath.replace('app.asar', 'app.asar.unpacked');
+        const serverPath = path.join(unpackedPath, 'server', 'server.js');
+
+        logToUI('info', `[Main] Chemin app: ${appPath}`);
+        logToUI('info', `[Main] Chemin unpacked: ${unpackedPath}`);
         logToUI('info', `[Main] Chemin du serveur: ${serverPath}`);
+
+        // Vérifier que le fichier serveur existe
+        if (!fs.existsSync(serverPath)) {
+            logToUI('error', `[Main] ❌ ERREUR: Fichier serveur introuvable: ${serverPath}`);
+            dialog.showErrorBox('Erreur Serveur', `Le fichier serveur est introuvable.\n\nChemin attendu: ${serverPath}\n\nVeuillez réinstaller l'application.`);
+            return;
+        }
+
+        logToUI('info', '[Main] ✅ Fichier serveur trouvé, démarrage...');
 
         const serverProcess = fork(serverPath, [], {
             silent: true,
