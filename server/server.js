@@ -1,4 +1,4 @@
-// server/server.js - VERSION FINALE ULTRA-RAPIDE
+// server/server.js - VERSION FINALE ULTRA-RAPIDE + DEBUG
 
 // ... (tous les imports restent les mêmes)
 const express = require('express');
@@ -7,6 +7,7 @@ const http = require('http');
 const { WebSocketServer } = require('ws');
 const os = require('os');
 const path = require('path');
+const fs = require('fs');
 
 const configService = require('../backend/services/configService');
 const databaseService = require('../backend/services/databaseService');
@@ -147,13 +148,22 @@ function startBackgroundTasks() {
 
 async function startServer() {
     try {
+        console.log('🔍 [DEBUG] __dirname:', __dirname);
+        console.log('🔍 [DEBUG] process.cwd():', process.cwd());
+        console.log('🔍 [DEBUG] NODE_ENV:', process.env.NODE_ENV);
+        console.log('🔍 [DEBUG] RUNNING_IN_ELECTRON:', process.env.RUNNING_IN_ELECTRON);
+
         const isProduction = process.env.NODE_ENV === 'production' || process.env.RUNNING_IN_ELECTRON === 'true';
+        console.log('🔍 [DEBUG] isProduction:', isProduction);
+
         if (isProduction) {
             API_PORT = 3002; WS_PORT = 3003;
+            console.log('✅ Mode PRODUCTION - Ports fixes:', { API_PORT, WS_PORT });
         } else {
             const ports = await findAllPorts({ http: { start: 3002, end: 3012 }, websocket: { start: 3003, end: 3013 } });
             API_PORT = ports.http; WS_PORT = ports.websocket;
             await savePorts(ports);
+            console.log('✅ Mode DEV - Ports trouvés:', { API_PORT, WS_PORT });
         }
 
         await configService.loadConfigAsync();
@@ -217,11 +227,19 @@ async function startServer() {
         });
     } catch (error) {
         console.error("❌ ERREUR CRITIQUE AU DÉMARRAGE :", error.message);
+        console.error("❌ Stack trace:", error.stack);
+        console.error("❌ Erreur complète:", error);
         process.exit(1);
     }
 }
 
-startServer();
+console.log('🔍 [DEBUG] Appel de startServer()...');
+try {
+    startServer();
+} catch (error) {
+    console.error("❌ ERREUR LORS DE L'APPEL DE startServer():", error);
+    process.exit(1);
+}
 
 process.on('SIGINT', () => {
     console.log('\nFermeture propre du serveur...');
