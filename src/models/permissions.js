@@ -242,6 +242,11 @@ export const MODULES = {
  * Obtenir un rôle par son ID
  */
 export const getRoleById = (roleId) => {
+  // ✅ PROTECTION: Vérifier que ROLES est défini
+  if (!ROLES || typeof ROLES !== 'object') {
+    console.error('❌ ROLES is undefined or invalid in getRoleById');
+    return null;
+  }
   return Object.values(ROLES).find(role => role.id === roleId);
 };
 
@@ -249,6 +254,11 @@ export const getRoleById = (roleId) => {
  * Obtenir les rôles triés par priorité
  */
 export const getSortedRoles = () => {
+  // ✅ PROTECTION: Vérifier que ROLES est défini
+  if (!ROLES || typeof ROLES !== 'object') {
+    console.error('❌ ROLES is undefined or invalid in getSortedRoles');
+    return [];
+  }
   return Object.values(ROLES).sort((a, b) => b.priority - a.priority);
 };
 
@@ -289,6 +299,12 @@ export const inferRoleFromPermissions = (permissions) => {
  */
 export const getAccessibleModules = (permissions) => {
   if (!permissions || permissions.length === 0) return [];
+
+  // ✅ PROTECTION: Vérifier que MODULES est défini
+  if (!MODULES || typeof MODULES !== 'object') {
+    console.error('❌ MODULES is undefined or invalid in getAccessibleModules');
+    return [];
+  }
 
   return Object.values(MODULES).filter(module => {
     // Si super admin, tout est accessible
