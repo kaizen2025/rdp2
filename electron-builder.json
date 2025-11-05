@@ -2,6 +2,9 @@
   "appId": "com.anecoop.docucortex",
   "productName": "DocuCortex IA",
   "copyright": "Copyright © 2025 Anecoop",
+  "extraMetadata": {
+    "main": "electron/main.js"
+  },
   "directories": {
     "buildResources": "assets",
     "output": "dist"
