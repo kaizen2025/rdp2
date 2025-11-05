@@ -5,6 +5,7 @@ import apiService from '../services/apiService';
 
 const AppContext = createContext();
 
+export { AppContext }; // ✅ EXPORT AJOUTÉ pour usePermissions
 export const useApp = () => useContext(AppContext);
 
 // ✅ CORRECTION: Utiliser localhost explicitement pour éviter une URL invalide dans Electron
