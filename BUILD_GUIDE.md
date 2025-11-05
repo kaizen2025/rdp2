@@ -167,6 +167,36 @@ Ces modules doivent être extraits du fichier ASAR car ils contiennent des binai
 
 ---
 
+## ⚠️ IMPORTANT: Architecture Base de Données
+
+**LA BASE DE DONNÉES N'EST PAS DANS L'EXE !**
+
+### **Comment ça fonctionne:**
+
+1. **Base réseau partagée (Mode ONLINE)** 🌐
+   - Chemin: `\\192.168.1.230\Donnees\Informatique\PROGRAMMES\Programme RDS\RDS Viewer Group\rds_viewer_data.sqlite`
+   - Configuration dans `config.json` → `databasePath`
+   - ✅ **Tous les utilisateurs partagent la même base**
+   - ✅ **Aucune copie locale**
+   - ✅ **Aucun risque d'écrasement**
+
+2. **Base locale de secours (Mode OFFLINE)** 💾
+   - Chemin: `data/rds_viewer_data.sqlite` (local)
+   - Créée automatiquement si serveur réseau inaccessible
+   - ⚠️ Mode dégradé - Données isolées
+
+### **Garantie:**
+```
+✅ L'exe portable ne contient PAS de base de données
+✅ La base réseau existante n'est JAMAIS écrasée
+✅ Le dossier data/ de l'exe est VIDE
+✅ Connexion automatique à \\192.168.1.230
+```
+
+**📖 Pour les détails complets, voir:** `DATABASE_ARCHITECTURE.md`
+
+---
+
 ## 🧪 Test de l'exe généré
 
 ### **Étape 1: Localiser l'exe**
@@ -190,6 +220,8 @@ ls   # Linux/Mac
    - [ ] L'exe se lance sans erreur
    - [ ] Le splash screen s'affiche (si configuré)
    - [ ] Le serveur backend démarre automatiquement (port 3002)
+   - [ ] Logs montrent "Mode ONLINE" (connexion réseau `\\192.168.1.230`)
+   - [ ] ⚠️ **IMPORTANT:** Si "Mode OFFLINE", vérifier accès réseau (voir DATABASE_ARCHITECTURE.md)
 
 2. **Page de connexion**
    - [ ] La page de login s'affiche correctement
@@ -443,12 +475,13 @@ npm run build:portable
 - [ ] AI Assistant fonctionne (si Ollama configuré)
 - [ ] Toutes les pages RDS Viewer accessibles
 - [ ] Permissions utilisateurs fonctionnent
-- [ ] Base de données SQLite se crée correctement
-- [ ] Fichier de configuration `config.json` présent
+- [ ] Connexion à la base réseau réussie (mode ONLINE) ⚠️ **Voir DATABASE_ARCHITECTURE.md**
+- [ ] Fichier de configuration `config.json` présent avec chemin réseau correct
 - [ ] LICENSE file présent
 - [ ] README.md à jour
 - [ ] Version number correct dans package.json
 - [ ] Code signé (si distribution publique)
+- [ ] **IMPORTANT:** Vérifier que le dossier `data/` de l'exe est vide (pas de base locale)
 
 ---
 
