@@ -124,6 +124,10 @@ function createWindow() {
         const prodPath = path.join(__dirname, '..', 'build', 'index.html');
         logToUI('info', `[Main] Chargement du fichier de production: ${prodPath}`);
         mainWindow.loadFile(prodPath).catch(err => logToUI('error', `[Main] ❌ Impossible de charger le fichier de prod: ${err.message}`));
+
+        // ⚠️ MODE DEBUG ACTIVÉ - Ouvrir DevTools en production
+        mainWindow.webContents.openDevTools();
+        logToUI('info', '[Main] 🔍 DevTools ouvert pour debugging');
     }
 
     mainWindow.once('ready-to-show', () => {
