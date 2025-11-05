@@ -31,12 +31,14 @@ import {
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import apiService from '../../services/apiService';
+import DocumentPreviewModal from './DocumentPreviewModal'; // ✅ AJOUT
 
 const ChatInterfaceDocuCortex = ({ sessionId, onMessageSent }) => {
     const [messages, setMessages] = useState([]);
     const [inputMessage, setInputMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [showWelcome, setShowWelcome] = useState(true);
+    const [previewModal, setPreviewModal] = useState({ open: false, documentId: null, filename: '', networkPath: '' }); // ✅ AJOUT
     const messagesEndRef = useRef(null);
 
     const scrollToBottom = () => {
@@ -182,16 +184,21 @@ Je peux vous aider à :
         }
     };
 
-    const handlePreview = async (documentId) => {
+    const handlePreview = async (attachment) => {
         try {
-            const result = await apiService.getDocumentPreview(documentId);
-            if (result.success) {
-                // TODO: Ouvrir modal de preview
-                console.log('Preview:', result);
-            }
+            setPreviewModal({
+                open: true,
+                documentId: attachment.documentId,
+                filename: attachment.filename,
+                networkPath: attachment.networkPath
+            });
         } catch (error) {
             console.error('Erreur preview:', error);
         }
+    };
+
+    const closePreviewModal = () => {
+        setPreviewModal({ open: false, documentId: null, filename: '', networkPath: '' });
     };
 
     return (
@@ -227,6 +234,15 @@ Je peux vous aider à :
                         onPreview={handlePreview}
                     />
                 ))}
+
+                {/* ✅ AJOUT - Modal de prévisualisation */}
+                <DocumentPreviewModal
+                    open={previewModal.open}
+                    onClose={closePreviewModal}
+                    documentId={previewModal.documentId}
+                    filename={previewModal.filename}
+                    networkPath={previewModal.networkPath}
+                />
 
                 {isLoading && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
@@ -357,12 +373,17 @@ const MessageBubble = ({ message, onSuggestionClick, onDownload, onPreview }) =>
                         {!isUser && message.attachments && message.attachments.length > 0 && (
                             <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                                 {message.attachments.map((att, idx) => (
-                                    <Box key={idx} sx={{ display: 'flex', gap: 0.5 }}>
+                                    <Box key={idx} sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                                        <Chip
+                                            label={att.filename}
+                                            size="small"
+                                            sx={{ mr: 0.5, maxWidth: 200 }}
+                                        />
                                         {att.canPreview && (
                                             <Tooltip title="Aperçu">
                                                 <IconButton
                                                     size="small"
-                                                    onClick={() => onPreview(att.documentId)}
+                                                    onClick={() => onPreview(att)}
                                                     sx={{ bgcolor: '#f0f0f0' }}
                                                 >
                                                     <PreviewIcon fontSize="small" />

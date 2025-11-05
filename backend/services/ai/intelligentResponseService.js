@@ -44,17 +44,17 @@ class IntelligentResponseService {
         relevantDocs.forEach((doc, i) => {
             const citation = `[${i + 1}] ${doc.filename}`;
             const score = Math.round(doc.score * 100);
-            
+
             response += `${citation}\n`;
             response += `📌 **Source:** \`${doc.networkPath || 'Local'}\`\n`;
             response += `📊 **Pertinence:** ${score}% `;
             response += score >= 80 ? '🟢' : score >= 50 ? '🟡' : '🟠';
             response += `\n`;
-            
+
             if (doc.excerpt) {
                 response += `📄 **Extrait:** "${doc.excerpt.substring(0, 200)}..."\n`;
             }
-            
+
             response += `\n`;
         });
 
@@ -70,6 +70,109 @@ class IntelligentResponseService {
             citations: relevantDocs.map(d => ({ id: d.id, filename: d.filename, path: d.networkPath })),
             suggestions
         };
+    }
+
+    /**
+     * ✅ NOUVELLE MÉTHODE - Alias avec enrichissement pour aiService.js
+     */
+    generateEnrichedResponse(query, enrichedResults) {
+        // Détecter l'intention
+        const intent = this.detectIntent(query);
+
+        // Formater les documents pour generateStructuredResponse
+        const formattedDocs = enrichedResults.map(result => ({
+            id: result.documentId,
+            filename: result.metadata.filename,
+            score: result.score,
+            networkPath: result.metadata.filepath || result.metadata.relativePath,
+            excerpt: this.extractExcerpt(result.content, query),
+            metadata: result.metadata
+        }));
+
+        // Appeler la méthode principale
+        const structuredResponse = this.generateStructuredResponse(query, formattedDocs, intent);
+
+        // Enrichir avec attachments
+        const attachments = formattedDocs.map(doc => ({
+            documentId: doc.id,
+            filename: doc.filename,
+            networkPath: doc.networkPath,
+            canPreview: this.isPreviewable(doc.filename),
+            canDownload: true,
+            score: Math.round(doc.score * 100)
+        }));
+
+        return {
+            text: structuredResponse.text,
+            confidence: this.calculateConfidence(formattedDocs),
+            sources: formattedDocs.map(d => ({
+                id: d.id,
+                filename: d.filename,
+                path: d.networkPath,
+                score: Math.round(d.score * 100)
+            })),
+            attachments: attachments,
+            suggestions: structuredResponse.suggestions,
+            metadata: {
+                totalDocuments: formattedDocs.length,
+                averageScore: this.calculateAverageScore(formattedDocs),
+                intent: intent
+            }
+        };
+    }
+
+    /**
+     * Extrait un extrait pertinent du contenu
+     */
+    extractExcerpt(content, query) {
+        if (!content) return '';
+
+        const queryWords = query.toLowerCase().split(' ').filter(w => w.length > 2);
+        const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 20);
+
+        // Chercher la phrase la plus pertinente
+        let bestSentence = sentences[0] || '';
+        let bestScore = 0;
+
+        sentences.forEach(sentence => {
+            let score = 0;
+            queryWords.forEach(word => {
+                if (sentence.toLowerCase().includes(word)) {
+                    score++;
+                }
+            });
+            if (score > bestScore) {
+                bestScore = score;
+                bestSentence = sentence;
+            }
+        });
+
+        return bestSentence.trim().substring(0, 300);
+    }
+
+    /**
+     * Vérifie si le fichier est prévisualisable
+     */
+    isPreviewable(filename) {
+        const ext = filename.split('.').pop().toLowerCase();
+        return ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'txt', 'md'].includes(ext);
+    }
+
+    /**
+     * Calcule le score de confiance global
+     */
+    calculateConfidence(docs) {
+        if (docs.length === 0) return 0;
+        const avgScore = docs.reduce((sum, d) => sum + d.score, 0) / docs.length;
+        return Math.min(avgScore, 1);
+    }
+
+    /**
+     * Calcule le score moyen
+     */
+    calculateAverageScore(docs) {
+        if (docs.length === 0) return 0;
+        return Math.round(docs.reduce((sum, d) => sum + (d.score * 100), 0) / docs.length);
     }
 
     generateRelatedQuestions(query, docs) {
