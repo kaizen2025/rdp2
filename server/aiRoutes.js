@@ -1630,216 +1630,98 @@ module.exports = (broadcast) => {
         res.json(result);
     }));
 
-    // ==================== OLLAMA INTEGRATION ENDPOINTS ====================
-
-    /**
-     * GET /ai/ollama/status - Vérifie le statut du service Ollama
-     */
+    /* ==================== OLLAMA INTEGRATION ENDPOINTS (DISABLED) ====================
+     * ❌ DISABLED: All Ollama endpoints are commented out because ollamaService was removed.
+     * Ollama has been replaced by Hugging Face (priority 1) and OpenRouter (priority 2).
+     * To re-enable these features, re-implement using aiService.processQuery() with HF/OpenRouter.
+     *
     router.get('/ollama/status', asyncHandler(async (req, res) => {
-        const result = await aiService.initialize(); // S'assure que tout est initialisé
+        const result = await aiService.initialize();
         const ollamaInfo = aiService.getOllamaInfo();
-        
-        res.json({
-            success: true,
-            aiService: result,
-            ollama: ollamaInfo
-        });
+        res.json({ success: true, aiService: result, ollama: ollamaInfo });
     }));
 
-    /**
-     * GET /ai/ollama/models - Liste les modèles disponibles
-     */
     router.get('/ollama/models', asyncHandler(async (req, res) => {
         const modelInfo = ollamaService.getModelInfo();
-        
-        res.json({
-            success: true,
-            currentModel: modelInfo.name,
-            available: modelInfo.available,
-            models: modelInfo.allModels
-        });
+        res.json({ success: true, currentModel: modelInfo.name, available: modelInfo.available, models: modelInfo.allModels });
     }));
 
-    /**
-     * POST /ai/ollama/model - Change le modèle Ollama
-     */
     router.post('/ollama/model', asyncHandler(async (req, res) => {
         const { modelName } = req.body;
-        
-        if (!modelName) {
-            return res.status(400).json({
-                success: false,
-                error: 'Nom du modèle requis'
-            });
-        }
-
+        if (!modelName) return res.status(400).json({ success: false, error: 'Nom du modèle requis' });
         const result = await aiService.setOllamaModel(modelName);
         res.json(result);
     }));
 
-    /**
-     * POST /ai/ollama/chat - Chat direct avec Ollama
-     */
     router.post('/ollama/chat', asyncHandler(async (req, res) => {
         const { message, messages, systemPrompt, temperature, maxTokens } = req.body;
-        
-        if (!message && !messages) {
-            return res.status(400).json({
-                success: false,
-                error: 'Message ou messages requis'
-            });
-        }
-
+        if (!message && !messages) return res.status(400).json({ success: false, error: 'Message ou messages requis' });
         const inputMessages = messages || [{ role: 'user', content: message }];
-        
-        const result = await ollamaService.processConversation(inputMessages, {
-            systemPrompt: systemPrompt,
-            temperature: temperature || 0.7,
-            maxTokens: maxTokens || 512
-        });
-
-        // Notifier via WebSocket si success
-        if (result.success) {
-            broadcast({
-                type: 'ollama_response',
-                provider: 'ollama',
-                response: result.response,
-                model: ollamaService.model,
-                timestamp: new Date().toISOString()
-            });
-        }
-
+        const result = await ollamaService.processConversation(inputMessages, { systemPrompt, temperature: temperature || 0.7, maxTokens: maxTokens || 512 });
+        if (result.success) broadcast({ type: 'ollama_response', provider: 'ollama', response: result.response, model: ollamaService.model, timestamp: new Date().toISOString() });
         res.json(result);
     }));
 
-    /**
-     * POST /ai/ollama/sentiment - Analyse de sentiment
-     */
     router.post('/ollama/sentiment', asyncHandler(async (req, res) => {
         const { text } = req.body;
-        
-        if (!text) {
-            return res.status(400).json({
-                success: false,
-                error: 'Texte requis pour l\'analyse'
-            });
-        }
-
+        if (!text) return res.status(400).json({ success: false, error: 'Texte requis pour l\'analyse' });
         const result = await aiService.analyzeSentiment(text);
         res.json(result);
     }));
 
-    /**
-     * POST /ai/ollama/summarize - Résumé de texte
-     */
     router.post('/ollama/summarize', asyncHandler(async (req, res) => {
         const { text, maxLength } = req.body;
-        
-        if (!text) {
-            return res.status(400).json({
-                success: false,
-                error: 'Texte requis pour le résumé'
-            });
-        }
-
+        if (!text) return res.status(400).json({ success: false, error: 'Texte requis pour le résumé' });
         const result = await aiService.summarizeText(text, maxLength || 200);
         res.json(result);
     }));
 
-    /**
-     * POST /ai/ollama/keywords - Extraction de mots-clés
-     */
     router.post('/ollama/keywords', asyncHandler(async (req, res) => {
         const { text, maxKeywords } = req.body;
-        
-        if (!text) {
-            return res.status(400).json({
-                success: false,
-                error: 'Texte requis pour l\'extraction'
-            });
-        }
-
+        if (!text) return res.status(400).json({ success: false, error: 'Texte requis pour l\'extraction' });
         const result = await aiService.extractKeywords(text, maxKeywords || 10);
         res.json(result);
     }));
 
-    /**
-     * POST /ai/ollama/translate - Traduction
-     */
     router.post('/ollama/translate', asyncHandler(async (req, res) => {
         const { text, targetLanguage } = req.body;
-        
-        if (!text || !targetLanguage) {
-            return res.status(400).json({
-                success: false,
-                error: 'Texte et langue cible requis'
-            });
-        }
-
+        if (!text || !targetLanguage) return res.status(400).json({ success: false, error: 'Texte et langue cible requis' });
         const result = await aiService.translateText(text, targetLanguage);
         res.json(result);
     }));
 
-    /**
-     * POST /ai/ollama/qa - Q&A sur un document
-     */
     router.post('/ollama/qa', asyncHandler(async (req, res) => {
         const { documentId, question } = req.body;
-        
-        if (!documentId || !question) {
-            return res.status(400).json({
-                success: false,
-                error: 'ID document et question requis'
-            });
-        }
-
+        if (!documentId || !question) return res.status(400).json({ success: false, error: 'ID document et question requis' });
         const result = await aiService.answerQuestion(documentId, question);
         res.json(result);
     }));
 
-    /**
-     * GET /ai/ollama/stats - Statistiques Ollama
-     */
     router.get('/ollama/stats', asyncHandler(async (req, res) => {
         const stats = ollamaService.getStatistics();
         const aiStats = await aiService.getStatistics();
-        
-        res.json({
-            success: true,
-            ollama: stats,
-            ai: aiStats,
-            comparison: {
-                ollamaRequests: stats.stats.totalRequests,
-                aiTotalQueries: aiStats.runtime?.totalQueries || 0,
-                ollamaEnabled: aiService.ollamaEnabled
-            }
-        });
+        res.json({ success: true, ollama: stats, ai: aiStats, comparison: { ollamaRequests: stats.stats.totalRequests, aiTotalQueries: aiStats.runtime?.totalQueries || 0, ollamaEnabled: aiService.ollamaEnabled } });
     }));
 
-    /**
-     * POST /ai/ollama/reset-stats - Reset des statistiques Ollama
-     */
     router.post('/ollama/reset-stats', asyncHandler(async (req, res) => {
         const result = ollamaService.resetStatistics();
         res.json(result);
     }));
 
-    /**
-     * GET /ai/ollama/test - Test de connexion Ollama
-     */
     router.get('/ollama/test', asyncHandler(async (req, res) => {
         const result = await ollamaService.testConnection();
         res.json(result);
     }));
+    */ // END OLLAMA ENDPOINTS (DISABLED)
 
-    // ==================== ENHANCED AI CHAT WITH OLLAMA SUPPORT ====================
+    // ==================== ENHANCED AI CHAT WITH MULTI-PROVIDER SUPPORT ====================
 
     /**
-     * POST /ai/chat/enhanced - Chat avec support Ollama
+     * POST /ai/chat/enhanced - Chat avec support multi-provider (HF/OpenRouter)
      */
     router.post('/chat/enhanced', asyncHandler(async (req, res) => {
         const { message, sessionId, userId, aiProvider } = req.body;
-        
+
         if (!message || !sessionId) {
             return res.status(400).json({
                 success: false,
@@ -1847,14 +1729,14 @@ module.exports = (broadcast) => {
             });
         }
 
-        // Utiliser l'AI service avec support Ollama
+        // Utiliser l'AI service avec support multi-provider
         const result = await aiService.processQuery(
-            sessionId, 
-            message, 
-            userId, 
+            sessionId,
+            message,
+            userId,
             { aiProvider: aiProvider }
         );
-        
+
         // Notifier via WebSocket
         if (result.success) {
             broadcast({
@@ -1865,7 +1747,7 @@ module.exports = (broadcast) => {
                 sources: result.sources,
                 suggestions: result.suggestions,
                 aiProvider: result.aiProvider,
-                model: result.model || ollamaService.model,
+                model: result.model || 'unknown',
                 timestamp: new Date().toISOString()
             });
         }
@@ -1896,16 +1778,12 @@ module.exports = (broadcast) => {
                 languages: languages
             });
 
-            if (result.success && autoAnalyze && ollamaService.connectionStatus.connected) {
-                // Analyse automatique avec Ollama
-                const analysis = await ollamaService.generateResponse(
-                    `Analyse ce texte extrait par OCR et fournis un résumé:\n\n${result.text}`,
-                    { maxTokens: 300 }
-                );
-
-                if (analysis.success) {
-                    result.analysis = analysis.response;
-                }
+            // ❌ DISABLED: Auto-analyze was using Ollama which is removed
+            // To re-enable: integrate with new Hugging Face/OpenRouter services
+            if (result.success && autoAnalyze) {
+                // TODO: Re-implement with aiService.processQuery() using HF/OpenRouter
+                console.log('[OCR] Auto-analyze requested but disabled (Ollama removed)');
+                result.analysis = null;
             }
 
             res.json(result);
