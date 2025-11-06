@@ -258,27 +258,77 @@ function setupIpcHandlers() {
     ipcMain.handle('launch-rdp', async (event, params) => {
         const { server, sessionId, username, password } = params;
         if (!server) return { success: false, error: 'Serveur non spécifié' };
+
+        // For both normal RDP and shadow connections with credentials
         if (username && password) {
             const tempDir = os.tmpdir();
             const rdpFilePath = path.join(tempDir, `rdp_${Date.now()}.rdp`);
-            const rdpContent = `screen mode id:i:2\nfull address:s:${server}\nusername:s:${username}\nprompt for credentials:i:0\nauthentication level:i:2\nenablecredsspsupport:i:1`;
+
             try {
-                fs.writeFileSync(rdpFilePath, rdpContent);
-                const cmdkeyCommand = `cmdkey /generic:"TERMSRV/${server}" /user:"${username}" /pass:"${password}"`;
-                const mstscCommand = `mstsc.exe "${rdpFilePath}"`;
+                // Store credentials using cmdkey
+                const domain = username.includes('\\') ? username.split('\\')[0] : '';
+                const user = username.includes('\\') ? username.split('\\')[1] : username;
+                const fullUsername = domain ? `${domain}\\${user}` : user;
+
+                const cmdkeyCommand = `cmdkey /generic:"TERMSRV/${server}" /user:"${fullUsername}" /pass:"${password}"`;
+
                 return new Promise((resolve) => {
-                    exec(cmdkeyCommand, (error) => {
-                        if (error) logToUI('error', `[RDP] Erreur cmdkey: ${error.message}`);
-                        exec(mstscCommand, (mstscError) => {
-                            setTimeout(() => { exec(`cmdkey /delete:"TERMSRV/${server}"`); if (fs.existsSync(rdpFilePath)) fs.unlinkSync(rdpFilePath); }, 10000);
-                            if (mstscError) { logToUI('error', `[RDP] Erreur mstsc: ${mstscError.message}`); resolve({ success: false, error: mstscError.message }); }
-                            else { resolve({ success: true }); }
-                        });
+                    exec(cmdkeyCommand, (cmdkeyError) => {
+                        if (cmdkeyError) {
+                            logToUI('error', `[RDP] Erreur cmdkey: ${cmdkeyError.message}`);
+                            return resolve({ success: false, error: cmdkeyError.message });
+                        }
+
+                        // If it's a shadow connection
+                        if (sessionId) {
+                            logToUI('info', `[RDP] Lancement shadow: session ${sessionId} sur ${server}`);
+                            // Shadow connection WITHOUT /control flag - will request user permission
+                            const shadowCommand = `mstsc.exe /shadow:${sessionId} /v:${server} /prompt`;
+
+                            exec(shadowCommand, (shadowError) => {
+                                // Clean up credentials after 10 seconds
+                                setTimeout(() => {
+                                    exec(`cmdkey /delete:"TERMSRV/${server}"`);
+                                    logToUI('info', `[RDP] Credentials nettoyés pour ${server}`);
+                                }, 10000);
+
+                                if (shadowError) {
+                                    logToUI('error', `[RDP] Erreur shadow: ${shadowError.message}`);
+                                    resolve({ success: false, error: shadowError.message });
+                                } else {
+                                    logToUI('info', `[RDP] Shadow lancé avec succès`);
+                                    resolve({ success: true });
+                                }
+                            });
+                        } else {
+                            // Regular RDP connection with file
+                            const rdpContent = `screen mode id:i:2\nfull address:s:${server}\nusername:s:${fullUsername}\nprompt for credentials:i:0\nauthentication level:i:2\nenablecredsspsupport:i:1`;
+                            fs.writeFileSync(rdpFilePath, rdpContent);
+                            const mstscCommand = `mstsc.exe "${rdpFilePath}"`;
+
+                            exec(mstscCommand, (mstscError) => {
+                                setTimeout(() => {
+                                    exec(`cmdkey /delete:"TERMSRV/${server}"`);
+                                    if (fs.existsSync(rdpFilePath)) fs.unlinkSync(rdpFilePath);
+                                }, 10000);
+
+                                if (mstscError) {
+                                    logToUI('error', `[RDP] Erreur mstsc: ${mstscError.message}`);
+                                    resolve({ success: false, error: mstscError.message });
+                                } else {
+                                    resolve({ success: true });
+                                }
+                            });
+                        }
                     });
                 });
-            } catch (error) { return { success: false, error: error.message }; }
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
         }
-        // Shadow connection WITHOUT /control flag - will request user permission
+
+        // Fallback for connections without credentials (shouldn't happen for shadow)
+        logToUI('warn', `[RDP] Connexion sans credentials pour ${server}${sessionId ? ` (shadow ${sessionId})` : ''}`);
         const command = sessionId ? `mstsc.exe /shadow:${sessionId} /v:${server} /prompt` : `mstsc.exe /v:${server}`;
         return new Promise((resolve) => {
             exec(command, (error) => {
