@@ -10,7 +10,7 @@ const path = require('path');
 class OllamaService {
     constructor() {
         this.baseUrl = 'http://localhost:11434';
-        this.model = 'llama3.2:3b'; // Support Llama 3.2 3B
+        this.model = 'llama3.2'; // Support Llama 3.2 (compatible avec toutes les variantes)
         this.initialized = false;
         this.availableModels = [];
         this.connectionStatus = {
