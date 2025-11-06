@@ -137,10 +137,54 @@ const UsersPermissionsPanel = () => {
         }
     };
 
+    // ✅ NOUVEAU: Traduction des permissions en noms explicites des onglets
+    const PERMISSION_LABELS = {
+        'dashboard:view': 'Tableau de bord',
+        'dashboard:*': 'Tableau de bord (toutes actions)',
+        'sessions:view': 'Sessions RDS (lecture)',
+        'sessions:edit': 'Sessions RDS (modification)',
+        'sessions:disconnect': 'Sessions RDS (déconnexion)',
+        'sessions:*': 'Sessions RDS (toutes actions)',
+        'servers:view': 'Serveurs (lecture)',
+        'servers:*': 'Serveurs (toutes actions)',
+        'users:view': 'Gestion des Utilisateurs (lecture)',
+        'users:edit': 'Gestion des Utilisateurs (modification)',
+        'users:*': 'Gestion des Utilisateurs (toutes actions)',
+        'ad_groups:view': 'Groupes Active Directory (lecture)',
+        'ad_groups:*': 'Groupes Active Directory (toutes actions)',
+        'loans:view': 'Prêts de matériel (lecture)',
+        'loans:create': 'Prêts de matériel (création)',
+        'loans:edit': 'Prêts de matériel (modification)',
+        'loans:*': 'Prêts de matériel (toutes actions)',
+        'chat_ged:view': 'DocuCortex IA (lecture)',
+        'chat_ged:search': 'DocuCortex IA (recherche)',
+        'chat_ged:*': 'DocuCortex IA (toutes actions)',
+        'ai_assistant:view': 'Assistant IA (lecture)',
+        'ai_assistant:*': 'Assistant IA (toutes actions)',
+        'reports:view': 'Rapports (lecture)',
+        'reports:export': 'Rapports (export)',
+        'reports:*': 'Rapports (toutes actions)',
+        'config:view': 'Configuration (lecture)',
+        'config:admin': 'Configuration (administration)',
+        'config:*': 'Configuration (toutes actions)',
+        'ged_upload:create': 'GED (téléversement)',
+        'ged_delete:delete': 'GED (suppression)',
+        'ged_network_scan:admin': 'GED (scan réseau)',
+        'ged_index_manage:admin': 'GED (gestion index)',
+        '*': '🔓 ACCÈS TOTAL (Super Administrateur)'
+    };
+
+    const translatePermission = (perm) => {
+        return PERMISSION_LABELS[perm] || perm;
+    };
+
     const formatPermissions = (permissions) => {
-        if (!permissions || permissions.length === 0) return 'Aucune';
-        if (permissions.includes('*')) return 'Toutes les permissions';
-        return `${permissions.length} permission(s)`;
+        if (!permissions || permissions.length === 0) return 'Aucune permission';
+        if (permissions.includes('*')) return '🔓 Accès total à toutes les fonctionnalités';
+
+        // ✅ Afficher les noms explicites des onglets
+        const translated = permissions.map(p => translatePermission(p));
+        return translated.join(', ');
     };
 
     // Vérifier si l'utilisateur courant peut éditer
@@ -351,15 +395,16 @@ const UsersPermissionsPanel = () => {
                             </Typography>
                             <Divider sx={{ my: 2 }} />
                             <Typography variant="subtitle2" gutterBottom>
-                                Permissions :
+                                Permissions (accès aux onglets) :
                             </Typography>
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
                                 {selectedRoleInfo.permissions.map((perm, index) => (
                                     <Chip
                                         key={index}
-                                        label={perm}
+                                        label={translatePermission(perm)}
                                         size="small"
                                         variant="outlined"
+                                        color={perm === '*' ? 'error' : 'default'}
                                     />
                                 ))}
                             </Box>

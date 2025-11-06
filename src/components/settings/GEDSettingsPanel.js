@@ -1,6 +1,6 @@
 /**
  * Panneau de configuration pour DocuCortex IA / GED
- * Permet de configurer l'IA, l'indexation réseau, et Ollama
+ * Permet de configurer l'indexation réseau et les paramètres GED
  */
 
 import React, { useState, useEffect } from 'react';
@@ -59,21 +59,9 @@ const GEDSettingsPanel = () => {
         maxFileSize: 104857600
     });
 
-    // État pour les paramètres Ollama
-    const [ollamaConfig, setOllamaConfig] = useState({
-        apiUrl: 'http://192.168.1.232:11434',
-        model: 'llama2',
-        temperature: 0.7,
-        maxTokens: 2048,
-        timeout: 30000,
-        enabled: true
-    });
-
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
-    const [testingConnection, setTestingConnection] = useState(false);
-    const [connectionStatus, setConnectionStatus] = useState(null);
 
     useEffect(() => {
         // Charger la config GED depuis config.json
@@ -86,18 +74,6 @@ const GEDSettingsPanel = () => {
                 allowedExtensions: config.networkDocuments.allowedExtensions || ['*'],
                 excludedFolders: config.networkDocuments.excludedFolders || [],
                 maxFileSize: config.networkDocuments.maxFileSize || 104857600
-            });
-        }
-
-        // Charger la config Ollama depuis config.json
-        if (config?.ollama) {
-            setOllamaConfig({
-                apiUrl: config.ollama.apiUrl || 'http://192.168.1.232:11434',
-                model: config.ollama.model || 'llama2',
-                temperature: config.ollama.temperature || 0.7,
-                maxTokens: config.ollama.maxTokens || 2048,
-                timeout: config.ollama.timeout || 30000,
-                enabled: config.ollama.enabled !== false
             });
         }
     }, [config]);
@@ -113,9 +89,6 @@ const GEDSettingsPanel = () => {
                 ...config,
                 networkDocuments: {
                     ...gedConfig
-                },
-                ollama: {
-                    ...ollamaConfig
                 }
             };
 
@@ -132,34 +105,6 @@ const GEDSettingsPanel = () => {
             setError('Erreur lors de la sauvegarde de la configuration');
         } finally {
             setIsSaving(false);
-        }
-    };
-
-    const handleTestOllamaConnection = async () => {
-        try {
-            setTestingConnection(true);
-            setConnectionStatus(null);
-
-            const response = await fetch(`${ollamaConfig.apiUrl}/api/tags`);
-            if (response.ok) {
-                const data = await response.json();
-                setConnectionStatus({
-                    success: true,
-                    message: `Connexion réussie ! Modèles disponibles: ${data.models?.length || 0}`
-                });
-            } else {
-                setConnectionStatus({
-                    success: false,
-                    message: `Erreur de connexion: ${response.status} ${response.statusText}`
-                });
-            }
-        } catch (error) {
-            setConnectionStatus({
-                success: false,
-                message: `Impossible de se connecter à Ollama: ${error.message}`
-            });
-        } finally {
-            setTestingConnection(false);
         }
     };
 
@@ -190,7 +135,7 @@ const GEDSettingsPanel = () => {
                 <SettingsIcon /> Configuration DocuCortex IA & GED
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Configurez l'intelligence artificielle Ollama, l'indexation réseau et les paramètres de la GED.
+                Configurez l'indexation réseau et les paramètres de la GED. L'IA est gérée via Hugging Face et OpenRouter.
             </Typography>
 
             {/* Messages de feedback */}
@@ -204,117 +149,6 @@ const GEDSettingsPanel = () => {
                     {success}
                 </Alert>
             )}
-
-            {/* Section Ollama */}
-            <Paper sx={{ p: 3, mb: 3 }}>
-                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <MemoryIcon color="primary" /> Configuration Ollama (IA)
-                </Typography>
-                <Divider sx={{ mb: 2 }} />
-
-                <Grid container spacing={2}>
-                    <Grid item xs={12}>
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={ollamaConfig.enabled}
-                                    onChange={(e) => setOllamaConfig({ ...ollamaConfig, enabled: e.target.checked })}
-                                />
-                            }
-                            label="Activer Ollama"
-                        />
-                    </Grid>
-
-                    <Grid item xs={12} md={8}>
-                        <TextField
-                            fullWidth
-                            label="URL de l'API Ollama"
-                            value={ollamaConfig.apiUrl}
-                            onChange={(e) => setOllamaConfig({ ...ollamaConfig, apiUrl: e.target.value })}
-                            placeholder="http://192.168.1.232:11434"
-                            helperText="Adresse du serveur Ollama (ex: http://192.168.1.232:11434)"
-                            disabled={!ollamaConfig.enabled}
-                        />
-                    </Grid>
-
-                    <Grid item xs={12} md={4}>
-                        <Button
-                            fullWidth
-                            variant="outlined"
-                            onClick={handleTestOllamaConnection}
-                            disabled={!ollamaConfig.enabled || testingConnection}
-                            startIcon={<RefreshIcon />}
-                            sx={{ height: '56px' }}
-                        >
-                            {testingConnection ? 'Test...' : 'Tester'}
-                        </Button>
-                    </Grid>
-
-                    {connectionStatus && (
-                        <Grid item xs={12}>
-                            <Alert severity={connectionStatus.success ? 'success' : 'error'}>
-                                {connectionStatus.message}
-                            </Alert>
-                        </Grid>
-                    )}
-
-                    <Grid item xs={12} md={6}>
-                        <TextField
-                            fullWidth
-                            label="Modèle Ollama"
-                            value={ollamaConfig.model}
-                            onChange={(e) => setOllamaConfig({ ...ollamaConfig, model: e.target.value })}
-                            placeholder="llama2, mistral, codellama..."
-                            helperText="Nom du modèle Ollama à utiliser"
-                            disabled={!ollamaConfig.enabled}
-                        />
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                        <TextField
-                            fullWidth
-                            type="number"
-                            label="Timeout (ms)"
-                            value={ollamaConfig.timeout}
-                            onChange={(e) => setOllamaConfig({ ...ollamaConfig, timeout: parseInt(e.target.value) })}
-                            helperText="Temps maximum d'attente en millisecondes"
-                            disabled={!ollamaConfig.enabled}
-                        />
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                        <TextField
-                            fullWidth
-                            type="number"
-                            label="Température"
-                            value={ollamaConfig.temperature}
-                            onChange={(e) => setOllamaConfig({ ...ollamaConfig, temperature: parseFloat(e.target.value) })}
-                            inputProps={{ min: 0, max: 2, step: 0.1 }}
-                            helperText="Créativité des réponses (0 = précis, 2 = créatif)"
-                            disabled={!ollamaConfig.enabled}
-                        />
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                        <TextField
-                            fullWidth
-                            type="number"
-                            label="Tokens maximum"
-                            value={ollamaConfig.maxTokens}
-                            onChange={(e) => setOllamaConfig({ ...ollamaConfig, maxTokens: parseInt(e.target.value) })}
-                            helperText="Longueur maximale des réponses"
-                            disabled={!ollamaConfig.enabled}
-                        />
-                    </Grid>
-                </Grid>
-
-                <Alert severity="info" icon={<InfoIcon />} sx={{ mt: 2 }}>
-                    <Typography variant="body2">
-                        <strong>Ollama</strong> est le moteur d'intelligence artificielle utilisé par DocuCortex pour analyser et répondre aux questions sur vos documents.
-                        Assurez-vous que le serveur Ollama est accessible et qu'un modèle compatible est installé.
-                    </Typography>
-                </Alert>
-            </Paper>
 
             {/* Section GED / Indexation Réseau */}
             <Paper sx={{ p: 3, mb: 3 }}>
@@ -485,9 +319,6 @@ const GEDSettingsPanel = () => {
                         // Recharger depuis config
                         if (config?.networkDocuments) {
                             setGedConfig(config.networkDocuments);
-                        }
-                        if (config?.ollama) {
-                            setOllamaConfig(config.ollama);
                         }
                     }}
                 >

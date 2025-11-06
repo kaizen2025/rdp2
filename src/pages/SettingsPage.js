@@ -99,7 +99,6 @@ const SettingsPage = ({ open, onClose }) => {
     const { config, handleSaveConfig, showNotification } = useApp();
     const [editedConfig, setEditedConfig] = useState(config);
     const [currentTab, setCurrentTab] = useState(0);
-    const [technicianDialog, setTechnicianDialog] = useState({ open: false, technician: null });
 
     const isElectron = !!window.electronAPI?.showSaveDialog;
 
@@ -146,23 +145,6 @@ const SettingsPage = ({ open, onClose }) => {
         }
     };
 
-    const handleSaveTechnician = (techData) => {
-        const newTechnicians = [...(editedConfig.it_technicians || [])];
-        const index = newTechnicians.findIndex(t => t.id === techData.id);
-        if (index > -1) newTechnicians[index] = techData;
-        else newTechnicians.push({ ...techData, id: techData.id || techData.name.toLowerCase().replace(/\s+/g, '_') });
-        setEditedConfig(prev => ({ ...prev, it_technicians: newTechnicians }));
-    };
-
-    const handleDeleteTechnician = (id) => {
-        if (window.confirm("Supprimer ce technicien ?")) {
-            setEditedConfig(prev => ({ ...prev, it_technicians: prev.it_technicians.filter(t => t.id !== id) }));
-        }
-    };
-
-    const permissionTranslations = { admin: 'Admin', config: 'Config', loans: 'Prêts', users: 'Utilisateurs', servers: 'Serveurs', reports: 'Rapports' };
-    const translatePermission = (p) => permissionTranslations[p] || p;
-
     if (!editedConfig) return null;
 
     return (
@@ -177,14 +159,13 @@ const SettingsPage = ({ open, onClose }) => {
             <Box sx={{ display: 'flex', height: 'calc(100% - 64px)' }}>
                 <Tabs orientation="vertical" variant="scrollable" value={currentTab} onChange={(e, v) => setCurrentTab(v)} sx={{ borderRight: 1, borderColor: 'divider', minWidth: 180 }}>
                     <Tab icon={<LockIcon />} iconPosition="start" label="Général" />
-                    <Tab icon={<PeopleIcon />} iconPosition="start" label="Techniciens" />
                     <Tab icon={<DnsIcon />} iconPosition="start" label="Serveurs & Chat" />
                     <Tab icon={<FolderSharedIcon />} iconPosition="start" label="Chemins d'accès" />
                     <Tab icon={<AssignmentIcon />} iconPosition="start" label="Prêts" />
                     <Tab icon={<NotificationsIcon />} iconPosition="start" label="Notifications" />
                     <Tab icon={<PaletteIcon />} iconPosition="start" label="Interface" />
-                    {/* ✅ NOUVEAUX ONGLETS */}
-                    <Tab icon={<SecurityIcon />} iconPosition="start" label="Permissions" />
+                    {/* ✅ ONGLETS AVANCÉS */}
+                    <Tab icon={<SecurityIcon />} iconPosition="start" label="Permissions & Rôles" />
                     <Tab icon={<SmartToyIcon />} iconPosition="start" label="DocuCortex IA" />
                 </Tabs>
                 <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
@@ -200,20 +181,12 @@ const SettingsPage = ({ open, onClose }) => {
                         </Paper>
                     </TabPanel>
                     <TabPanel value={currentTab} index={1}>
-                        <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}><Typography variant="h5">Gestion des Techniciens</Typography><Button startIcon={<AddIcon />} onClick={() => setTechnicianDialog({ open: true, technician: null })} variant="contained">Ajouter</Button></Box>
-                            <TableContainer><Table><TableHead><TableRow><TableCell>Nom</TableCell><TableCell>Poste</TableCell><TableCell>Permissions</TableCell><TableCell>Actif</TableCell><TableCell>Actions</TableCell></TableRow></TableHead>
-                                <TableBody>{(editedConfig.it_technicians || []).map(t => (<TableRow key={t.id}><TableCell><Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Avatar sx={{ width: 24, height: 24, fontSize: '0.75rem' }}>{t.avatar || '?'}</Avatar>{t.name}</Box></TableCell><TableCell>{t.position}</TableCell><TableCell sx={{ maxWidth: 200 }}>{(t.permissions || []).map(p => <Chip key={p} label={translatePermission(p)} size="small" sx={{ mr: 0.5, mb: 0.5 }} />)}</TableCell><TableCell>{t.isActive ? 'Oui' : 'Non'}</TableCell><TableCell><IconButton onClick={() => setTechnicianDialog({ open: true, technician: t })}><EditIcon /></IconButton><IconButton onClick={() => handleDeleteTechnician(t.id)}><DeleteIcon /></IconButton></TableCell></TableRow>))}</TableBody>
-                            </Table></TableContainer>
-                        </Paper>
-                    </TabPanel>
-                    <TabPanel value={currentTab} index={2}>
                         <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
                             <Typography variant="h5" gutterBottom>Serveurs RDS</Typography>
                             <TextField label="Liste des serveurs (un par ligne)" name="rds_servers" value={editedConfig.rds_servers?.join('\n') || ''} onChange={e => setEditedConfig(p => ({ ...p, rds_servers: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) }))} multiline rows={8} fullWidth />
                         </Paper>
                     </TabPanel>
-                    <TabPanel value={currentTab} index={3}>
+                    <TabPanel value={currentTab} index={2}>
                         <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
                             <Typography variant="h5" gutterBottom>Chemins d'Accès</Typography>
                             <Grid container spacing={2}>
@@ -222,22 +195,21 @@ const SettingsPage = ({ open, onClose }) => {
                             </Grid>
                         </Paper>
                     </TabPanel>
-                    <TabPanel value={currentTab} index={4}><Paper sx={{ p: 3 }}><Typography variant="h5" gutterBottom>Paramètres des Prêts</Typography><Grid container spacing={3}><Grid item xs={12} sm={6}><TextField label="Durée maximum (jours)" name="loans.maxLoanDays" type="number" value={editedConfig.loans?.maxLoanDays || 90} onChange={handleFieldChange} fullWidth /></Grid><Grid item xs={12} sm={6}><TextField label="Nombre max de prolongations" name="loans.maxExtensions" type="number" value={editedConfig.loans?.maxExtensions || 3} onChange={handleFieldChange} fullWidth /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="loans.autoNotifications" checked={editedConfig.loans?.autoNotifications ?? true} onChange={handleFieldChange} />} label="Activer les notifications automatiques" /></Grid></Grid></Paper></TabPanel>
-                    <TabPanel value={currentTab} index={5}><Paper sx={{ p: 3 }}><Typography variant="h5" gutterBottom>Notifications</Typography><Grid container spacing={3}><Grid item xs={12}><FormControlLabel control={<Switch name="notifications.enabled" checked={editedConfig.notifications?.enabled ?? true} onChange={handleFieldChange} />} label="Activer les notifications système globales" /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="notifications.loanReminders" checked={editedConfig.notifications?.loanReminders ?? true} onChange={handleFieldChange} />} label="Activer les rappels avant échéance des prêts" /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="notifications.overdueLoanAlerts" checked={editedConfig.notifications?.overdueLoanAlerts ?? true} onChange={handleFieldChange} />} label="Activer les alertes pour les prêts en retard" /></Grid></Grid></Paper></TabPanel>
-                    <TabPanel value={currentTab} index={6}><Paper sx={{ p: 3 }}><Typography variant="h5" gutterBottom>Interface</Typography><Grid container spacing={3}><Grid item xs={12} sm={6}><FormControl fullWidth><InputLabel>Thème</InputLabel><Select name="ui.theme" value={editedConfig.ui?.theme || 'light'} label="Thème" onChange={handleFieldChange}><MenuItem value="light">Clair</MenuItem><MenuItem value="dark">Sombre</MenuItem></Select></FormControl></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="ui.compactView" checked={editedConfig.ui?.compactView ?? false} onChange={handleFieldChange} />} label="Activer le mode compact" /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="ui.autoRefresh" checked={editedConfig.ui?.autoRefresh ?? true} onChange={handleFieldChange} />} label="Activer le rafraîchissement automatique" /></Grid></Grid></Paper></TabPanel>
+                    <TabPanel value={currentTab} index={3}><Paper sx={{ p: 3 }}><Typography variant="h5" gutterBottom>Paramètres des Prêts</Typography><Grid container spacing={3}><Grid item xs={12} sm={6}><TextField label="Durée maximum (jours)" name="loans.maxLoanDays" type="number" value={editedConfig.loans?.maxLoanDays || 90} onChange={handleFieldChange} fullWidth /></Grid><Grid item xs={12} sm={6}><TextField label="Nombre max de prolongations" name="loans.maxExtensions" type="number" value={editedConfig.loans?.maxExtensions || 3} onChange={handleFieldChange} fullWidth /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="loans.autoNotifications" checked={editedConfig.loans?.autoNotifications ?? true} onChange={handleFieldChange} />} label="Activer les notifications automatiques" /></Grid></Grid></Paper></TabPanel>
+                    <TabPanel value={currentTab} index={4}><Paper sx={{ p: 3 }}><Typography variant="h5" gutterBottom>Notifications</Typography><Grid container spacing={3}><Grid item xs={12}><FormControlLabel control={<Switch name="notifications.enabled" checked={editedConfig.notifications?.enabled ?? true} onChange={handleFieldChange} />} label="Activer les notifications système globales" /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="notifications.loanReminders" checked={editedConfig.notifications?.loanReminders ?? true} onChange={handleFieldChange} />} label="Activer les rappels avant échéance des prêts" /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="notifications.overdueLoanAlerts" checked={editedConfig.notifications?.overdueLoanAlerts ?? true} onChange={handleFieldChange} />} label="Activer les alertes pour les prêts en retard" /></Grid></Grid></Paper></TabPanel>
+                    <TabPanel value={currentTab} index={5}><Paper sx={{ p: 3 }}><Typography variant="h5" gutterBottom>Interface</Typography><Grid container spacing={3}><Grid item xs={12} sm={6}><FormControl fullWidth><InputLabel>Thème</InputLabel><Select name="ui.theme" value={editedConfig.ui?.theme || 'light'} label="Thème" onChange={handleFieldChange}><MenuItem value="light">Clair</MenuItem><MenuItem value="dark">Sombre</MenuItem></Select></FormControl></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="ui.compactView" checked={editedConfig.ui?.compactView ?? false} onChange={handleFieldChange} />} label="Activer le mode compact" /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="ui.autoRefresh" checked={editedConfig.ui?.autoRefresh ?? true} onChange={handleFieldChange} />} label="Activer le rafraîchissement automatique" /></Grid></Grid></Paper></TabPanel>
 
-                    {/* ✅ NOUVEAU ONGLET - Permissions */}
-                    <TabPanel value={currentTab} index={7}>
+                    {/* ✅ ONGLET AVANCÉ - Permissions & Rôles */}
+                    <TabPanel value={currentTab} index={6}>
                         <UsersPermissionsPanel />
                     </TabPanel>
 
-                    {/* ✅ NOUVEAU ONGLET - DocuCortex IA / GED */}
-                    <TabPanel value={currentTab} index={8}>
+                    {/* ✅ ONGLET AVANCÉ - DocuCortex IA / GED */}
+                    <TabPanel value={currentTab} index={7}>
                         <GEDSettingsPanel />
                     </TabPanel>
                 </Box>
             </Box>
-            <TechnicianDialog open={technicianDialog.open} onClose={() => setTechnicianDialog({ open: false, technician: null })} onSave={handleSaveTechnician} technician={technicianDialog.technician} />
         </Dialog>
     );
 };
