@@ -181,6 +181,15 @@ export const MODULES = {
     requiredPermission: 'servers:view'
   },
 
+  USERS: {
+    id: 'users',
+    label: 'Utilisateurs',
+    icon: '👤',
+    path: '/users',
+    description: 'Gestion des utilisateurs',
+    requiredPermission: 'users:view'
+  },
+
   AD_GROUPS: {
     id: 'ad_groups',
     label: 'Groupes AD',
@@ -208,17 +217,17 @@ export const MODULES = {
     requiredPermission: 'ai_assistant:view'
   }
 
-  // ✅ 6 ONGLETS PRINCIPAUX (navigation essentielle):
+  // ✅ 7 ONGLETS PRINCIPAUX (navigation essentielle):
   // 1. Tableau de bord - Vue d'ensemble
   // 2. Sessions RDS - Gestion des sessions
   // 3. Serveurs - Gestion des serveurs
-  // 4. Groupes AD - Gestion Active Directory
-  // 5. Prêts - Gestion des prêts de matériel
-  // 6. DocuCortex IA - Assistant IA documentaire
+  // 4. Utilisateurs - Gestion des utilisateurs (LE PLUS IMPORTANT)
+  // 5. Groupes AD - Gestion Active Directory
+  // 6. Prêts - Gestion des prêts de matériel
+  // 7. DocuCortex IA - Assistant IA documentaire
 
-  // ❌ SUPPRIMÉS (non utilisés ou disponibles ailleurs):
+  // ❌ SUPPRIMÉS (non utilisés ou doublons):
   // - COMPUTERS: Géré via Serveurs
-  // - USERS: Géré via Groupes AD
   // - CHAT_GED: Doublon avec DocuCortex IA
   // - REPORTS: Pas implémenté
   // - SETTINGS: Disponible dans le menu utilisateur
