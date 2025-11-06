@@ -24,12 +24,16 @@ import SearchInput from '../components/common/SearchInput';
 import EmptyState from '../components/common/EmptyState';
 import LoadingScreen from '../components/common/LoadingScreen';
 
-const MemberRow = memo(({ member, style, isOdd, onRemove, groupName }) => (
-    <Box style={style} sx={{ display: 'flex', alignItems: 'center', px: 2, backgroundColor: isOdd ? 'grey.50' : 'white', borderBottom: '1px solid', borderColor: 'divider', '&:hover': { backgroundColor: 'action.hover' } }}>
-        <Box sx={{ flex: 1, pr: 2 }}><Typography variant="body2" fontWeight={500}>{member.DisplayName || member.name}</Typography><Typography variant="caption" color="text.secondary">{member.SamAccountName || member.sam}</Typography></Box>
-        <Tooltip title="Retirer du groupe"><IconButton size="small" color="error" onClick={() => onRemove(member.SamAccountName || member.sam, groupName)}><PersonRemoveIcon fontSize="small" /></IconButton></Tooltip>
-    </Box>
-));
+const MemberRow = memo(({ member, style, isOdd, onRemove, groupName }) => {
+    if (!member) return null;
+
+    return (
+        <Box style={style} sx={{ display: 'flex', alignItems: 'center', px: 2, backgroundColor: isOdd ? 'grey.50' : 'white', borderBottom: '1px solid', borderColor: 'divider', '&:hover': { backgroundColor: 'action.hover' } }}>
+            <Box sx={{ flex: 1, pr: 2 }}><Typography variant="body2" fontWeight={500}>{member.DisplayName || member.name || 'N/A'}</Typography><Typography variant="caption" color="text.secondary">{member.SamAccountName || member.sam || 'N/A'}</Typography></Box>
+            <Tooltip title="Retirer du groupe"><IconButton size="small" color="error" onClick={() => onRemove(member.SamAccountName || member.sam, groupName)}><PersonRemoveIcon fontSize="small" /></IconButton></Tooltip>
+        </Box>
+    );
+});
 
 const AdGroupsPage = () => {
     const { showNotification } = useApp();
@@ -59,7 +63,10 @@ const AdGroupsPage = () => {
     const [userSearchTerm, setUserSearchTerm] = useState('');
     const [isRefreshing, setIsRefreshing] = useState(false);
 
-    const members = useMemo(() => cache[`ad_groups:${selectedGroup}`] || [], [cache, selectedGroup]);
+    const members = useMemo(() => {
+        const data = cache[`ad_groups:${selectedGroup}`];
+        return Array.isArray(data) ? data : [];
+    }, [cache, selectedGroup]);
 
     const handleRefresh = useCallback(async () => {
         if (!selectedGroup) return;
@@ -75,9 +82,10 @@ const AdGroupsPage = () => {
     }, [selectedGroup, cache, invalidate]);
 
     const filteredMembers = useMemo(() => {
-        if (!searchTerm) return members;
+        const safeMembers = Array.isArray(members) ? members : [];
+        if (!searchTerm) return safeMembers;
         const term = searchTerm.toLowerCase();
-        return members.filter(m => (m.DisplayName || m.name || '').toLowerCase().includes(term) || (m.SamAccountName || m.sam || '').toLowerCase().includes(term));
+        return safeMembers.filter(m => m && ((m.DisplayName || m.name || '').toLowerCase().includes(term) || (m.SamAccountName || m.sam || '').toLowerCase().includes(term)));
     }, [members, searchTerm]);
 
     const handleRemoveUser = async (username, groupName) => {
@@ -109,7 +117,11 @@ const AdGroupsPage = () => {
     }, [showNotification]);
 
     const handleOpenAddDialog = () => { setUserSearchTerm(''); setAvailableUsers([]); setAddUserDialogOpen(true); };
-    const Row = ({ index, style }) => <MemberRow member={filteredMembers[index]} style={style} isOdd={index % 2 === 1} onRemove={handleRemoveUser} groupName={selectedGroup} />;
+    const Row = useCallback(({ index, style }) => {
+        const member = Array.isArray(filteredMembers) && filteredMembers[index];
+        if (!member) return null;
+        return <MemberRow member={member} style={style} isOdd={index % 2 === 1} onRemove={handleRemoveUser} groupName={selectedGroup} />;
+    }, [filteredMembers, handleRemoveUser, selectedGroup]);
     const currentGroupData = useMemo(() => adGroups[selectedGroup] || {}, [adGroups, selectedGroup]);
 
     // ✅ Afficher le loading si le cache n'est pas encore chargé ou si config est vide
