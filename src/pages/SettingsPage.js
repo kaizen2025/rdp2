@@ -49,10 +49,12 @@ import PaletteIcon from '@mui/icons-material/Palette';
 import DnsIcon from '@mui/icons-material/Dns';
 import SecurityIcon from '@mui/icons-material/Security'; // ✅ NOUVEAU - Pour permissions
 import SmartToyIcon from '@mui/icons-material/SmartToy'; // ✅ NOUVEAU - Pour GED/IA
+import ApiIcon from '@mui/icons-material/Api'; // ✅ NOUVEAU - Pour configuration API IA
 
 // ✅ NOUVEAUX COMPOSANTS - Panneaux de configuration avancés
 import UsersPermissionsPanel from '../components/settings/UsersPermissionsPanel';
 import GEDSettingsPanel from '../components/settings/GEDSettingsPanel';
+import AISettingsPanel from '../components/settings/AISettingsPanel';
 
 function TabPanel({ children, value, index }) {
     return <div hidden={value !== index}>{value === index && <Box sx={{ p: 3 }}>{children}</Box>}</div>;
@@ -167,6 +169,7 @@ const SettingsPage = ({ open, onClose }) => {
                     {/* ✅ ONGLETS AVANCÉS */}
                     <Tab icon={<SecurityIcon />} iconPosition="start" label="Permissions & Rôles" />
                     <Tab icon={<SmartToyIcon />} iconPosition="start" label="DocuCortex IA" />
+                    <Tab icon={<ApiIcon />} iconPosition="start" label="API IA (HF & OpenRouter)" />
                 </Tabs>
                 <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
                     <TabPanel value={currentTab} index={0}>
@@ -207,6 +210,11 @@ const SettingsPage = ({ open, onClose }) => {
                     {/* ✅ ONGLET AVANCÉ - DocuCortex IA / GED */}
                     <TabPanel value={currentTab} index={7}>
                         <GEDSettingsPanel />
+                    </TabPanel>
+
+                    {/* ✅ ONGLET 8: Configuration API IA (Hugging Face & OpenRouter) */}
+                    <TabPanel value={currentTab} index={8}>
+                        <AISettingsPanel />
                     </TabPanel>
                 </Box>
             </Box>
