@@ -282,8 +282,8 @@ function setupIpcHandlers() {
                         // If it's a shadow connection
                         if (sessionId) {
                             logToUI('info', `[RDP] Lancement shadow: session ${sessionId} sur ${server}`);
-                            // Shadow connection WITHOUT /control flag - will request user permission
-                            const shadowCommand = `mstsc.exe /shadow:${sessionId} /v:${server} /prompt`;
+                            // Shadow connection WITH /control flag for full control capability
+                            const shadowCommand = `mstsc.exe /v:${server} /shadow:${sessionId} /control`;
 
                             exec(shadowCommand, (shadowError) => {
                                 // Clean up credentials after 10 seconds
@@ -329,7 +329,7 @@ function setupIpcHandlers() {
 
         // Fallback for connections without credentials (shouldn't happen for shadow)
         logToUI('warn', `[RDP] Connexion sans credentials pour ${server}${sessionId ? ` (shadow ${sessionId})` : ''}`);
-        const command = sessionId ? `mstsc.exe /shadow:${sessionId} /v:${server} /prompt` : `mstsc.exe /v:${server}`;
+        const command = sessionId ? `mstsc.exe /v:${server} /shadow:${sessionId} /control` : `mstsc.exe /v:${server}`;
         return new Promise((resolve) => {
             exec(command, (error) => {
                 if (error) resolve({ success: false, error: error.message });
