@@ -8,12 +8,13 @@ const documentParserService = require('./documentParserService');
 const nlpService = require('./nlpService');
 const vectorSearchService = require('./vectorSearchService');
 const conversationService = require('./conversationService');
-const networkDocumentService = require('./networkDocumentService'); // ✅ NOUVEAU
-const documentMetadataService = require('./documentMetadataService'); // ✅ NOUVEAU
-const intelligentResponseService = require('./intelligentResponseService'); // ✅ NOUVEAU
-const filePreviewService = require('./filePreviewService'); // ✅ NOUVEAU
-const ocrService = require('./ocrService'); // ✅ NOUVEAU - EasyOCR
-const openrouterService = require('./openrouterService'); // ✅ Service OpenRouter (remplace Ollama)
+const networkDocumentService = require('./networkDocumentService');
+const documentMetadataService = require('./documentMetadataService');
+const intelligentResponseService = require('./intelligentResponseService');
+const filePreviewService = require('./filePreviewService');
+const ocrService = require('./ocrService');
+const huggingfaceService = require('./huggingfaceService'); // ✅ Service Hugging Face (PRIORITAIRE)
+const openrouterService = require('./openrouterService'); // ✅ Service OpenRouter (FALLBACK)
 const path = require('path');
 const fs = require('fs').promises;
 
@@ -26,57 +27,90 @@ class AIService {
             totalConversations: 0,
             totalQueries: 0
         };
-        this.openrouterEnabled = false;
-        this.aiProvider = 'default'; // 'default' ou 'openrouter'
+        // Système multi-provider avec fallback
+        this.providers = {
+            huggingface: { enabled: false, service: huggingfaceService },
+            openrouter: { enabled: false, service: openrouterService }
+        };
+        this.activeProvider = 'default'; // Provider actuellement utilisé
+        this.config = null; // Configuration complète chargée depuis ai-config.json
     }
 
     /**
-     * Initialise le service IA
+     * Initialise le service IA avec système multi-provider
      */
     async initialize() {
         if (this.initialized) return;
 
         try {
-            console.log('🔧 Initialisation du service IA DocuCortex...');
+            console.log('\n🔧 Initialisation du service IA DocuCortex...');
+            console.log('=============================================');
 
             // Initialiser le NLP
             await nlpService.initialize();
 
-            // Charger la configuration OpenRouter
-            const aiConfig = this.loadAIConfig();
+            // Charger la configuration IA
+            this.config = this.loadAIConfig();
 
-            // Initialiser OpenRouter si configuré
-            if (aiConfig && aiConfig.apiKey) {
-                const openrouterResult = await openrouterService.initialize({
-                    apiKey: aiConfig.apiKey,
-                    model: aiConfig.model || 'openai/gpt-3.5-turbo'
-                });
+            if (!this.config || !this.config.providers) {
+                console.warn('⚠️ Configuration IA non trouvée, utilisation du service par défaut');
+                this.initialized = true;
+                return { success: true, provider: 'default' };
+            }
 
-                if (openrouterResult.success) {
-                    this.openrouterEnabled = true;
-                    this.aiProvider = 'openrouter';
-                    console.log('✅ OpenRouter intégré avec succès');
-                } else {
-                    console.log('⚠️ OpenRouter non disponible:', openrouterResult.error);
-                    this.openrouterEnabled = false;
-                    this.aiProvider = 'default';
+            // Initialiser les providers par ordre de priorité
+            const sortedProviders = this.getSortedProviders();
+
+            for (const providerName of sortedProviders) {
+                const providerConfig = this.config.providers[providerName];
+
+                if (!providerConfig.enabled) {
+                    console.log(`⏭️  ${providerName}: désactivé (priority: ${providerConfig.priority})`);
+                    continue;
                 }
-            } else {
-                console.log('⚠️ Clé API OpenRouter non configurée, utilisation du service par défaut');
-                this.openrouterEnabled = false;
-                this.aiProvider = 'default';
+
+                console.log(`\n🔌 Initialisation de ${providerName} (priority: ${providerConfig.priority})...`);
+
+                try {
+                    const result = await this.providers[providerName].service.initialize({
+                        apiKey: providerConfig.apiKey,
+                        model: providerConfig.model,
+                        timeout: providerConfig.timeout
+                    });
+
+                    if (result.success) {
+                        this.providers[providerName].enabled = true;
+
+                        // Le premier provider qui réussit devient actif
+                        if (this.activeProvider === 'default') {
+                            this.activeProvider = providerName;
+                            console.log(`✅ ${providerName} défini comme provider actif`);
+                        } else {
+                            console.log(`✅ ${providerName} disponible en fallback`);
+                        }
+                    } else {
+                        console.warn(`⚠️ ${providerName} non disponible:`, result.error);
+                    }
+                } catch (error) {
+                    console.error(`❌ Erreur initialisation ${providerName}:`, error.message);
+                }
             }
 
             // Charger les documents existants dans l'index
             await this.loadDocumentsToIndex();
 
             this.initialized = true;
-            console.log('✅ Service IA DocuCortex initialisé avec succès');
+
+            console.log('\n=============================================');
+            console.log(`✅ Service IA initialisé - Provider actif: ${this.activeProvider}`);
+            console.log(`   Fallback: ${this.config.fallback?.enabled ? 'Activé' : 'Désactivé'}`);
+            console.log('=============================================\n');
 
             return {
                 success: true,
-                provider: this.aiProvider,
-                openrouterAvailable: this.openrouterEnabled
+                activeProvider: this.activeProvider,
+                availableProviders: Object.keys(this.providers).filter(p => this.providers[p].enabled),
+                fallbackEnabled: this.config.fallback?.enabled
             };
         } catch (error) {
             console.error('❌ Erreur initialisation service IA:', error);
@@ -90,24 +124,116 @@ class AIService {
     loadAIConfig() {
         try {
             const configPath = path.join(__dirname, '../../..', 'config', 'ai-config.json');
+            const envPath = path.join(__dirname, '../../..', '.env.ai');
             const fs = require('fs');
 
-            if (fs.existsSync(configPath)) {
-                const configData = fs.readFileSync(configPath, 'utf8');
-                const config = JSON.parse(configData);
-
-                if (config.aiProvider === 'openrouter' && config.openrouter) {
-                    console.log('✅ Configuration OpenRouter chargée');
-                    return config.openrouter;
-                }
+            if (!fs.existsSync(configPath)) {
+                console.warn('⚠️ Fichier ai-config.json non trouvé');
+                return null;
             }
 
-            console.warn('⚠️ Fichier ai-config.json non trouvé ou OpenRouter non configuré');
-            return null;
+            // Charger la configuration
+            const configData = fs.readFileSync(configPath, 'utf8');
+            const config = JSON.parse(configData);
+
+            // Charger les clés API depuis le fichier .env.ai
+            const apiKeys = this.loadAPIKeys(envPath);
+
+            // Remplacer les placeholders par les vraies clés API
+            if (config.providers) {
+                Object.keys(config.providers).forEach(providerName => {
+                    const provider = config.providers[providerName];
+
+                    if (provider.apiKey === 'STORED_IN_ENV_FILE') {
+                        // Trouver la clé correspondante
+                        const keyName = providerName.toUpperCase() + '_API_KEY';
+                        if (apiKeys[keyName]) {
+                            provider.apiKey = apiKeys[keyName];
+                        } else {
+                            console.warn(`⚠️ Clé API non trouvée pour ${providerName} (${keyName})`);
+                        }
+                    }
+                });
+            }
+
+            console.log('✅ Configuration IA chargée');
+            return config;
         } catch (error) {
             console.error('❌ Erreur chargement configuration IA:', error.message);
             return null;
         }
+    }
+
+    /**
+     * Charge les clés API depuis le fichier .env.ai
+     */
+    loadAPIKeys(envPath) {
+        try {
+            const fs = require('fs');
+
+            if (!fs.existsSync(envPath)) {
+                console.warn('⚠️ Fichier .env.ai non trouvé - Les clés API doivent être configurées');
+                return {};
+            }
+
+            const envData = fs.readFileSync(envPath, 'utf8');
+            const keys = {};
+
+            // Parser le fichier .env
+            envData.split('\n').forEach(line => {
+                line = line.trim();
+
+                // Ignorer les commentaires et lignes vides
+                if (!line || line.startsWith('#')) return;
+
+                const [key, ...valueParts] = line.split('=');
+                if (key && valueParts.length > 0) {
+                    keys[key.trim()] = valueParts.join('=').trim();
+                }
+            });
+
+            console.log(`✅ ${Object.keys(keys).length} clés API chargées depuis .env.ai`);
+            return keys;
+        } catch (error) {
+            console.error('❌ Erreur chargement .env.ai:', error.message);
+            return {};
+        }
+    }
+
+    /**
+     * Retourne les providers triés par priorité
+     */
+    getSortedProviders() {
+        if (!this.config || !this.config.providers) return [];
+
+        return Object.keys(this.config.providers).sort((a, b) => {
+            const priorityA = this.config.providers[a].priority || 999;
+            const priorityB = this.config.providers[b].priority || 999;
+            return priorityA - priorityB; // Ordre croissant (priority 1 avant priority 2)
+        });
+    }
+
+    /**
+     * Obtient le service d'un provider
+     */
+    getProviderService(providerName) {
+        if (this.providers[providerName] && this.providers[providerName].enabled) {
+            return this.providers[providerName].service;
+        }
+        return null;
+    }
+
+    /**
+     * Change le provider actif
+     */
+    setActiveProvider(providerName) {
+        if (this.providers[providerName] && this.providers[providerName].enabled) {
+            this.activeProvider = providerName;
+            console.log(`✅ Provider actif changé vers: ${providerName}`);
+            return true;
+        }
+        console.warn(`⚠️ Provider ${providerName} non disponible`);
+        return false;
     }
 
     /**
@@ -228,7 +354,7 @@ class AIService {
     }
 
     /**
-     * Traite une requete utilisateur
+     * Traite une requete utilisateur avec système multi-provider et fallback
      */
     async processQuery(sessionId, message, userId = null, options = {}) {
         try {
@@ -241,54 +367,101 @@ class AIService {
             // Obtenir les parametres
             const settings = this.getSettings();
 
-            let result;
-            const useOpenRouter = options.aiProvider === 'openrouter' || this.aiProvider === 'openrouter';
+            // Récupérer le contexte de conversation récent
+            const conversationHistory = this.db.getAIConversationsBySession(sessionId, 5);
+            const contextMessages = conversationHistory.map(conv => ({
+                role: conv.user_message ? 'user' : 'assistant',
+                content: conv.user_message || conv.ai_response
+            })).reverse();
 
-            // Utiliser OpenRouter si disponible et demandé
-            if (useOpenRouter && this.openrouterEnabled) {
-                console.log('🤖 Traitement avec OpenRouter...');
+            // Déterminer quel provider utiliser
+            let providerToUse = options.aiProvider || this.activeProvider;
+            let result = null;
+            let attempts = 0;
+            const maxAttempts = this.config?.fallback?.retryAttempts || 2;
 
-                // Récupérer le contexte de conversation récent
-                const conversationHistory = this.db.getAIConversationsBySession(sessionId, 5);
-                const contextMessages = conversationHistory.map(conv => ({
-                    role: 'user',
-                    content: conv.user_message
-                })).reverse();
+            // Obtenir les providers disponibles dans l'ordre de fallback
+            const sortedProviders = this.getSortedProviders();
+            const availableProviders = sortedProviders.filter(p =>
+                this.providers[p] && this.providers[p].enabled
+            );
 
-                // Traiter avec OpenRouter
-                result = await openrouterService.processConversation(
-                    [...contextMessages, { role: 'user', content: message }],
-                    {
-                        sessionId: sessionId,
-                        context: contextMessages,
-                        systemPrompt: settings.systemPrompt || 'Tu es DocuCortex, un assistant IA intelligent pour la gestion documentaire.',
-                        temperature: settings.temperature || 0.7,
-                        maxTokens: settings.maxTokens || 2048
-                    }
-                );
+            // Boucle de tentatives avec fallback
+            while (attempts < maxAttempts && !result?.success && availableProviders.length > 0) {
+                attempts++;
 
-                if (result.success) {
-                    // Enrichir avec recherche vectorielle si disponible
-                    const searchResult = await this.searchDocuments(message, { limit: 3 });
-                    if (searchResult.success && searchResult.results.length > 0) {
-                        result.context = searchResult.results;
-                        result.sources = searchResult.results.map(r => ({
-                            filename: r.document?.filename || 'Document',
-                            score: r.score,
-                            snippet: r.content?.substring(0, 100) + '...'
-                        }));
+                // Trouver le provider à utiliser
+                if (!this.providers[providerToUse]?.enabled) {
+                    providerToUse = availableProviders[0];
+                }
+
+                console.log(`\n🤖 Tentative ${attempts}/${maxAttempts} avec ${providerToUse}...`);
+
+                const providerService = this.getProviderService(providerToUse);
+
+                if (providerService) {
+                    try {
+                        result = await providerService.processConversation(
+                            [...contextMessages, { role: 'user', content: message }],
+                            {
+                                sessionId: sessionId,
+                                context: contextMessages,
+                                systemPrompt: settings.systemPrompt || 'Tu es DocuCortex, un assistant IA intelligent pour la gestion documentaire.',
+                                temperature: settings.temperature || 0.7,
+                                maxTokens: settings.maxTokens || 2048
+                            }
+                        );
+
+                        if (result.success) {
+                            console.log(`✅ Réponse obtenue avec ${providerToUse}`);
+
+                            // Enrichir avec recherche vectorielle si disponible
+                            const searchResult = await this.searchDocuments(message, { limit: 3 });
+                            if (searchResult.success && searchResult.results.length > 0) {
+                                result.context = searchResult.results;
+                                result.sources = searchResult.results.map(r => ({
+                                    filename: r.document?.filename || 'Document',
+                                    score: r.score,
+                                    snippet: r.content?.substring(0, 100) + '...'
+                                }));
+                            }
+
+                            result.aiProvider = providerToUse;
+                            break; // Succès, on sort de la boucle
+                        }
+                    } catch (providerError) {
+                        console.error(`❌ Erreur avec ${providerToUse}:`, providerError.message);
+                        result = { success: false, error: providerError.message };
                     }
                 }
 
-            } else {
-                console.log('🔧 Traitement avec service par défaut...');
+                // Si échec et fallback activé, essayer le provider suivant
+                if (!result?.success && this.config?.fallback?.enabled && this.config?.fallback?.autoSwitch) {
+                    const currentIndex = availableProviders.indexOf(providerToUse);
+                    const nextIndex = currentIndex + 1;
 
-                // Traiter le message avec le service de conversation par défaut
+                    if (nextIndex < availableProviders.length) {
+                        const nextProvider = availableProviders[nextIndex];
+                        console.warn(`⚠️ ${providerToUse} a échoué, basculement vers ${nextProvider}...`);
+                        providerToUse = nextProvider;
+                    } else {
+                        console.warn('⚠️ Tous les providers ont échoué');
+                        break;
+                    }
+                } else {
+                    break; // Pas de fallback ou dernier provider, on sort
+                }
+            }
+
+            // Si aucun provider n'a fonctionné, utiliser le service par défaut
+            if (!result?.success) {
+                console.log('🔧 Utilisation du service de conversation par défaut...');
                 result = await conversationService.processMessage(
                     sessionId,
                     message,
                     settings
                 );
+                result.aiProvider = 'default';
             }
 
             // Sauvegarder la conversation en DB
@@ -301,15 +474,16 @@ class AIService {
                     confidence_score: result.confidence || 0.5,
                     response_time_ms: result.responseTime || 0,
                     language: settings.language || 'fr',
-                    ai_provider: useOpenRouter ? 'openrouter' : 'default'
+                    ai_provider: result.aiProvider || 'default'
                 });
 
                 this.stats.totalConversations++;
             }
 
-            // Ajouter des métadonnées sur le fournisseur IA utilisé
-            result.aiProvider = useOpenRouter ? 'openrouter' : 'default';
-            result.openrouterStats = useOpenRouter ? openrouterService.getStatistics() : null;
+            // Ajouter des métadonnées
+            result.providerStats = result.aiProvider !== 'default'
+                ? this.getProviderService(result.aiProvider)?.getStatistics()
+                : null;
 
             return result;
         } catch (error) {
@@ -319,7 +493,7 @@ class AIService {
                 response: 'Une erreur s\'est produite. Veuillez réessayer.',
                 error: error.message,
                 confidence: 0,
-                aiProvider: options.aiProvider || this.aiProvider
+                aiProvider: 'error'
             };
         }
     }
