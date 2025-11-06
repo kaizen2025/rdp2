@@ -278,7 +278,8 @@ function setupIpcHandlers() {
                 });
             } catch (error) { return { success: false, error: error.message }; }
         }
-        const command = sessionId ? `mstsc.exe /shadow:${sessionId} /v:${server} /control /prompt` : `mstsc.exe /v:${server}`;
+        // Shadow connection WITHOUT /control flag - will request user permission
+        const command = sessionId ? `mstsc.exe /shadow:${sessionId} /v:${server} /prompt` : `mstsc.exe /v:${server}`;
         return new Promise((resolve) => {
             exec(command, (error) => {
                 if (error) resolve({ success: false, error: error.message });
