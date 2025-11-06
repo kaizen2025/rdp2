@@ -109,11 +109,32 @@ const SessionsPage = () => {
     const handleLaunchShadow = async (session) => {
         if (!window.electronAPI?.launchRdp) return showNotification('warning', 'Fonctionnalité disponible uniquement dans l\'application de bureau.');
         if (!session || !session.isActive) return showNotification('warning', 'La session doit être active.');
+
+        // Get admin credentials from config for shadow connection
+        const adminUsername = config.username || 'admin_anecoop';
+        const adminPassword = config.password;
+        const domain = config.domain || 'anecoopfr.local';
+
+        if (!adminPassword) {
+            return showNotification('error', 'Credentials administrateur manquants dans la configuration.');
+        }
+
+        // Format username with domain if not already included
+        const fullUsername = adminUsername.includes('\\') ? adminUsername : `${domain}\\${adminUsername}`;
+
         showNotification('info', `Lancement du Shadow pour ${session.username}...`);
         try {
-            const result = await window.electronAPI.launchRdp({ server: session.server, sessionId: session.sessionId });
+            const result = await window.electronAPI.launchRdp({
+                server: session.server,
+                sessionId: session.sessionId,
+                username: fullUsername,
+                password: adminPassword
+            });
             if (!result.success) throw new Error(result.error);
-        } catch (err) { showNotification('error', `Erreur Shadow: ${err.message}`); }
+            showNotification('success', 'Shadow lancé ! En attente de l\'acceptation de l\'utilisateur...');
+        } catch (err) {
+            showNotification('error', `Erreur Shadow: ${err.message}`);
+        }
     };
 
     const handleLaunchConnect = async (session, userInfo) => {
