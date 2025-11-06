@@ -13,7 +13,7 @@ const documentMetadataService = require('./documentMetadataService'); // ✅ NOU
 const intelligentResponseService = require('./intelligentResponseService'); // ✅ NOUVEAU
 const filePreviewService = require('./filePreviewService'); // ✅ NOUVEAU
 const ocrService = require('./ocrService'); // ✅ NOUVEAU - EasyOCR
-const ollamaService = require('./ollamaService'); // ✅ NOUVEAU - Service Ollama
+const openrouterService = require('./openrouterService'); // ✅ Service OpenRouter (remplace Ollama)
 const path = require('path');
 const fs = require('fs').promises;
 
@@ -26,8 +26,8 @@ class AIService {
             totalConversations: 0,
             totalQueries: 0
         };
-        this.ollamaEnabled = false;
-        this.aiProvider = 'default'; // 'default' ou 'ollama'
+        this.openrouterEnabled = false;
+        this.aiProvider = 'default'; // 'default' ou 'openrouter'
     }
 
     /**
@@ -42,15 +42,28 @@ class AIService {
             // Initialiser le NLP
             await nlpService.initialize();
 
-            // Initialiser Ollama si disponible
-            const ollamaResult = await ollamaService.initialize();
-            if (ollamaResult.success) {
-                this.ollamaEnabled = true;
-                this.aiProvider = 'ollama';
-                console.log('✅ Ollama intégré avec succès');
+            // Charger la configuration OpenRouter
+            const aiConfig = this.loadAIConfig();
+
+            // Initialiser OpenRouter si configuré
+            if (aiConfig && aiConfig.apiKey) {
+                const openrouterResult = await openrouterService.initialize({
+                    apiKey: aiConfig.apiKey,
+                    model: aiConfig.model || 'openai/gpt-3.5-turbo'
+                });
+
+                if (openrouterResult.success) {
+                    this.openrouterEnabled = true;
+                    this.aiProvider = 'openrouter';
+                    console.log('✅ OpenRouter intégré avec succès');
+                } else {
+                    console.log('⚠️ OpenRouter non disponible:', openrouterResult.error);
+                    this.openrouterEnabled = false;
+                    this.aiProvider = 'default';
+                }
             } else {
-                console.log('⚠️ Ollama non disponible, utilisation du service par défaut');
-                this.ollamaEnabled = false;
+                console.log('⚠️ Clé API OpenRouter non configurée, utilisation du service par défaut');
+                this.openrouterEnabled = false;
                 this.aiProvider = 'default';
             }
 
@@ -60,14 +73,40 @@ class AIService {
             this.initialized = true;
             console.log('✅ Service IA DocuCortex initialisé avec succès');
 
-            return { 
+            return {
                 success: true,
                 provider: this.aiProvider,
-                ollamaAvailable: this.ollamaEnabled
+                openrouterAvailable: this.openrouterEnabled
             };
         } catch (error) {
             console.error('❌ Erreur initialisation service IA:', error);
             return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Charge la configuration IA depuis le fichier de config
+     */
+    loadAIConfig() {
+        try {
+            const configPath = path.join(__dirname, '../../..', 'config', 'ai-config.json');
+            const fs = require('fs');
+
+            if (fs.existsSync(configPath)) {
+                const configData = fs.readFileSync(configPath, 'utf8');
+                const config = JSON.parse(configData);
+
+                if (config.aiProvider === 'openrouter' && config.openrouter) {
+                    console.log('✅ Configuration OpenRouter chargée');
+                    return config.openrouter;
+                }
+            }
+
+            console.warn('⚠️ Fichier ai-config.json non trouvé ou OpenRouter non configuré');
+            return null;
+        } catch (error) {
+            console.error('❌ Erreur chargement configuration IA:', error.message);
+            return null;
         }
     }
 
@@ -203,12 +242,12 @@ class AIService {
             const settings = this.getSettings();
 
             let result;
-            const useOllama = options.aiProvider === 'ollama' || this.aiProvider === 'ollama';
+            const useOpenRouter = options.aiProvider === 'openrouter' || this.aiProvider === 'openrouter';
 
-            // Utiliser Ollama si disponible et demandé
-            if (useOllama && this.ollamaEnabled) {
-                console.log('🤖 Traitement avec Ollama...');
-                
+            // Utiliser OpenRouter si disponible et demandé
+            if (useOpenRouter && this.openrouterEnabled) {
+                console.log('🤖 Traitement avec OpenRouter...');
+
                 // Récupérer le contexte de conversation récent
                 const conversationHistory = this.db.getAIConversationsBySession(sessionId, 5);
                 const contextMessages = conversationHistory.map(conv => ({
@@ -216,15 +255,15 @@ class AIService {
                     content: conv.user_message
                 })).reverse();
 
-                // Traiter avec Ollama
-                result = await ollamaService.processConversation(
+                // Traiter avec OpenRouter
+                result = await openrouterService.processConversation(
                     [...contextMessages, { role: 'user', content: message }],
                     {
                         sessionId: sessionId,
                         context: contextMessages,
-                        systemPrompt: settings.systemPrompt || 'Tu es DocuCortex, un assistant IA intelligent.',
+                        systemPrompt: settings.systemPrompt || 'Tu es DocuCortex, un assistant IA intelligent pour la gestion documentaire.',
                         temperature: settings.temperature || 0.7,
-                        maxTokens: settings.maxTokens || 512
+                        maxTokens: settings.maxTokens || 2048
                     }
                 );
 
@@ -243,7 +282,7 @@ class AIService {
 
             } else {
                 console.log('🔧 Traitement avec service par défaut...');
-                
+
                 // Traiter le message avec le service de conversation par défaut
                 result = await conversationService.processMessage(
                     sessionId,
@@ -262,15 +301,15 @@ class AIService {
                     confidence_score: result.confidence || 0.5,
                     response_time_ms: result.responseTime || 0,
                     language: settings.language || 'fr',
-                    ai_provider: useOllama ? 'ollama' : 'default'
+                    ai_provider: useOpenRouter ? 'openrouter' : 'default'
                 });
 
                 this.stats.totalConversations++;
             }
 
             // Ajouter des métadonnées sur le fournisseur IA utilisé
-            result.aiProvider = useOllama ? 'ollama' : 'default';
-            result.ollamaStats = useOllama ? ollamaService.getStatistics() : null;
+            result.aiProvider = useOpenRouter ? 'openrouter' : 'default';
+            result.openrouterStats = useOpenRouter ? openrouterService.getStatistics() : null;
 
             return result;
         } catch (error) {
