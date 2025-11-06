@@ -307,7 +307,7 @@ const UsersManagementPage = () => {
                                 <Box sx={{ flex: '1 1 150px' }}>Utilisateur</Box><Box sx={{ flex: '0.8 1 100px' }}>Service</Box><Box sx={{ flex: '1.2 1 180px' }}>Email</Box><Box sx={{ flex: '1 1 160px' }}>Mots de passe</Box><Box sx={{ flex: '1 1 120px' }}>Groupes</Box><Box sx={{ flex: '0 0 auto', width: '180px' }}>Actions</Box>
                             </Box>
                             <Box sx={{ flex: 1, overflow: 'auto', minHeight: 400 }}>
-                                <AutoSizer>{({ height, width }) => (<List height={height} width={width} itemCount={filteredUsers.length} itemSize={80} itemKey={i => filteredUsers[i].username}>{Row}</List>)}</AutoSizer>
+                                <AutoSizer>{({ height, width }) => (<List height={height} width={width} itemCount={filteredUsers.length} itemSize={80} itemKey={i => filteredUsers[i]?.username || i}>{Row}</List>)}</AutoSizer>
                             </Box>
                         </Paper>
                     )}
