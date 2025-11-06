@@ -213,7 +213,7 @@ export const MODULES = {
     label: 'DocuCortex IA',
     icon: '🤖',
     path: '/ai-assistant',
-    description: 'Assistant IA documentaire avec Ollama/Llama et OCR',
+    description: 'Assistant IA documentaire avec Hugging Face et OpenRouter',
     requiredPermission: 'ai_assistant:view'
   }
 
