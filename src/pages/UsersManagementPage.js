@@ -100,10 +100,13 @@ const UsersManagementPage = () => {
         setIsRefreshing(false);
     }, [invalidate, showNotification]);
 
-    const { servers, departments } = useMemo(() => ({
-        servers: [...new Set(users.map(u => u.server).filter(Boolean))].sort(),
-        departments: [...new Set(users.map(u => u.department).filter(Boolean))].sort()
-    }), [users]);
+    const { servers, departments } = useMemo(() => {
+        const safeUsers = Array.isArray(users) ? users : [];
+        return {
+            servers: [...new Set(safeUsers.map(u => u && u.server).filter(Boolean))].sort(),
+            departments: [...new Set(safeUsers.map(u => u && u.department).filter(Boolean))].sort()
+        };
+    }, [users]);
 
     useEffect(() => {
         if (selectedOU) {
@@ -121,19 +124,26 @@ const UsersManagementPage = () => {
     }, [selectedOU, showNotification]);
 
     const filteredUsers = useMemo(() => {
-        let result = selectedOU ? ouUsers.map(ouUser => {
-            const excelUser = users.find(u => u.username.toLowerCase() === ouUser.SamAccountName.toLowerCase());
+        // Ensure we always work with arrays
+        const safeUsers = Array.isArray(users) ? users : [];
+        const safeOuUsers = Array.isArray(ouUsers) ? ouUsers : [];
+
+        let result = selectedOU && safeOuUsers.length > 0 ? safeOuUsers.map(ouUser => {
+            const excelUser = safeUsers.find(u => u.username && u.username.toLowerCase() === ouUser.SamAccountName.toLowerCase());
             return {
-                ...excelUser,
+                ...(excelUser || {}),
                 displayName: ouUser.DisplayName,
                 username: ouUser.SamAccountName,
                 email: ouUser.EmailAddress,
                 adEnabled: ouUser.Enabled ? 1 : 0,
             };
-        }) : users;
+        }) : safeUsers;
 
-        if (serverFilter !== 'all') result = result.filter(u => u.server === serverFilter);
-        if (departmentFilter !== 'all') result = result.filter(u => u.department === departmentFilter);
+        // Ensure result is always an array
+        result = Array.isArray(result) ? result : [];
+
+        if (serverFilter !== 'all') result = result.filter(u => u && u.server === serverFilter);
+        if (departmentFilter !== 'all') result = result.filter(u => u && u.department === departmentFilter);
         if (selectedOU) {
             // This is a placeholder for the actual filtering logic,
             // as we don't have the OU information in the user object yet.
@@ -142,17 +152,20 @@ const UsersManagementPage = () => {
         }
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
-            result = result.filter(u => ['displayName', 'username', 'email', 'department', 'server'].some(field => u[field] && String(u[field]).toLowerCase().includes(term)));
+            result = result.filter(u => u && ['displayName', 'username', 'email', 'department', 'server'].some(field => u[field] && String(u[field]).toLowerCase().includes(term)));
         }
         return result;
     }, [users, searchTerm, serverFilter, departmentFilter, selectedOU, ouUsers]);
 
-    const stats = useMemo(() => ({
-        totalUsers: users.length,
-        usersWithVpn: users.filter(u => vpnMembers.has(u.username)).length,
-        usersWithInternet: users.filter(u => internetMembers.has(u.username)).length,
-        totalServers: servers.length,
-    }), [users, vpnMembers, internetMembers, servers.length]);
+    const stats = useMemo(() => {
+        const safeUsers = Array.isArray(users) ? users : [];
+        return {
+            totalUsers: safeUsers.length,
+            usersWithVpn: safeUsers.filter(u => u && u.username && vpnMembers.has(u.username)).length,
+            usersWithInternet: safeUsers.filter(u => u && u.username && internetMembers.has(u.username)).length,
+            totalServers: Array.isArray(servers) ? servers.length : 0,
+        };
+    }, [users, vpnMembers, internetMembers, servers]);
     
     const handleSaveUser = async (userData) => {
         try {
