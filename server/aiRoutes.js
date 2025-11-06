@@ -8,7 +8,8 @@ const path = require('path');
 const fs = require('fs').promises;
 const AIService = require('../backend/services/ai/aiService');
 const aiDatabaseService = require('../backend/services/ai/aiDatabaseService');
-const ollamaService = require('../backend/services/ai/ollamaService');
+// ❌ REMOVED: Ollama is no longer used - replaced by Hugging Face & OpenRouter
+// const ollamaService = require('../backend/services/ai/ollamaService');
 
 // Configuration de multer pour upload de fichiers
 const storage = multer.memoryStorage();
