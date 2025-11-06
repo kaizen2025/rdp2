@@ -31,11 +31,14 @@ class OpenRouterService {
      * @param {string} apiKey - Clé API OpenRouter (sk-or-v1-...)
      */
     setApiKey(apiKey) {
-        if (!apiKey || !apiKey.startsWith('sk-or-v1-')) {
+        // Nettoyer les espaces et vérifier la validité
+        const cleanedKey = apiKey ? apiKey.trim() : '';
+
+        if (!cleanedKey || cleanedKey === 'STORED_IN_ENV_FILE' || !cleanedKey.startsWith('sk-or-v1-')) {
             console.warn('⚠️ Format de clé API OpenRouter invalide');
             return false;
         }
-        this.apiKey = apiKey;
+        this.apiKey = cleanedKey;
         console.log('✅ Clé API OpenRouter configurée');
         return true;
     }

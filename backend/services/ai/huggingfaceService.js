@@ -31,11 +31,14 @@ class HuggingFaceService {
      * @param {string} apiKey - Clé API Hugging Face (hf_...)
      */
     setApiKey(apiKey) {
-        if (!apiKey || !apiKey.startsWith('hf_')) {
+        // Nettoyer les espaces et vérifier la validité
+        const cleanedKey = apiKey ? apiKey.trim() : '';
+
+        if (!cleanedKey || cleanedKey === 'STORED_IN_ENV_FILE' || !cleanedKey.startsWith('hf_')) {
             console.warn('⚠️ Format de clé API Hugging Face invalide (devrait commencer par hf_)');
             return false;
         }
-        this.apiKey = apiKey;
+        this.apiKey = cleanedKey;
         console.log('✅ Clé API Hugging Face configurée');
         return true;
     }
