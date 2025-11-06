@@ -34,10 +34,22 @@ const MemberRow = memo(({ member, style, isOdd, onRemove, groupName }) => (
 const AdGroupsPage = () => {
     const { showNotification } = useApp();
     const { cache, isLoading: isCacheLoading, invalidate } = useCache();
-    
-    const config = useMemo(() => cache.config || {}, [cache.config]);
-    const adGroups = useMemo(() => config?.ad_groups || {}, [config]);
-    const groupKeys = useMemo(() => Object.keys(adGroups), [adGroups]);
+
+    // ✅ Protection robuste contre undefined/null
+    const config = useMemo(() => {
+        if (!cache || typeof cache !== 'object') return {};
+        return cache.config || {};
+    }, [cache]);
+
+    const adGroups = useMemo(() => {
+        if (!config || typeof config !== 'object') return {};
+        return config.ad_groups || {};
+    }, [config]);
+
+    const groupKeys = useMemo(() => {
+        if (!adGroups || typeof adGroups !== 'object') return [];
+        return Object.keys(adGroups);
+    }, [adGroups]);
     
     const [selectedGroup, setSelectedGroup] = useState(groupKeys.length > 0 ? groupKeys[0] : '');
     const [searchTerm, setSearchTerm] = useState('');
@@ -100,7 +112,8 @@ const AdGroupsPage = () => {
     const Row = ({ index, style }) => <MemberRow member={filteredMembers[index]} style={style} isOdd={index % 2 === 1} onRemove={handleRemoveUser} groupName={selectedGroup} />;
     const currentGroupData = useMemo(() => adGroups[selectedGroup] || {}, [adGroups, selectedGroup]);
 
-    if (isCacheLoading && !config.domain) {
+    // ✅ Afficher le loading si le cache n'est pas encore chargé ou si config est vide
+    if (isCacheLoading || !config || Object.keys(config).length === 0) {
         return <LoadingScreen type="list" />;
     }
 

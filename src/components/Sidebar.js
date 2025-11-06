@@ -24,6 +24,7 @@ import GroupWorkIcon from '@mui/icons-material/GroupWork';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import MouseIcon from '@mui/icons-material/Mouse';
+import PsychologyIcon from '@mui/icons-material/Psychology';
 
 const drawerWidth = 240;
 
@@ -73,15 +74,22 @@ const navigationItems = [
         section: 'loans',
         isNew: true // Badge "nouveau"
     },
-    { 
-        text: 'Chat', 
-        path: '/chat', 
+    {
+        text: 'Chat',
+        path: '/chat',
         icon: <ChatIcon />,
-        section: 'other'
+        section: 'ai'
     },
-    { 
-        text: 'Paramètres', 
-        path: '/settings', 
+    {
+        text: 'Configuration IA',
+        path: '/ai-config',
+        icon: <PsychologyIcon />,
+        section: 'ai',
+        isNew: true
+    },
+    {
+        text: 'Paramètres',
+        path: '/settings',
         icon: <SettingsIcon />,
         section: 'other'
     },
@@ -94,6 +102,7 @@ const Sidebar = ({ onLogout }) => {
     // Grouper les items par section
     const mainItems = navigationItems.filter(item => item.section === 'main');
     const loansItems = navigationItems.filter(item => item.section === 'loans');
+    const aiItems = navigationItems.filter(item => item.section === 'ai');
     const otherItems = navigationItems.filter(item => item.section === 'other');
 
     const renderNavigationItem = (item) => (
@@ -182,6 +191,21 @@ const Sidebar = ({ onLogout }) => {
                     }
                 >
                     {loansItems.map(renderNavigationItem)}
+                </List>
+
+                <Divider />
+
+                {/* Section IA */}
+                <List
+                    subheader={
+                        <Box sx={{ px: 2, py: 1 }}>
+                            <Typography variant="caption" color="text.secondary" fontWeight="bold">
+                                INTELLIGENCE ARTIFICIELLE
+                            </Typography>
+                        </Box>
+                    }
+                >
+                    {aiItems.map(renderNavigationItem)}
                 </List>
 
                 <Divider />
