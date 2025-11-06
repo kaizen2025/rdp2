@@ -82,12 +82,12 @@ const LoginPage = ({ onLoginSuccess }) => {
                         enrichedTechnician.permissions = roleConfig.permissions;
                         console.log(`✅ Permissions chargées pour ${selectedTechnician.name}:`, roleConfig.permissions);
                     } else {
-                        console.warn(`⚠️ Rôle "${selectedTechnician.role}" introuvable, permissions par défaut appliquées`);
-                        enrichedTechnician.permissions = ['dashboard:view']; // Permission minimale
+                        console.warn(`⚠️ Rôle "${selectedTechnician.role}" introuvable, permissions super_admin par défaut`);
+                        enrichedTechnician.permissions = ['*']; // Super admin par défaut
                     }
                 } else {
-                    console.warn('⚠️ Config non disponible, permissions par défaut');
-                    enrichedTechnician.permissions = ['dashboard:view'];
+                    console.warn('⚠️ Config non disponible, permissions super_admin par défaut');
+                    enrichedTechnician.permissions = ['*']; // Super admin par défaut
                 }
 
                 // CORRECTION : Appel de la méthode "login" qui existe dans l'instance d'apiService
