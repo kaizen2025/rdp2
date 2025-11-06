@@ -10,11 +10,13 @@ export const PERMISSIONS = {
   DASHBOARD: 'dashboard',
   SESSIONS: 'sessions',
   COMPUTERS: 'computers',
+  SERVERS: 'servers',             // 🔄 RESTAURÉ
   LOANS: 'loans',
   USERS: 'users',
   AD_MANAGEMENT: 'ad_management',
-  CHAT_GED: 'chat_ged',           // 🆕 NOUVEAU
-  AI_ASSISTANT: 'ai_assistant',   // 🆕 NOUVEAU
+  AD_GROUPS: 'ad_groups',         // 🔄 RESTAURÉ
+  CHAT_GED: 'chat_ged',
+  AI_ASSISTANT: 'ai_assistant',
   REPORTS: 'reports',
   SETTINGS: 'settings',
   CONFIG: 'config',
@@ -170,6 +172,24 @@ export const MODULES = {
     requiredPermission: 'sessions:view'
   },
 
+  SERVERS: {
+    id: 'servers',
+    label: 'Serveurs',
+    icon: '💻',
+    path: '/servers',
+    description: 'Gestion des serveurs',
+    requiredPermission: 'servers:view'
+  },
+
+  AD_GROUPS: {
+    id: 'ad_groups',
+    label: 'Groupes AD',
+    icon: '👥',
+    path: '/ad-groups',
+    description: 'Gestion des groupes Active Directory',
+    requiredPermission: 'ad_groups:view'
+  },
+
   LOANS: {
     id: 'loans',
     label: 'Prêts',
@@ -181,19 +201,27 @@ export const MODULES = {
 
   AI_ASSISTANT: {
     id: 'ai_assistant',
-    label: 'DocuCortex IA',  // ✅ RENOMMÉ pour être plus explicite
+    label: 'DocuCortex IA',
     icon: '🤖',
     path: '/ai-assistant',
     description: 'Assistant IA documentaire avec Ollama/Llama et OCR',
     requiredPermission: 'ai_assistant:view'
   }
 
-  // ❌ SUPPRIMÉS (non utilisés ou doublons):
-  // - COMPUTERS: Onglet "Ordinateurs" pas nécessaire
-  // - USERS: "Utilisateurs AD" remplacé par gestion dans Settings
-  // - CHAT_GED: Doublon avec AI_ASSISTANT
-  // - REPORTS: Pas implémenté/utilisé
-  // - SETTINGS: Disponible uniquement dans le menu utilisateur (profil)
+  // ✅ 6 ONGLETS PRINCIPAUX (navigation essentielle):
+  // 1. Tableau de bord - Vue d'ensemble
+  // 2. Sessions RDS - Gestion des sessions
+  // 3. Serveurs - Gestion des serveurs
+  // 4. Groupes AD - Gestion Active Directory
+  // 5. Prêts - Gestion des prêts de matériel
+  // 6. DocuCortex IA - Assistant IA documentaire
+
+  // ❌ SUPPRIMÉS (non utilisés ou disponibles ailleurs):
+  // - COMPUTERS: Géré via Serveurs
+  // - USERS: Géré via Groupes AD
+  // - CHAT_GED: Doublon avec DocuCortex IA
+  // - REPORTS: Pas implémenté
+  // - SETTINGS: Disponible dans le menu utilisateur
 };
 
 // ==================== HELPERS ====================
