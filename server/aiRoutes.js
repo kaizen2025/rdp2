@@ -4,6 +4,8 @@
 
 const express = require('express');
 const multer = require('multer');
+const path = require('path');
+const fs = require('fs').promises;
 const AIService = require('../backend/services/ai/aiService');
 const aiDatabaseService = require('../backend/services/ai/aiDatabaseService');
 const ollamaService = require('../backend/services/ai/ollamaService');
@@ -222,7 +224,7 @@ module.exports = (broadcast) => {
     router.put('/settings/:key', asyncHandler(async (req, res) => {
         const { key } = req.params;
         const { value } = req.body;
-        
+
         if (value === undefined) {
             return res.status(400).json({
                 success: false,
@@ -231,7 +233,7 @@ module.exports = (broadcast) => {
         }
 
         const result = aiService.updateSetting(key, value);
-        
+
         if (result.success) {
             broadcast({
                 type: 'ai_settings_updated',
@@ -241,6 +243,206 @@ module.exports = (broadcast) => {
         }
 
         res.json(result);
+    }));
+
+    // ==================== CONFIGURATION AI ====================
+
+    /**
+     * GET /ai/config - Obtient la configuration complète de l'IA
+     */
+    router.get('/config', asyncHandler(async (req, res) => {
+        try {
+            const configPath = path.join(__dirname, '../config/ai-config.json');
+            const configData = await fs.readFile(configPath, 'utf8');
+            const config = JSON.parse(configData);
+
+            // Masquer les clés API pour la sécurité
+            const sanitizedConfig = JSON.parse(JSON.stringify(config));
+            Object.keys(sanitizedConfig.providers || {}).forEach(provider => {
+                if (sanitizedConfig.providers[provider].apiKey) {
+                    const key = sanitizedConfig.providers[provider].apiKey;
+                    if (key !== 'STORED_IN_ENV_FILE') {
+                        sanitizedConfig.providers[provider].apiKey = key.substring(0, 8) + '...' + key.slice(-4);
+                    }
+                }
+            });
+
+            // Ajouter les informations de statut des providers
+            Object.keys(sanitizedConfig.providers || {}).forEach(provider => {
+                const providerService = aiService.providers[provider];
+                if (providerService) {
+                    sanitizedConfig.providers[provider].status = {
+                        enabled: providerService.enabled || false,
+                        active: aiService.activeProvider === provider,
+                        initialized: providerService.enabled || false
+                    };
+                }
+            });
+
+            res.json({
+                success: true,
+                config: sanitizedConfig
+            });
+        } catch (error) {
+            console.error('Erreur lecture configuration:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Erreur lecture configuration',
+                details: error.message
+            });
+        }
+    }));
+
+    /**
+     * PUT /ai/config - Met à jour la configuration de l'IA
+     */
+    router.put('/config', asyncHandler(async (req, res) => {
+        try {
+            const { aiProvider, providers, fallback, ocr, chat, network, ui } = req.body;
+
+            const configPath = path.join(__dirname, '../config/ai-config.json');
+            const currentConfigData = await fs.readFile(configPath, 'utf8');
+            const currentConfig = JSON.parse(currentConfigData);
+
+            // Mettre à jour seulement les champs fournis
+            const updatedConfig = {
+                ...currentConfig,
+                ...(aiProvider && { aiProvider }),
+                ...(providers && { providers: { ...currentConfig.providers, ...providers } }),
+                ...(fallback && { fallback: { ...currentConfig.fallback, ...fallback } }),
+                ...(ocr && { ocr: { ...currentConfig.ocr, ...ocr } }),
+                ...(chat && { chat: { ...currentConfig.chat, ...chat } }),
+                ...(network && { network: { ...currentConfig.network, ...network } }),
+                ...(ui && { ui: { ...currentConfig.ui, ...ui } })
+            };
+
+            // Sauvegarder la configuration
+            await fs.writeFile(configPath, JSON.stringify(updatedConfig, null, 2), 'utf8');
+
+            // Recharger la configuration dans aiService
+            aiService.config = updatedConfig;
+
+            // Notifier via WebSocket
+            broadcast({
+                type: 'ai_config_updated',
+                timestamp: new Date().toISOString()
+            });
+
+            res.json({
+                success: true,
+                message: 'Configuration mise à jour avec succès',
+                config: updatedConfig
+            });
+        } catch (error) {
+            console.error('Erreur mise à jour configuration:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Erreur mise à jour configuration',
+                details: error.message
+            });
+        }
+    }));
+
+    /**
+     * POST /ai/providers/:provider/test - Teste la connexion d'un provider
+     */
+    router.post('/providers/:provider/test', asyncHandler(async (req, res) => {
+        try {
+            const { provider } = req.params;
+            const { apiKey, model } = req.body;
+
+            if (!aiService.providers[provider]) {
+                return res.status(404).json({
+                    success: false,
+                    error: `Provider ${provider} non trouvé`
+                });
+            }
+
+            const providerService = aiService.providers[provider].service;
+
+            // Test de connexion
+            const testResult = await providerService.testConnection(apiKey, model);
+
+            res.json(testResult);
+        } catch (error) {
+            console.error(`Erreur test provider ${req.params.provider}:`, error);
+            res.status(500).json({
+                success: false,
+                error: 'Erreur test provider',
+                details: error.message
+            });
+        }
+    }));
+
+    /**
+     * POST /ai/providers/:provider/toggle - Active/désactive un provider
+     */
+    router.post('/providers/:provider/toggle', asyncHandler(async (req, res) => {
+        try {
+            const { provider } = req.params;
+            const { enabled } = req.body;
+
+            if (!aiService.providers[provider]) {
+                return res.status(404).json({
+                    success: false,
+                    error: `Provider ${provider} non trouvé`
+                });
+            }
+
+            // Mettre à jour la configuration
+            const configPath = path.join(__dirname, '../config/ai-config.json');
+            const configData = await fs.readFile(configPath, 'utf8');
+            const config = JSON.parse(configData);
+
+            if (!config.providers[provider]) {
+                return res.status(404).json({
+                    success: false,
+                    error: `Configuration provider ${provider} non trouvée`
+                });
+            }
+
+            config.providers[provider].enabled = enabled;
+
+            await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf8');
+
+            // Mettre à jour le service
+            aiService.providers[provider].enabled = enabled;
+            aiService.config = config;
+
+            // Si on désactive le provider actif, basculer sur un autre
+            if (!enabled && aiService.activeProvider === provider) {
+                const nextProvider = Object.keys(aiService.providers).find(
+                    p => aiService.providers[p].enabled && p !== provider
+                );
+                if (nextProvider) {
+                    aiService.activeProvider = nextProvider;
+                    console.log(`Basculé vers ${nextProvider} comme provider actif`);
+                }
+            }
+
+            // Notifier via WebSocket
+            broadcast({
+                type: 'ai_provider_toggled',
+                provider: provider,
+                enabled: enabled,
+                activeProvider: aiService.activeProvider,
+                timestamp: new Date().toISOString()
+            });
+
+            res.json({
+                success: true,
+                provider: provider,
+                enabled: enabled,
+                activeProvider: aiService.activeProvider
+            });
+        } catch (error) {
+            console.error(`Erreur toggle provider ${req.params.provider}:`, error);
+            res.status(500).json({
+                success: false,
+                error: 'Erreur toggle provider',
+                details: error.message
+            });
+        }
     }));
 
     // ==================== STATISTIQUES ====================

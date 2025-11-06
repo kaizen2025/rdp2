@@ -30,6 +30,7 @@ const ConnectionsPage = lazy(() => import('../pages/ConnectionsPage'));
 const AdGroupsPage = lazy(() => import('../pages/AdGroupsPage'));
 const ComputerLoansPage = lazy(() => import('../pages/ComputerLoansPage'));
 const AIAssistantPage = lazy(() => import('../pages/AIAssistantPage'));
+const AIConfigPage = lazy(() => import('../pages/AIConfigPage'));
 const SettingsPage = lazy(() => import('../pages/SettingsPage'));
 const ChatDialog = lazy(() => import('../pages/ChatPage'));
 const NotificationsPanel = lazy(() => import('../components/NotificationsPanel'));
@@ -250,6 +251,8 @@ function MainLayout({ onLogout, currentTechnician, onChatClick }) {
                                     <AIAssistantPage />
                                 </ProtectedRoute>
                             } />
+
+                            <Route path="/ai-config" element={<AIConfigPage />} />
 
                             <Route path="*" element={<Navigate to="/dashboard" replace />} />
                         </Routes>
