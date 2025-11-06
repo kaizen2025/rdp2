@@ -127,7 +127,7 @@ const AdGroupsPage = () => {
             }/>
             <Paper elevation={2} sx={{ p: 2.5, mb: 3 }}>
                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-end', mb: 2 }}>
-                    <FormControl sx={{ minWidth: 300 }}><InputLabel>Groupe</InputLabel><Select value={selectedGroup} label="Groupe" onChange={(e) => setSelectedGroup(e.target.value)}>{Object.entries(adGroups).map(([key, group]) => (<MenuItem key={key} value={key}><Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><GroupIcon fontSize="small" />{group.name}<Chip label={group.type} size="small" variant="outlined" /></Box></MenuItem>))}</Select></FormControl>
+                    <FormControl sx={{ minWidth: 300 }}><InputLabel>Groupe</InputLabel><Select value={selectedGroup} label="Groupe" onChange={(e) => setSelectedGroup(e.target.value)}>{Object.entries(adGroups || {}).map(([key, group]) => (<MenuItem key={key} value={key}><Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><GroupIcon fontSize="small" />{group.name}<Chip label={group.type} size="small" variant="outlined" /></Box></MenuItem>))}</Select></FormControl>
                     <Box sx={{ flexGrow: 1 }}><SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Rechercher un membre..." fullWidth /></Box>
                     <Chip icon={<GroupIcon />} label={`${filteredMembers.length} membre(s)`} color="primary" />
                 </Box>
