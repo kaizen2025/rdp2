@@ -85,7 +85,9 @@ const AdGroupsPage = () => {
         const safeMembers = Array.isArray(members) ? members : [];
         if (!searchTerm) return safeMembers;
         const term = searchTerm.toLowerCase();
-        return safeMembers.filter(m => m && ((m.DisplayName || m.name || '').toLowerCase().includes(term) || (m.SamAccountName || m.sam || '').toLowerCase().includes(term)));
+        const filtered = safeMembers.filter(m => m && ((m.DisplayName || m.name || '').toLowerCase().includes(term) || (m.SamAccountName || m.sam || '').toLowerCase().includes(term)));
+        // ✅ Ensure we always return an array
+        return Array.isArray(filtered) ? filtered : [];
     }, [members, searchTerm]);
 
     const handleRemoveUser = async (username, groupName) => {
@@ -117,11 +119,13 @@ const AdGroupsPage = () => {
     }, [showNotification]);
 
     const handleOpenAddDialog = () => { setUserSearchTerm(''); setAvailableUsers([]); setAddUserDialogOpen(true); };
-    const Row = useCallback(({ index, style }) => {
-        const member = Array.isArray(filteredMembers) && filteredMembers[index];
+    const Row = useCallback(({ index, style, data }) => {
+        // ✅ Use data.members passed via itemData for safety
+        const members = data?.members || [];
+        const member = members[index];
         if (!member) return null;
-        return <MemberRow member={member} style={style} isOdd={index % 2 === 1} onRemove={handleRemoveUser} groupName={selectedGroup} />;
-    }, [filteredMembers, handleRemoveUser, selectedGroup]);
+        return <MemberRow member={member} style={style} isOdd={index % 2 === 1} onRemove={data.onRemove} groupName={data.groupName} />;
+    }, []);
     const currentGroupData = useMemo(() => adGroups[selectedGroup] || {}, [adGroups, selectedGroup]);
 
     // ✅ Afficher le loading si le cache n'est pas encore chargé ou si config est vide
@@ -147,7 +151,23 @@ const AdGroupsPage = () => {
             </Paper>
             {isRefreshing ? <LoadingScreen type="list" /> : filteredMembers.length === 0 ? <Paper elevation={2} sx={{ p: 4 }}><EmptyState type={searchTerm ? 'search' : 'empty'} onAction={searchTerm ? () => setSearchTerm('') : handleOpenAddDialog} /></Paper> : (
                 <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', minHeight: 500 }}>
-                    <Box sx={{ flex: 1, overflow: 'hidden' }}><AutoSizer>{({ height, width }) => (<FixedSizeList height={height} itemCount={filteredMembers.length} itemSize={60} width={width}>{Row}</FixedSizeList>)}</AutoSizer></Box>
+                    <Box sx={{ flex: 1, overflow: 'hidden' }}>
+                        <AutoSizer>{({ height, width }) => (
+                            <FixedSizeList
+                                height={height}
+                                itemCount={Array.isArray(filteredMembers) ? filteredMembers.length : 0}
+                                itemSize={60}
+                                width={width}
+                                itemData={{
+                                    members: Array.isArray(filteredMembers) ? filteredMembers : [],
+                                    onRemove: handleRemoveUser,
+                                    groupName: selectedGroup
+                                }}
+                            >
+                                {Row}
+                            </FixedSizeList>
+                        )}</AutoSizer>
+                    </Box>
                 </Paper>
             )}
             <Dialog open={addUserDialogOpen} onClose={() => setAddUserDialogOpen(false)} maxWidth="sm" fullWidth>

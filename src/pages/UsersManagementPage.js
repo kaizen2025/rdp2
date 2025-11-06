@@ -144,8 +144,11 @@ const UsersManagementPage = () => {
             };
         }) : safeUsers;
 
-        // Ensure result is always an array
-        result = Array.isArray(result) ? result : [];
+        // Ensure result is always an array and never null/undefined
+        if (!Array.isArray(result)) {
+            console.warn('[UsersManagementPage] filteredUsers is not an array, returning empty array');
+            return [];
+        }
 
         if (serverFilter !== 'all') result = result.filter(u => u && u.server === serverFilter);
         if (departmentFilter !== 'all') result = result.filter(u => u && u.department === departmentFilter);
@@ -217,8 +220,10 @@ const UsersManagementPage = () => {
         }
     };
 
-    const Row = useCallback(({ index, style }) => {
-        const user = Array.isArray(filteredUsers) && filteredUsers[index];
+    const Row = useCallback(({ index, style, data }) => {
+        // ✅ Use data.users passed via itemData for safety
+        const users = data?.users || [];
+        const user = users[index];
         if (!user) return null;
         return (
             <UserRow
@@ -228,13 +233,13 @@ const UsersManagementPage = () => {
                 onConnectWithCredentials={handleConnectUserWithCredentials}
                 onPrint={u => setDialog({ type: 'print', data: u })}
                 onOpenAdDialog={u => setDialog({ type: 'adActions', data: u })}
-                vpnMembers={vpnMembers} internetMembers={internetMembers}
+                vpnMembers={data.vpnMembers} internetMembers={data.internetMembers}
                 onMembershipChange={() => { invalidate('ad_groups:VPN'); invalidate('ad_groups:Sortants_responsables'); }}
                 onSelect={handleSelectUser}
-                isSelected={selectedUsernames.has(user.username)}
+                isSelected={data.selectedUsernames.has(user.username)}
             />
         );
-    }, [filteredUsers, vpnMembers, internetMembers, handleDeleteUser, handleConnectUserWithCredentials, invalidate, selectedUsernames]);
+    }, [handleDeleteUser, handleConnectUserWithCredentials, invalidate]);
     
     const clearFilters = () => { setSearchTerm(''); setServerFilter('all'); setDepartmentFilter('all'); };
 
@@ -307,7 +312,26 @@ const UsersManagementPage = () => {
                                 <Box sx={{ flex: '1 1 150px' }}>Utilisateur</Box><Box sx={{ flex: '0.8 1 100px' }}>Service</Box><Box sx={{ flex: '1.2 1 180px' }}>Email</Box><Box sx={{ flex: '1 1 160px' }}>Mots de passe</Box><Box sx={{ flex: '1 1 120px' }}>Groupes</Box><Box sx={{ flex: '0 0 auto', width: '180px' }}>Actions</Box>
                             </Box>
                             <Box sx={{ flex: 1, overflow: 'auto', minHeight: 400 }}>
-                                <AutoSizer>{({ height, width }) => (<List height={height} width={width} itemCount={filteredUsers.length} itemSize={80} itemKey={i => filteredUsers[i]?.username || i}>{Row}</List>)}</AutoSizer>
+                                <AutoSizer>{({ height, width }) => (
+                                    <List
+                                        height={height}
+                                        width={width}
+                                        itemCount={Array.isArray(filteredUsers) ? filteredUsers.length : 0}
+                                        itemSize={80}
+                                        itemKey={i => {
+                                            const users = Array.isArray(filteredUsers) ? filteredUsers : [];
+                                            return users[i]?.username || `user-${i}`;
+                                        }}
+                                        itemData={{
+                                            users: Array.isArray(filteredUsers) ? filteredUsers : [],
+                                            vpnMembers,
+                                            internetMembers,
+                                            selectedUsernames
+                                        }}
+                                    >
+                                        {Row}
+                                    </List>
+                                )}</AutoSizer>
                             </Box>
                         </Paper>
                     )}
