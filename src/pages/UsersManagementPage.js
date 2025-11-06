@@ -37,7 +37,12 @@ const UserRow = memo(({ user, style, isOdd, onEdit, onDelete, onConnectWithCrede
     const { showNotification } = useApp();
     const [isUpdatingVpn, setIsUpdatingVpn] = useState(false);
     const [isUpdatingInternet, setIsUpdatingInternet] = useState(false);
-    
+
+    // Protection: if user is undefined, return null
+    if (!user || !user.username) {
+        return null;
+    }
+
     const toggleGroup = useCallback(async (group, isMember, setLoading) => {
         setLoading(true);
         try {
@@ -213,7 +218,8 @@ const UsersManagementPage = () => {
     };
 
     const Row = useCallback(({ index, style }) => {
-        const user = filteredUsers[index];
+        const user = Array.isArray(filteredUsers) && filteredUsers[index];
+        if (!user) return null;
         return (
             <UserRow
                 user={user} style={style} isOdd={index % 2 === 1}
