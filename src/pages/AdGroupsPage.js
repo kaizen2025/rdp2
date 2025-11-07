@@ -18,7 +18,7 @@ import {
 
 import { useApp } from '../contexts/AppContext';
 import { useCache } from '../contexts/CacheContext';
-import apiService from '../services/apiService';
+import { useElectronAD } from '../hooks/useElectronAD';
 import PageHeader from '../components/common/PageHeader';
 import SearchInput from '../components/common/SearchInput';
 import EmptyState from '../components/common/EmptyState';
@@ -38,6 +38,7 @@ const MemberRow = memo(({ member, style, isOdd, onRemove, groupName }) => {
 const AdGroupsPage = () => {
     const { showNotification } = useApp();
     const { cache, isLoading: isCacheLoading, invalidate } = useCache();
+    const electronAD = useElectronAD();
 
     // ✅ Protection robuste contre undefined/null
     const config = useMemo(() => {
@@ -93,18 +94,26 @@ const AdGroupsPage = () => {
     const handleRemoveUser = async (username, groupName) => {
         if (!window.confirm(`Retirer ${username} du groupe ${groupName} ?`)) return;
         try {
-            await apiService.removeUserFromGroup(username, groupName);
-            showNotification('success', `${username} retiré du groupe.`);
-            await invalidate(`ad_groups:${groupName}`);
+            const result = await electronAD.removeUserFromGroup(username, groupName);
+            if (result.success) {
+                showNotification('success', `${username} retiré du groupe.`);
+                await invalidate(`ad_groups:${groupName}`);
+            } else {
+                showNotification('error', `Erreur: ${result.error}`);
+            }
         } catch (error) { showNotification('error', `Erreur: ${error.message}`); }
     };
 
     const handleAddUser = async (username) => {
         try {
-            await apiService.addUserToGroup(username, selectedGroup);
-            showNotification('success', `${username} ajouté au groupe.`);
-            await invalidate(`ad_groups:${selectedGroup}`);
-            setAddUserDialogOpen(false);
+            const result = await electronAD.addUserToGroup(username, selectedGroup);
+            if (result.success) {
+                showNotification('success', `${username} ajouté au groupe.`);
+                await invalidate(`ad_groups:${selectedGroup}`);
+                setAddUserDialogOpen(false);
+            } else {
+                showNotification('error', `Erreur: ${result.error}`);
+            }
         } catch (error) { showNotification('error', `Erreur: ${error.message}`); }
     };
 
@@ -112,11 +121,11 @@ const AdGroupsPage = () => {
         if (!term || term.length < 2) { setAvailableUsers([]); return; }
         setSearchingUsers(true);
         try {
-            const users = await apiService.searchAdUsers(term);
-            setAvailableUsers(users || []);
-        } catch (error) { showNotification('error', `Erreur recherche: ${error.message}`); } 
+            const users = await electronAD.searchUsers(term);
+            setAvailableUsers(Array.isArray(users) ? users : []);
+        } catch (error) { showNotification('error', `Erreur recherche: ${error.message}`); }
         finally { setSearchingUsers(false); }
-    }, [showNotification]);
+    }, [electronAD, showNotification]);
 
     const handleOpenAddDialog = () => { setUserSearchTerm(''); setAvailableUsers([]); setAddUserDialogOpen(true); };
     const Row = useCallback(({ index, style, data }) => {
