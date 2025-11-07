@@ -429,12 +429,22 @@ class AIService {
 
                 if (providerService) {
                     try {
-                        // Rechercher les documents pertinents AVANT d'appeler le LLM
-                        const searchResult = await this.searchDocuments(message, { limit: 5 });
+                        // ✅ NOUVEAU: Détecter si la question nécessite une recherche documentaire
+                        const needsDocuments = this._needsDocumentSearch(message);
+
                         let enrichedMessage = message;
                         let documentSources = [];
+                        let searchResult = null;
 
-                        if (searchResult.success && searchResult.results.length > 0) {
+                        // Rechercher les documents SEULEMENT si nécessaire
+                        if (needsDocuments) {
+                            console.log('🔍 Question nécessite une recherche documentaire');
+                            searchResult = await this.searchDocuments(message, { limit: 5 });
+                        } else {
+                            console.log('💬 Question conversationnelle - pas de recherche documentaire');
+                        }
+
+                        if (searchResult && searchResult.success && searchResult.results.length > 0) {
                             // Enrichir le message avec le contexte documentaire pour le LLM
                             const contextDocs = searchResult.results.map((r, idx) => {
                                 const doc = r.document;
@@ -2547,7 +2557,7 @@ ${contextDocs}
     async cleanupOCR() {
         try {
             const result = await ocrService.cleanup();
-            
+
             if (result.success) {
                 console.log('🧹 Service OCR nettoyé');
             }
@@ -2559,6 +2569,81 @@ ${contextDocs}
                 error: error.message
             };
         }
+    }
+
+    /**
+     * Détermine si une question nécessite une recherche documentaire
+     * ou si c'est une conversation générale
+     * @param {string} message - Le message de l'utilisateur
+     * @returns {boolean} true si nécessite recherche documentaire, false sinon
+     */
+    _needsDocumentSearch(message) {
+        const lowerMessage = message.toLowerCase().trim();
+
+        // Mots-clés conversationnels qui n'ont PAS besoin de documents
+        const conversationalPatterns = [
+            // Salutations
+            /^(salut|bonjour|bonsoir|hello|hi|hey|coucou)/,
+            /^(ça va|comment vas-tu|comment allez-vous|tu vas bien)/,
+            /^(merci|d'accord|ok|oui|non|peut-être)/,
+
+            // Questions personnelles/générales
+            /^(qui es-tu|qu'est-ce que tu (es|peux faire)|que peux-tu faire)/,
+            /^(comment tu t'appelles|quel est ton nom)/,
+
+            // Questions hors contexte documentaire
+            /météo|temps qu'il fait/,
+            /actualité|actualités|news/,
+            /heure|quelle heure/,
+            /^(aide|help)$/,
+
+            // Confirmations simples
+            /^(d'accord|compris|je vois|ah|oh|mm|hmm)$/
+        ];
+
+        // Si le message correspond à un pattern conversationnel
+        for (const pattern of conversationalPatterns) {
+            if (pattern.test(lowerMessage)) {
+                return false; // Pas besoin de recherche documentaire
+            }
+        }
+
+        // Mots-clés indiquant besoin de documents
+        const documentKeywords = [
+            'document', 'fichier', 'pdf', 'excel', 'word',
+            'trouve', 'cherche', 'recherche', 'montre', 'affiche',
+            'liste', 'quels', 'combien de',
+            'contenu', 'texte', 'information',
+            'offre', 'prix', 'facture', 'devis',
+            'rapport', 'compte-rendu', 'procès-verbal',
+            'dans le', 'dans les', 'parmi'
+        ];
+
+        // Si le message contient des mots-clés documentaires
+        for (const keyword of documentKeywords) {
+            if (lowerMessage.includes(keyword)) {
+                return true; // Nécessite recherche documentaire
+            }
+        }
+
+        // Détection de questions (souvent liées aux documents)
+        const questionWords = ['quel', 'quelle', 'quels', 'quelles', 'comment', 'où', 'quand', 'pourquoi', 'qu\'est-ce'];
+        const hasQuestionWord = questionWords.some(word => lowerMessage.includes(word));
+
+        // Si c'est une question ET assez longue (>5 mots), probablement besoin de documents
+        const wordCount = lowerMessage.split(/\s+/).length;
+        if (hasQuestionWord && wordCount > 5) {
+            return true; // Probablement besoin de documents
+        }
+
+        // Par défaut, pour les messages très courts (<3 mots), traiter comme conversationnel
+        if (wordCount < 3) {
+            return false;
+        }
+
+        // Par défaut, pour tout le reste, faire une recherche documentaire
+        // (principe de précaution - mieux vaut chercher que ne pas chercher)
+        return true;
     }
 }
 
