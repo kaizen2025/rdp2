@@ -446,6 +446,79 @@ module.exports = (broadcast) => {
         }
     }));
 
+    /**
+     * GET /ai/providers/:provider/models - Récupère la liste des modèles disponibles
+     */
+    router.get('/providers/:provider/models', asyncHandler(async (req, res) => {
+        try {
+            const { provider } = req.params;
+            const { free, sortBy, limit, task, sort } = req.query;
+
+            if (!aiService.providers[provider]) {
+                return res.status(404).json({
+                    success: false,
+                    error: `Provider ${provider} non trouvé`
+                });
+            }
+
+            const providerService = aiService.providers[provider].service;
+
+            // Vérifier que le service a la méthode getAvailableModels
+            if (typeof providerService.getAvailableModels !== 'function') {
+                return res.status(400).json({
+                    success: false,
+                    error: `Le provider ${provider} ne supporte pas la récupération de modèles`
+                });
+            }
+
+            // Préparer les filtres pour OpenRouter (uniquement)
+            const filters = {
+                recommended: free === 'true',  // Recommandés = validés et testés
+                sortBy: sortBy || 'context',
+                limit: parseInt(limit) || 20,
+                category: task  // Optionnel: filtrer par catégorie (coding, vision-language, etc.)
+            };
+
+            // Récupérer les modèles
+            const result = await providerService.getAvailableModels(filters);
+
+            res.json(result);
+        } catch (error) {
+            console.error(`Erreur récupération modèles ${req.params.provider}:`, error);
+            res.status(500).json({
+                success: false,
+                error: 'Erreur récupération modèles',
+                details: error.message
+            });
+        }
+    }));
+
+    /**
+     * GET /ai/models/recommended - Récupère les modèles recommandés (OpenRouter uniquement)
+     */
+    router.get('/models/recommended', asyncHandler(async (req, res) => {
+        try {
+            const openrouterService = require('../backend/services/ai/openrouterService');
+
+            const recommendedModels = openrouterService.getRecommendedModels();
+
+            res.json({
+                success: true,
+                models: recommendedModels,
+                total: recommendedModels.length,
+                provider: 'openrouter',
+                validated: true
+            });
+        } catch (error) {
+            console.error('Erreur récupération modèles recommandés:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Erreur récupération modèles recommandés',
+                details: error.message
+            });
+        }
+    }));
+
     // ==================== STATISTIQUES ====================
 
     /**

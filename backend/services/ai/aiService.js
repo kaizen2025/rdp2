@@ -34,6 +34,7 @@ class AIService {
         };
         this.activeProvider = 'default'; // Provider actuellement utilisé
         this.config = null; // Configuration complète chargée depuis ai-config.json
+        this.gedSystemPrompt = null; // Prompt système GED optimisé pour Polaris Alpha
     }
 
     /**
@@ -51,6 +52,9 @@ class AIService {
 
             // Charger la configuration IA
             this.config = this.loadAIConfig();
+
+            // Charger le prompt système GED optimisé
+            this.gedSystemPrompt = this.loadGEDSystemPrompt();
 
             if (!this.config || !this.config.providers) {
                 console.warn('⚠️ Configuration IA non trouvée, utilisation du service par défaut');
@@ -197,6 +201,30 @@ class AIService {
         } catch (error) {
             console.error('❌ Erreur chargement .env.ai:', error.message);
             return {};
+        }
+    }
+
+    /**
+     * Charge le prompt système GED optimisé pour Polaris Alpha
+     */
+    loadGEDSystemPrompt() {
+        try {
+            const fs = require('fs');
+            const promptPath = path.join(__dirname, '../../..', 'config', 'ged-system-prompt.json');
+
+            if (!fs.existsSync(promptPath)) {
+                console.warn('⚠️ Fichier ged-system-prompt.json non trouvé, utilisation du prompt par défaut');
+                return 'Tu es DocuCortex, un assistant IA intelligent pour la gestion documentaire.';
+            }
+
+            const promptData = fs.readFileSync(promptPath, 'utf8');
+            const promptConfig = JSON.parse(promptData);
+
+            console.log('✅ Prompt système GED chargé (version ' + promptConfig.version + ')');
+            return promptConfig.systemPrompt;
+        } catch (error) {
+            console.error('❌ Erreur chargement prompt GED:', error.message);
+            return 'Tu es DocuCortex, un assistant IA intelligent pour la gestion documentaire.';
         }
     }
 
@@ -401,29 +429,67 @@ class AIService {
 
                 if (providerService) {
                     try {
+                        // Rechercher les documents pertinents AVANT d'appeler le LLM
+                        const searchResult = await this.searchDocuments(message, { limit: 5 });
+                        let enrichedMessage = message;
+                        let documentSources = [];
+
+                        if (searchResult.success && searchResult.results.length > 0) {
+                            // Enrichir le message avec le contexte documentaire pour le LLM
+                            const contextDocs = searchResult.results.map((r, idx) => {
+                                const doc = r.document;
+                                return `
+📄 **Document ${idx + 1}: ${doc?.filename || 'Sans nom'}**
+📁 Chemin: \`${doc?.filepath || 'Non spécifié'}\`
+📅 Modifié: ${doc?.modifiedDate || 'Inconnu'}
+👤 Auteur: ${doc?.author || 'Inconnu'}
+🏷️  Catégorie: ${doc?.category || 'Non classé'}
+📊 Pertinence: ${Math.round(r.score * 100)}%
+
+**Extrait:**
+${r.content?.substring(0, 300)}...
+`;
+                            }).join('\n---\n');
+
+                            enrichedMessage = `${message}
+
+---
+**📚 CONTEXTE DOCUMENTAIRE (${searchResult.results.length} documents trouvés):**
+
+${contextDocs}
+
+---
+**INSTRUCTIONS:** Utilise ces documents pour répondre à la question. Cite toujours tes sources avec le nom du fichier et le chemin réseau. Fournis des réponses précises basées sur le contenu des documents.`;
+
+                            documentSources = searchResult.results.map(r => ({
+                                filename: r.document?.filename || 'Document',
+                                filepath: r.document?.filepath || null,
+                                category: r.document?.category || null,
+                                author: r.document?.author || null,
+                                modifiedDate: r.document?.modifiedDate || null,
+                                score: r.score,
+                                snippet: r.content?.substring(0, 200) + '...'
+                            }));
+                        }
+
                         result = await providerService.processConversation(
-                            [...contextMessages, { role: 'user', content: message }],
+                            [...contextMessages, { role: 'user', content: enrichedMessage }],
                             {
                                 sessionId: sessionId,
                                 context: contextMessages,
-                                systemPrompt: settings.systemPrompt || 'Tu es DocuCortex, un assistant IA intelligent pour la gestion documentaire.',
+                                systemPrompt: settings.systemPrompt || this.gedSystemPrompt || 'Tu es DocuCortex, un assistant IA intelligent pour la gestion documentaire.',
                                 temperature: settings.temperature || 0.7,
-                                maxTokens: settings.maxTokens || 2048
+                                maxTokens: settings.maxTokens || 4096
                             }
                         );
 
                         if (result.success) {
                             console.log(`✅ Réponse obtenue avec ${providerToUse}`);
 
-                            // Enrichir avec recherche vectorielle si disponible
-                            const searchResult = await this.searchDocuments(message, { limit: 3 });
-                            if (searchResult.success && searchResult.results.length > 0) {
+                            // Ajouter les sources au résultat
+                            if (documentSources.length > 0) {
                                 result.context = searchResult.results;
-                                result.sources = searchResult.results.map(r => ({
-                                    filename: r.document?.filename || 'Document',
-                                    score: r.score,
-                                    snippet: r.content?.substring(0, 100) + '...'
-                                }));
+                                result.sources = documentSources;
                             }
 
                             result.aiProvider = providerToUse;
@@ -509,7 +575,7 @@ class AIService {
 
             const results = vectorSearchService.search(query, options);
 
-            // Enrichir avec les infos de la DB
+            // Enrichir avec les infos de la DB (incluant métadonnées GED)
             const enrichedResults = results.map(result => {
                 const doc = this.db.getAIDocumentById(result.documentId);
                 return {
@@ -519,7 +585,17 @@ class AIService {
                         filename: doc.filename,
                         fileType: doc.file_type,
                         language: doc.language,
-                        indexedAt: doc.indexed_at
+                        indexedAt: doc.indexed_at,
+                        // Métadonnées GED pour Polaris Alpha
+                        filepath: doc.filepath,
+                        category: doc.category,
+                        documentType: doc.document_type,
+                        author: doc.author,
+                        modifiedDate: doc.modified_date,
+                        tags: doc.tags ? JSON.parse(doc.tags) : [],
+                        source: doc.source,
+                        wordCount: doc.word_count,
+                        qualityScore: doc.quality_score
                     } : null
                 };
             });

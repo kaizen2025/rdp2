@@ -1,6 +1,6 @@
 -- Schema de base de donnees pour l'Agent IA Local
 
--- Table des documents indexes
+-- Table des documents indexes (avec support reseau et GED)
 CREATE TABLE IF NOT EXISTS ai_documents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     filename TEXT NOT NULL,
@@ -10,7 +10,18 @@ CREATE TABLE IF NOT EXISTS ai_documents (
     metadata TEXT,
     language TEXT DEFAULT 'fr',
     indexed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    -- Champs reseau et GED
+    filepath TEXT,
+    relative_path TEXT,
+    category TEXT,
+    document_type TEXT,
+    tags TEXT,
+    word_count INTEGER,
+    quality_score REAL,
+    author TEXT,
+    modified_date DATETIME,
+    source TEXT DEFAULT 'uploaded'
 );
 
 -- Table des chunks de documents (pour recherche vectorielle)
@@ -61,6 +72,11 @@ CREATE TABLE IF NOT EXISTS ai_usage_stats (
 -- Index pour optimiser les recherches
 CREATE INDEX IF NOT EXISTS idx_documents_filename ON ai_documents(filename);
 CREATE INDEX IF NOT EXISTS idx_documents_language ON ai_documents(language);
+CREATE INDEX IF NOT EXISTS idx_documents_filepath ON ai_documents(filepath);
+CREATE INDEX IF NOT EXISTS idx_documents_category ON ai_documents(category);
+CREATE INDEX IF NOT EXISTS idx_documents_source ON ai_documents(source);
+CREATE INDEX IF NOT EXISTS idx_documents_document_type ON ai_documents(document_type);
+CREATE INDEX IF NOT EXISTS idx_documents_modified_date ON ai_documents(modified_date);
 CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON ai_document_chunks(document_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_session_id ON ai_conversations(session_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_created_at ON ai_conversations(created_at);

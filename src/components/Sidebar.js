@@ -36,9 +36,9 @@ const navigationItems = [
         icon: <DashboardIcon />,
         section: 'main'
     },
-    { 
-        text: 'Sessions RDS', 
-        path: '/rds-viewer', 
+    {
+        text: 'Sessions RDS',
+        path: '/sessions',
         icon: <ComputerIcon />,
         section: 'main'
     },
@@ -48,15 +48,15 @@ const navigationItems = [
         icon: <PeopleIcon />,
         section: 'main'
     },
-    { 
-        text: 'Active Directory', 
-        path: '/active-directory', 
+    {
+        text: 'Active Directory',
+        path: '/ad-groups',
         icon: <GroupWorkIcon />,
         section: 'main'
     },
-    { 
-        text: 'Prêts Ordinateurs', 
-        path: '/computer-loans', 
+    {
+        text: 'Prêts Ordinateurs',
+        path: '/loans',
         icon: <LaptopChromebookIcon />,
         section: 'loans'
     },

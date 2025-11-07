@@ -31,11 +31,14 @@ class HuggingFaceService {
      * @param {string} apiKey - Clé API Hugging Face (hf_...)
      */
     setApiKey(apiKey) {
-        if (!apiKey || !apiKey.startsWith('hf_')) {
+        // Nettoyer les espaces et vérifier la validité
+        const cleanedKey = apiKey ? apiKey.trim() : '';
+
+        if (!cleanedKey || cleanedKey === 'STORED_IN_ENV_FILE' || !cleanedKey.startsWith('hf_')) {
             console.warn('⚠️ Format de clé API Hugging Face invalide (devrait commencer par hf_)');
             return false;
         }
-        this.apiKey = apiKey;
+        this.apiKey = cleanedKey;
         console.log('✅ Clé API Hugging Face configurée');
         return true;
     }
@@ -361,6 +364,92 @@ class HuggingFaceService {
     }
 
     /**
+     * Récupère la liste des modèles disponibles depuis Hugging Face
+     * @param {Object} filters - Filtres optionnels (task, sort, limit)
+     */
+    async getAvailableModels(filters = {}) {
+        try {
+            console.log('🔍 Récupération des modèles Hugging Face...');
+
+            // Construire l'URL avec les filtres
+            const params = new URLSearchParams();
+
+            // Filtrer par tâche (text-generation par défaut pour LLM)
+            params.append('filter', filters.task || 'text-generation');
+
+            // Trier par likes, downloads ou trending
+            if (filters.sort) {
+                params.append('sort', filters.sort);
+            } else {
+                params.append('sort', 'downloads'); // Par défaut, trier par popularité
+            }
+
+            // Limiter les résultats
+            const limit = filters.limit || 20;
+            params.append('limit', limit.toString());
+
+            const response = await axios.get(
+                `https://huggingface.co/api/models?${params.toString()}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}`
+                    },
+                    timeout: 15000
+                }
+            );
+
+            if (!Array.isArray(response.data)) {
+                return {
+                    success: false,
+                    error: 'Format de réponse inattendu'
+                };
+            }
+
+            // Formater les modèles pour l'interface
+            const formattedModels = response.data.map(model => ({
+                id: model.modelId || model.id,
+                name: model.modelId || model.id,
+                description: model.description || '',
+                downloads: model.downloads || 0,
+                likes: model.likes || 0,
+                tags: model.tags || [],
+                pipeline_tag: model.pipeline_tag,
+                private: model.private || false,
+                author: model.author || model.modelId?.split('/')[0],
+                lastModified: model.lastModified,
+                isFree: true // Tous les modèles HuggingFace publics sont gratuits
+            }));
+
+            // Filtrer les modèles privés si nécessaire
+            const publicModels = filters.publicOnly !== false
+                ? formattedModels.filter(m => !m.private)
+                : formattedModels;
+
+            console.log(`✅ ${publicModels.length} modèle(s) Hugging Face récupéré(s)`);
+
+            return {
+                success: true,
+                models: publicModels,
+                total: publicModels.length,
+                task: filters.task || 'text-generation'
+            };
+
+        } catch (error) {
+            console.error('❌ Erreur récupération modèles Hugging Face:', error.message);
+
+            // En cas d'erreur, retourner les modèles recommandés
+            console.log('📋 Utilisation des modèles recommandés comme fallback');
+            return {
+                success: true,
+                models: HuggingFaceService.getRecommendedModels(),
+                total: HuggingFaceService.getRecommendedModels().length,
+                fallback: true,
+                error: error.message
+            };
+        }
+    }
+
+    /**
      * Récupère les statistiques d'utilisation
      */
     getStats() {
@@ -402,31 +491,75 @@ class HuggingFaceService {
     static getRecommendedModels() {
         return [
             {
+                id: 'mistralai/Mistral-7B-Instruct-v0.3',
+                name: 'Mistral 7B Instruct v0.3',
+                description: 'Dernière version - Excellent modèle français, rapide et précis',
+                recommended: true,
+                contextLength: 32768
+            },
+            {
                 id: 'mistralai/Mistral-7B-Instruct-v0.2',
                 name: 'Mistral 7B Instruct v0.2',
-                description: 'Excellent modèle français, rapide et précis',
-                recommended: true
+                description: 'Version stable - Excellent modèle français',
+                recommended: true,
+                contextLength: 32768
             },
             {
                 id: 'mistralai/Mixtral-8x7B-Instruct-v0.1',
                 name: 'Mixtral 8x7B Instruct',
                 description: 'Très puissant, excellentes performances',
-                recommended: true
+                recommended: true,
+                contextLength: 32768
             },
             {
                 id: 'meta-llama/Llama-2-7b-chat-hf',
                 name: 'Llama 2 7B Chat',
-                description: 'Modèle de Meta, bon équilibre performance/vitesse'
+                description: 'Modèle de Meta, bon équilibre performance/vitesse',
+                contextLength: 4096
+            },
+            {
+                id: 'meta-llama/Llama-3-8B-Instruct',
+                name: 'Llama 3 8B Instruct',
+                description: 'Nouvelle génération Llama, très performant',
+                recommended: true,
+                contextLength: 8192
             },
             {
                 id: 'google/flan-t5-xxl',
                 name: 'FLAN-T5 XXL',
-                description: 'Bon pour les tâches de compréhension et résumé'
+                description: 'Bon pour les tâches de compréhension et résumé',
+                contextLength: 512
             },
             {
                 id: 'tiiuae/falcon-7b-instruct',
                 name: 'Falcon 7B Instruct',
-                description: 'Rapide et efficace'
+                description: 'Rapide et efficace',
+                contextLength: 2048
+            }
+        ];
+    }
+
+    /**
+     * Liste des modèles Mistral gratuits disponibles sur OpenRouter
+     */
+    static getMistralFreeModels() {
+        return [
+            {
+                id: 'mistralai/mistral-3-free',
+                name: 'Mistral 3 (Free)',
+                description: 'Version gratuite de Mistral 3 via OpenRouter',
+                recommended: true,
+                provider: 'openrouter',
+                isFree: true,
+                contextLength: 128000
+            },
+            {
+                id: 'mistralai/mistral-7b-instruct:free',
+                name: 'Mistral 7B Instruct (Free)',
+                description: 'Mistral 7B gratuit via OpenRouter',
+                provider: 'openrouter',
+                isFree: true,
+                contextLength: 32768
             }
         ];
     }

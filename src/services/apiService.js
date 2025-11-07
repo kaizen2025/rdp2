@@ -115,6 +115,9 @@ class ApiService {
     disableAdUser = async (username) => this.request(`/ad/users/${encodeURIComponent(username)}/disable`, { method: 'POST' })
     resetAdUserPassword = async (username, newPassword, mustChange = true) => this.request(`/ad/users/${encodeURIComponent(username)}/reset-password`, { method: 'POST', body: JSON.stringify({ newPassword, mustChange }) })
     createAdUser = async (userData) => this.request(`/ad/users`, { method: 'POST', body: JSON.stringify(userData) })
+    getAdOUs = async (parentId = null) => this.request(parentId ? `/ad/ous?parentId=${encodeURIComponent(parentId)}` : '/ad/ous')
+    getAdUsersInOU = async (ouDN) => this.request(`/ad/ou-users?ouDN=${encodeURIComponent(ouDN)}`)
+    searchAdUsers = async (searchTerm) => this.request(`/ad/users/search?term=${encodeURIComponent(searchTerm)}`)
 
     // UTILISATEURS EXCEL
     getExcelUsers = async () => this.request('/excel/users')

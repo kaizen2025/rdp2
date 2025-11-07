@@ -109,7 +109,7 @@ class NLPService {
                 people: doc.people().out('array'),
                 places: doc.places().out('array'),
                 organizations: doc.organizations().out('array'),
-                dates: doc.dates().out('array'),
+                // dates: doc.dates().out('array'), // ❌ RETIRÉE - méthode non disponible dans compromise
                 numbers: doc.numbers().out('array'),
                 verbs: doc.verbs().out('array'),
                 nouns: doc.nouns().out('array')

@@ -31,11 +31,14 @@ class OpenRouterService {
      * @param {string} apiKey - Clé API OpenRouter (sk-or-v1-...)
      */
     setApiKey(apiKey) {
-        if (!apiKey || !apiKey.startsWith('sk-or-v1-')) {
+        // Nettoyer les espaces et vérifier la validité
+        const cleanedKey = apiKey ? apiKey.trim() : '';
+
+        if (!cleanedKey || cleanedKey === 'STORED_IN_ENV_FILE' || !cleanedKey.startsWith('sk-or-v1-')) {
             console.warn('⚠️ Format de clé API OpenRouter invalide');
             return false;
         }
-        this.apiKey = apiKey;
+        this.apiKey = cleanedKey;
         console.log('✅ Clé API OpenRouter configurée');
         return true;
     }
@@ -392,6 +395,130 @@ class OpenRouterService {
                 error: error.message
             };
         }
+    }
+
+    /**
+     * Récupère la liste des modèles VALIDÉS OpenRouter
+     * Ne retourne que les modèles testés et fonctionnels
+     * @param {Object} filters - Filtres optionnels (recommended, category, limit)
+     */
+    async getAvailableModels(filters = {}) {
+        try {
+            console.log('🔍 Chargement des modèles OpenRouter validés...');
+
+            const path = require('path');
+            const fs = require('fs');
+
+            // Charger la liste des modèles validés
+            const validatedPath = path.join(__dirname, '../../..', 'config', 'openrouter-validated-models.json');
+            const validatedData = fs.readFileSync(validatedPath, 'utf8');
+            const validated = JSON.parse(validatedData);
+
+            let models = validated.models.filter(m => m.status === 'working');
+
+            // Filtrer par recommandés si demandé
+            if (filters.recommended === true) {
+                models = models.filter(m => m.recommended === true);
+            }
+
+            // Filtrer par catégorie
+            if (filters.category) {
+                models = models.filter(m => m.category === filters.category);
+            }
+
+            // Trier par contexte (du plus grand au plus petit)
+            if (filters.sortBy === 'context') {
+                models.sort((a, b) => b.contextLength - a.contextLength);
+            }
+
+            // Limiter le nombre de résultats
+            if (filters.limit && filters.limit > 0) {
+                models = models.slice(0, filters.limit);
+            }
+
+            // Formater pour l'interface
+            const formattedModels = models.map(model => ({
+                id: model.id,
+                name: model.name,
+                description: model.description || '',
+                contextLength: model.contextLength,
+                category: model.category,
+                recommended: model.recommended,
+                pricing: {
+                    prompt: '0',
+                    completion: '0',
+                    isFree: true
+                },
+                status: 'validated',
+                isFree: true
+            }));
+
+            console.log(`✅ ${formattedModels.length} modèle(s) validé(s) chargé(s)`);
+
+            return {
+                success: true,
+                models: formattedModels,
+                total: formattedModels.length,
+                validated: true,
+                totalTested: validated.totalTested,
+                workingCount: validated.workingModels
+            };
+
+        } catch (error) {
+            console.error('❌ Erreur chargement modèles validés:', error.message);
+
+            // Fallback sur modèles recommandés en dur
+            return {
+                success: true,
+                models: this.getRecommendedModels(),
+                total: this.getRecommendedModels().length,
+                fallback: true
+            };
+        }
+    }
+
+    /**
+     * Modèles recommandés en fallback
+     */
+    getRecommendedModels() {
+        return [
+            {
+                id: 'meta-llama/llama-3.3-8b-instruct:free',
+                name: 'Meta Llama 3.3 8B Instruct',
+                description: 'Modèle équilibré et performant, excellent choix par défaut',
+                contextLength: 8192,
+                recommended: true,
+                isFree: true,
+                pricing: { prompt: '0', completion: '0', isFree: true }
+            },
+            {
+                id: 'mistralai/mistral-small-3.2-24b-instruct:free',
+                name: 'Mistral Small 3.2 24B',
+                description: 'Excellent en français, très performant',
+                contextLength: 128000,
+                recommended: true,
+                isFree: true,
+                pricing: { prompt: '0', completion: '0', isFree: true }
+            },
+            {
+                id: 'qwen/qwen3-coder:free',
+                name: 'Qwen3 Coder 480B',
+                description: 'Spécialisé programmation, contexte énorme',
+                contextLength: 262000,
+                recommended: true,
+                isFree: true,
+                pricing: { prompt: '0', completion: '0', isFree: true }
+            },
+            {
+                id: 'openrouter/polaris-alpha',
+                name: 'Polaris Alpha',
+                description: 'Modèle le plus récent',
+                contextLength: 256000,
+                recommended: true,
+                isFree: true,
+                pricing: { prompt: '0', completion: '0', isFree: true }
+            }
+        ];
     }
 
     /**

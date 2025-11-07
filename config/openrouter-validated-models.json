@@ -1,0 +1,173 @@
+{
+  "lastValidated": "2025-01-XX",
+  "validationMethod": "ping-test",
+  "totalTested": 46,
+  "workingModels": 14,
+  "models": [
+    {
+      "id": "openrouter/polaris-alpha",
+      "name": "Polaris Alpha",
+      "status": "working",
+      "contextLength": 256000,
+      "recommended": true,
+      "category": "latest",
+      "description": "Modèle le plus récent, excellent pour tâches complexes"
+    },
+    {
+      "id": "nvidia/nemotron-nano-12b-v2-vl:free",
+      "name": "NVIDIA Nemotron Nano 12B V2 VL",
+      "status": "working",
+      "contextLength": 128000,
+      "recommended": true,
+      "category": "vision-language",
+      "description": "Support vision + langage, très polyvalent"
+    },
+    {
+      "id": "minimax/minimax-m2:free",
+      "name": "MiniMax M2",
+      "status": "working",
+      "contextLength": 196608,
+      "recommended": true,
+      "category": "large-context",
+      "description": "Très grand contexte, idéal pour documents longs"
+    },
+    {
+      "id": "alibaba/tongyi-deepresearch-30b-a3b:free",
+      "name": "Tongyi DeepResearch 30B",
+      "status": "working",
+      "contextLength": 131072,
+      "recommended": false,
+      "category": "research",
+      "description": "Spécialisé recherche approfondie"
+    },
+    {
+      "id": "nvidia/nemotron-nano-9b-v2:free",
+      "name": "NVIDIA Nemotron Nano 9B V2",
+      "status": "working",
+      "contextLength": 128000,
+      "recommended": false,
+      "category": "general",
+      "description": "Version 9B rapide et efficace"
+    },
+    {
+      "id": "z-ai/glm-4.5-air:free",
+      "name": "Z.AI GLM 4.5 Air",
+      "status": "working",
+      "contextLength": 131072,
+      "recommended": false,
+      "category": "general",
+      "description": "Modèle général performant"
+    },
+    {
+      "id": "qwen/qwen3-coder:free",
+      "name": "Qwen3 Coder 480B",
+      "status": "working",
+      "contextLength": 262000,
+      "recommended": true,
+      "category": "coding",
+      "description": "Spécialisé programmation, contexte énorme"
+    },
+    {
+      "id": "google/gemma-3n-e2b-it:free",
+      "name": "Google Gemma 3N E2B",
+      "status": "working",
+      "contextLength": 8192,
+      "recommended": false,
+      "category": "lightweight",
+      "description": "Modèle léger de Google"
+    },
+    {
+      "id": "tngtech/deepseek-r1t2-chimera:free",
+      "name": "DeepSeek R1T2 Chimera",
+      "status": "working",
+      "contextLength": 163800,
+      "recommended": false,
+      "category": "hybrid",
+      "description": "Modèle hybride performant"
+    },
+    {
+      "id": "mistralai/mistral-small-3.2-24b-instruct:free",
+      "name": "Mistral Small 3.2 24B Instruct",
+      "status": "working",
+      "contextLength": 128000,
+      "recommended": true,
+      "category": "mistral-family",
+      "description": "Dernière version Mistral Small, excellent en français"
+    },
+    {
+      "id": "google/gemma-3n-e4b-it:free",
+      "name": "Google Gemma 3N E4B",
+      "status": "working",
+      "contextLength": 8192,
+      "recommended": false,
+      "category": "lightweight",
+      "description": "Version 4B de Gemma"
+    },
+    {
+      "id": "meta-llama/llama-3.3-8b-instruct:free",
+      "name": "Meta Llama 3.3 8B Instruct",
+      "status": "working",
+      "contextLength": 8192,
+      "recommended": true,
+      "category": "llama-family",
+      "description": "Dernière version Llama, équilibré et performant"
+    },
+    {
+      "id": "qwen/qwen3-30b-a3b:free",
+      "name": "Qwen3 30B",
+      "status": "working",
+      "contextLength": 32768,
+      "recommended": false,
+      "category": "general",
+      "description": "Modèle général de Qwen"
+    },
+    {
+      "id": "qwen/qwen3-14b:free",
+      "name": "Qwen3 14B",
+      "status": "working",
+      "contextLength": 32768,
+      "recommended": false,
+      "category": "general",
+      "description": "Version 14B équilibrée"
+    }
+  ],
+  "failedModels": [
+    "meituan/longcat-flash-chat:free",
+    "deepseek/deepseek-chat-v3.1:free",
+    "openai/gpt-oss-20b:free",
+    "moonshotai/kimi-k2:free",
+    "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+    "deepseek/deepseek-r1-0528-qwen3-8b:free",
+    "deepseek/deepseek-r1-0528:free",
+    "qwen/qwen3-4b:free",
+    "qwen/qwen3-235b-a22b:free",
+    "tngtech/deepseek-r1t-chimera:free",
+    "microsoft/mai-ds-r1:free",
+    "arliai/qwq-32b-arliai-rpr-v1:free",
+    "agentica-org/deepcoder-14b-preview:free",
+    "meta-llama/llama-4-maverick:free",
+    "meta-llama/llama-4-scout:free",
+    "qwen/qwen2.5-vl-32b-instruct:free",
+    "deepseek/deepseek-chat-v3-0324:free",
+    "mistralai/mistral-small-3.1-24b-instruct:free",
+    "google/gemma-3-4b-it:free",
+    "google/gemma-3-12b-it:free",
+    "google/gemma-3-27b-it:free",
+    "mistralai/mistral-small-24b-instruct-2501:free",
+    "deepseek/deepseek-r1-distill-llama-70b:free",
+    "deepseek/deepseek-r1:free",
+    "google/gemini-2.0-flash-exp:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "qwen/qwen-2.5-coder-32b-instruct:free",
+    "meta-llama/llama-3.2-3b-instruct:free",
+    "qwen/qwen-2.5-72b-instruct:free",
+    "nousresearch/hermes-3-llama-3.1-405b:free",
+    "mistralai/mistral-nemo:free",
+    "mistralai/mistral-7b-instruct:free"
+  ],
+  "notes": {
+    "rateLimited": "Plusieurs modèles retournent 429 (Too Many Requests) - possiblement disponibles avec rate limiting",
+    "notFound": "Certains modèles retournent 404 - ID obsolète ou modèle retiré",
+    "testMethod": "Test simple 'ping' avec message court demandant une réponse OK"
+  }
+}
