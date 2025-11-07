@@ -70,7 +70,7 @@ const AISettingsPanel = () => {
 
     const loadConfiguration = async () => {
         try {
-            const response = await axios.get(\`\${API_BASE}/config\`);
+            const response = await axios.get(`${API_BASE}/config`);
             if (response.data.success) {
                 setAiConfig(response.data.config);
             }
@@ -86,7 +86,7 @@ const AISettingsPanel = () => {
             setError(null);
             setSuccess(null);
 
-            const response = await axios.put(\`\${API_BASE}/config\`, aiConfig);
+            const response = await axios.put(`${API_BASE}/config`, aiConfig);
 
             if (response.data.success) {
                 setSuccess('Configuration IA sauvegardée avec succès');
@@ -105,7 +105,7 @@ const AISettingsPanel = () => {
             setTestingProvider('openrouter');
             setConnectionStatus({ openrouter: null });
 
-            const response = await axios.post(\`\${API_BASE}/providers/openrouter/test\`, {
+            const response = await axios.post(`${API_BASE}/providers/openrouter/test`, {
                 apiKey: aiConfig.providers.openrouter.apiKey,
                 model: aiConfig.providers.openrouter.model
             });
@@ -113,7 +113,7 @@ const AISettingsPanel = () => {
             setConnectionStatus({
                 openrouter: {
                     success: response.data.success,
-                    message: response.data.connected ? \`✅ Connexion réussie (\${response.data.modelsAvailable || 0} modèles disponibles)\` : response.data.error
+                    message: response.data.connected ? `✅ Connexion réussie (${response.data.modelsAvailable || 0} modèles disponibles)` : response.data.error
                 }
             });
         } catch (error) {
