@@ -35,25 +35,39 @@ class AIDatabaseService {
     // ==================== DOCUMENTS ====================
 
     /**
-     * Cree un nouveau document IA
+     * Cree un nouveau document IA (avec support GED et reseau)
      */
     createAIDocument(data) {
         this.initialize();
-        
+
         const stmt = dbService.prepare(`
-            INSERT INTO ai_documents (filename, file_type, file_size, content, metadata, language)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO ai_documents (
+                filename, file_type, file_size, content, metadata, language,
+                filepath, relative_path, category, document_type, tags,
+                word_count, quality_score, author, modified_date, source
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
-        
+
         const result = stmt.run(
             data.filename,
             data.file_type,
             data.file_size,
             data.content,
             data.metadata,
-            data.language || 'fr'
+            data.language || 'fr',
+            data.filepath || null,
+            data.relative_path || data.relativePath || null,
+            data.category || null,
+            data.document_type || null,
+            data.tags || null,
+            data.word_count || null,
+            data.quality_score || null,
+            data.author || null,
+            data.modified_date || data.modifiedDate || null,
+            data.source || 'uploaded'
         );
-        
+
         return result.lastInsertRowid;
     }
 
