@@ -115,24 +115,46 @@ export const AppProvider = ({ children }) => {
         }
     }, []);
 
+    // ✅ NEW: updateConfig method for direct state updates
+    const updateConfig = useCallback((newConfig) => {
+        setConfig(newConfig);
+    }, []);
+
     useEffect(() => {
         if (initialized.current) return;
         initialized.current = true;
 
         const initializeApp = async () => {
             try {
-                const loadedConfig = await apiService.getConfig();
+                // ✅ FIX: Add timeout to prevent blocking webpack compilation
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Config load timeout')), 5000)
+                );
+
+                const loadedConfig = await Promise.race([
+                    apiService.getConfig(),
+                    timeoutPromise
+                ]);
+
                 setConfig(loadedConfig);
                 connectWebSocket();
             } catch (err) {
                 console.error('Erreur initialisation App:', err);
+                // ✅ FIX: Don't block on config load failure - use defaults
                 setError(`Impossible de charger la configuration: ${err.message}`);
                 setIsOnline(false);
+                // Set minimal default config to allow app to continue
+                setConfig({
+                    domain: 'anecoopfr.local',
+                    servers: [],
+                    rdsServers: []
+                });
             } finally {
                 setIsInitializing(false);
             }
         };
 
+        // ✅ FIX: Don't await - let initialization happen async
         initializeApp();
 
         return () => {
@@ -143,6 +165,7 @@ export const AppProvider = ({ children }) => {
     
     const value = {
         config,
+        updateConfig, // ✅ NEW: Export updateConfig
         currentTechnician,
         setCurrentTechnician,
         isInitializing,
