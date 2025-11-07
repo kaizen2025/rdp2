@@ -93,9 +93,16 @@ const UsersManagementPage = () => {
     const [ouUsers, setOuUsers] = useState([]);
     const [isLoadingOUUsers, setIsLoadingOUUsers] = useState(false);
 
-    const users = useMemo(() => (cache.excel_users && typeof cache.excel_users === 'object') ? Object.values(cache.excel_users).flat() : [], [cache.excel_users]);
-    const vpnMembers = useMemo(() => new Set((cache['ad_groups:VPN'] || []).map(m => m.SamAccountName)), [cache]);
-    const internetMembers = useMemo(() => new Set((cache['ad_groups:Sortants_responsables'] || []).map(m => m.SamAccountName)), [cache]);
+    // ✅ FIX: Explicit null check (typeof null === 'object' in JavaScript!)
+    const users = useMemo(() => {
+        if (!cache.excel_users || cache.excel_users === null || typeof cache.excel_users !== 'object') {
+            return [];
+        }
+        return Object.values(cache.excel_users).flat();
+    }, [cache.excel_users]);
+
+    const vpnMembers = useMemo(() => new Set((cache['ad_groups:VPN'] || []).map(m => m?.SamAccountName).filter(Boolean)), [cache]);
+    const internetMembers = useMemo(() => new Set((cache['ad_groups:Sortants_responsables'] || []).map(m => m?.SamAccountName).filter(Boolean)), [cache]);
 
     const handleRefresh = useCallback(async () => {
         setIsRefreshing(true);
