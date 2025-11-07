@@ -155,7 +155,9 @@ async function syncUsersFromExcel(force = false) {
         const excelData = await excelService.readExcelFileAsync();
 
         if (!excelData.success) {
-            return { success: false, error: `Impossible de lire Excel: ${excelData.error}`, usersCount: 0 };
+            console.error(`Erreur critique lors de la lecture du fichier Excel: ${excelData.error}`);
+            // Retourner un succès mais avec 0 utilisateur pour ne pas bloquer l'UI
+            return { success: true, error: `Impossible de lire Excel: ${excelData.error}`, usersCount: 0, message: "Fichier Excel inaccessible." };
         }
 
         const excelUsers = Object.values(excelData.users).flat();
