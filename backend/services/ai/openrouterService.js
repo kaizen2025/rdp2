@@ -398,51 +398,37 @@ class OpenRouterService {
     }
 
     /**
-     * Récupère la liste des modèles disponibles depuis OpenRouter
-     * @param {Object} filters - Filtres optionnels (free, sortBy, limit)
+     * Récupère la liste des modèles VALIDÉS OpenRouter
+     * Ne retourne que les modèles testés et fonctionnels
+     * @param {Object} filters - Filtres optionnels (recommended, category, limit)
      */
     async getAvailableModels(filters = {}) {
         try {
-            console.log('🔍 Récupération des modèles OpenRouter...');
+            console.log('🔍 Chargement des modèles OpenRouter validés...');
 
-            const response = await axios.get(`${this.baseUrl}/models`, {
-                headers: {
-                    'Authorization': `Bearer ${this.apiKey}`,
-                    'HTTP-Referer': 'http://localhost:3002',
-                    'X-Title': 'RDS Viewer DocuCortex'
-                },
-                timeout: 15000
-            });
+            const path = require('path');
+            const fs = require('fs');
 
-            if (!response.data || !response.data.data) {
-                return {
-                    success: false,
-                    error: 'Format de réponse inattendu'
-                };
+            // Charger la liste des modèles validés
+            const validatedPath = path.join(__dirname, '../../..', 'config', 'openrouter-validated-models.json');
+            const validatedData = fs.readFileSync(validatedPath, 'utf8');
+            const validated = JSON.parse(validatedData);
+
+            let models = validated.models.filter(m => m.status === 'working');
+
+            // Filtrer par recommandés si demandé
+            if (filters.recommended === true) {
+                models = models.filter(m => m.recommended === true);
             }
 
-            let models = response.data.data;
-
-            // Filtrer les modèles gratuits si demandé
-            if (filters.free === true) {
-                models = models.filter(model => {
-                    const pricing = model.pricing || {};
-                    const isFree = (
-                        (pricing.prompt === '0' && pricing.completion === '0') ||
-                        model.id.endsWith(':free') ||
-                        model.name?.toLowerCase().includes('free')
-                    );
-                    return isFree;
-                });
+            // Filtrer par catégorie
+            if (filters.category) {
+                models = models.filter(m => m.category === filters.category);
             }
 
-            // Trier par date de création (les plus récents d'abord)
-            if (filters.sortBy === 'recent') {
-                models.sort((a, b) => {
-                    const createdA = parseInt(a.created) || 0;
-                    const createdB = parseInt(b.created) || 0;
-                    return createdB - createdA;
-                });
+            // Trier par contexte (du plus grand au plus petit)
+            if (filters.sortBy === 'context') {
+                models.sort((a, b) => b.contextLength - a.contextLength);
             }
 
             // Limiter le nombre de résultats
@@ -450,40 +436,89 @@ class OpenRouterService {
                 models = models.slice(0, filters.limit);
             }
 
-            // Formater les modèles pour l'interface
+            // Formater pour l'interface
             const formattedModels = models.map(model => ({
                 id: model.id,
-                name: model.name || model.id,
+                name: model.name,
                 description: model.description || '',
-                contextLength: model.context_length || 0,
-                created: model.created ? new Date(model.created * 1000).toISOString() : null,
+                contextLength: model.contextLength,
+                category: model.category,
+                recommended: model.recommended,
                 pricing: {
-                    prompt: model.pricing?.prompt || '0',
-                    completion: model.pricing?.completion || '0',
-                    isFree: (model.pricing?.prompt === '0' && model.pricing?.completion === '0') ||
-                            model.id.endsWith(':free')
+                    prompt: '0',
+                    completion: '0',
+                    isFree: true
                 },
-                architecture: model.architecture,
-                topProvider: model.top_provider
+                status: 'validated',
+                isFree: true
             }));
 
-            console.log(`✅ ${formattedModels.length} modèle(s) récupéré(s)`);
+            console.log(`✅ ${formattedModels.length} modèle(s) validé(s) chargé(s)`);
 
             return {
                 success: true,
                 models: formattedModels,
                 total: formattedModels.length,
-                filtered: !!filters.free
+                validated: true,
+                totalTested: validated.totalTested,
+                workingCount: validated.workingModels
             };
 
         } catch (error) {
-            console.error('❌ Erreur récupération modèles OpenRouter:', error.message);
+            console.error('❌ Erreur chargement modèles validés:', error.message);
+
+            // Fallback sur modèles recommandés en dur
             return {
-                success: false,
-                error: error.message,
-                models: []
+                success: true,
+                models: this.getRecommendedModels(),
+                total: this.getRecommendedModels().length,
+                fallback: true
             };
         }
+    }
+
+    /**
+     * Modèles recommandés en fallback
+     */
+    getRecommendedModels() {
+        return [
+            {
+                id: 'meta-llama/llama-3.3-8b-instruct:free',
+                name: 'Meta Llama 3.3 8B Instruct',
+                description: 'Modèle équilibré et performant, excellent choix par défaut',
+                contextLength: 8192,
+                recommended: true,
+                isFree: true,
+                pricing: { prompt: '0', completion: '0', isFree: true }
+            },
+            {
+                id: 'mistralai/mistral-small-3.2-24b-instruct:free',
+                name: 'Mistral Small 3.2 24B',
+                description: 'Excellent en français, très performant',
+                contextLength: 128000,
+                recommended: true,
+                isFree: true,
+                pricing: { prompt: '0', completion: '0', isFree: true }
+            },
+            {
+                id: 'qwen/qwen3-coder:free',
+                name: 'Qwen3 Coder 480B',
+                description: 'Spécialisé programmation, contexte énorme',
+                contextLength: 262000,
+                recommended: true,
+                isFree: true,
+                pricing: { prompt: '0', completion: '0', isFree: true }
+            },
+            {
+                id: 'openrouter/polaris-alpha',
+                name: 'Polaris Alpha',
+                description: 'Modèle le plus récent',
+                contextLength: 256000,
+                recommended: true,
+                isFree: true,
+                pricing: { prompt: '0', completion: '0', isFree: true }
+            }
+        ];
     }
 
     /**

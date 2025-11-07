@@ -1,30 +1,20 @@
 {
-  "aiProvider": "huggingface",
+  "aiProvider": "openrouter",
   "providers": {
-    "huggingface": {
+    "openrouter": {
       "enabled": true,
       "priority": 1,
       "apiKey": "STORED_IN_ENV_FILE",
-      "baseUrl": "https://api-inference.huggingface.co",
-      "model": "mistralai/Mistral-7B-Instruct-v0.2",
-      "timeout": 60000,
-      "temperature": 0.7,
-      "max_tokens": 2048
-    },
-    "openrouter": {
-      "enabled": true,
-      "priority": 2,
-      "apiKey": "STORED_IN_ENV_FILE",
       "baseUrl": "https://openrouter.ai/api/v1",
-      "model": "openai/gpt-3.5-turbo",
+      "model": "meta-llama/llama-3.3-8b-instruct:free",
       "timeout": 60000,
       "temperature": 0.7,
       "max_tokens": 2048
     }
   },
   "fallback": {
-    "enabled": true,
-    "autoSwitch": true,
+    "enabled": false,
+    "autoSwitch": false,
     "retryAttempts": 2
   },
   "ocr": {

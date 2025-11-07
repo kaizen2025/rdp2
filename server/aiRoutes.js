@@ -471,22 +471,13 @@ module.exports = (broadcast) => {
                 });
             }
 
-            // Préparer les filtres selon le provider
-            let filters = {};
-            if (provider === 'openrouter') {
-                filters = {
-                    free: free === 'true',
-                    sortBy: sortBy || 'recent',
-                    limit: parseInt(limit) || 20
-                };
-            } else if (provider === 'huggingface') {
-                filters = {
-                    task: task || 'text-generation',
-                    sort: sort || 'downloads',
-                    limit: parseInt(limit) || 20,
-                    publicOnly: true
-                };
-            }
+            // Préparer les filtres pour OpenRouter (uniquement)
+            const filters = {
+                recommended: free === 'true',  // Recommandés = validés et testés
+                sortBy: sortBy || 'context',
+                limit: parseInt(limit) || 20,
+                category: task  // Optionnel: filtrer par catégorie (coding, vision-language, etc.)
+            };
 
             // Récupérer les modèles
             const result = await providerService.getAvailableModels(filters);
@@ -503,24 +494,20 @@ module.exports = (broadcast) => {
     }));
 
     /**
-     * GET /ai/models/recommended - Récupère les modèles recommandés
+     * GET /ai/models/recommended - Récupère les modèles recommandés (OpenRouter uniquement)
      */
     router.get('/models/recommended', asyncHandler(async (req, res) => {
         try {
-            const huggingfaceService = require('../backend/services/ai/huggingfaceService');
+            const openrouterService = require('../backend/services/ai/openrouterService');
 
-            const recommendedModels = [
-                ...huggingfaceService.constructor.getRecommendedModels().map(m => ({
-                    ...m,
-                    provider: 'huggingface'
-                })),
-                ...huggingfaceService.constructor.getMistralFreeModels()
-            ];
+            const recommendedModels = openrouterService.getRecommendedModels();
 
             res.json({
                 success: true,
                 models: recommendedModels,
-                total: recommendedModels.length
+                total: recommendedModels.length,
+                provider: 'openrouter',
+                validated: true
             });
         } catch (error) {
             console.error('Erreur récupération modèles recommandés:', error);
