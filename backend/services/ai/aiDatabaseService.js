@@ -13,23 +13,122 @@ class AIDatabaseService {
     }
 
     /**
-     * Initialise les tables AI
+     * Initialise les tables AI avec migration automatique
      */
     initialize() {
         if (this.initialized) return;
 
         try {
+            // Vérifier si la table existe et migrer si nécessaire
+            this.migrateSchema();
+
+            // Exécuter le schéma complet pour les tables qui n'existent pas
             const schemaPath = path.join(__dirname, '../../schemas/ai_schema.sql');
             const schema = fs.readFileSync(schemaPath, 'utf-8');
-            
-            dbService.exec(schema);
-            
+
+            try {
+                dbService.exec(schema);
+            } catch (error) {
+                // Ignorer les erreurs "table already exists" ou "duplicate column"
+                if (!error.message.includes('already exists') && !error.message.includes('duplicate')) {
+                    throw error;
+                }
+            }
+
             this.initialized = true;
-            console.log('Tables IA initialisees avec succes');
+            console.log('✅ Tables IA initialisées avec succès');
         } catch (error) {
-            console.error('Erreur initialisation tables IA:', error);
+            console.error('❌ Erreur initialisation tables IA:', error);
             throw error;
         }
+    }
+
+    /**
+     * Migre le schéma de la base de données si nécessaire
+     */
+    migrateSchema() {
+        try {
+            // Vérifier si la table ai_documents existe
+            const tableExists = dbService.get(`
+                SELECT name FROM sqlite_master
+                WHERE type='table' AND name='ai_documents'
+            `);
+
+            if (!tableExists) {
+                console.log('ℹ️  Table ai_documents n\'existe pas, elle sera créée');
+                return;
+            }
+
+            // Récupérer les colonnes actuelles
+            const columns = dbService.all('PRAGMA table_info(ai_documents)');
+            const columnNames = columns.map(col => col.name);
+
+            console.log(`🔍 Vérification du schéma (${columnNames.length} colonnes existantes)`);
+
+            // Liste des colonnes à ajouter si manquantes
+            const requiredColumns = [
+                { name: 'filepath', type: 'TEXT', default: 'NULL' },
+                { name: 'relative_path', type: 'TEXT', default: 'NULL' },
+                { name: 'category', type: 'TEXT', default: 'NULL' },
+                { name: 'document_type', type: 'TEXT', default: 'NULL' },
+                { name: 'tags', type: 'TEXT', default: 'NULL' },
+                { name: 'word_count', type: 'INTEGER', default: 'NULL' },
+                { name: 'quality_score', type: 'REAL', default: 'NULL' },
+                { name: 'author', type: 'TEXT', default: 'NULL' },
+                { name: 'modified_date', type: 'DATETIME', default: 'NULL' },
+                { name: 'source', type: 'TEXT', default: "'uploaded'" }
+            ];
+
+            let migrationsApplied = 0;
+
+            for (const col of requiredColumns) {
+                if (!columnNames.includes(col.name)) {
+                    console.log(`📝 Migration: Ajout de la colonne '${col.name}'`);
+                    const sql = `ALTER TABLE ai_documents ADD COLUMN ${col.name} ${col.type} DEFAULT ${col.default}`;
+                    dbService.run(sql);
+                    migrationsApplied++;
+                }
+            }
+
+            if (migrationsApplied > 0) {
+                console.log(`✅ Migration terminée: ${migrationsApplied} colonne(s) ajoutée(s)`);
+
+                // Créer les index pour les nouvelles colonnes
+                this.createMissingIndexes();
+            } else {
+                console.log('✅ Schéma à jour, aucune migration nécessaire');
+            }
+
+        } catch (error) {
+            console.error('❌ Erreur migration schéma:', error);
+            // Ne pas throw, laisser l'initialisation continuer
+        }
+    }
+
+    /**
+     * Crée les index manquants
+     */
+    createMissingIndexes() {
+        const indexes = [
+            'CREATE INDEX IF NOT EXISTS idx_documents_filepath ON ai_documents(filepath)',
+            'CREATE INDEX IF NOT EXISTS idx_documents_category ON ai_documents(category)',
+            'CREATE INDEX IF NOT EXISTS idx_documents_source ON ai_documents(source)',
+            'CREATE INDEX IF NOT EXISTS idx_documents_document_type ON ai_documents(document_type)',
+            'CREATE INDEX IF NOT EXISTS idx_documents_modified_date ON ai_documents(modified_date)'
+        ];
+
+        for (const indexSql of indexes) {
+            try {
+                dbService.run(indexSql);
+            } catch (error) {
+                // Ignorer les erreurs d'index existants
+                if (!error.message.includes('already exists')) {
+                    console.warn('⚠️ Erreur création index:', error.message);
+                }
+            }
+        }
+
+        console.log('✅ Index créés/vérifiés');
     }
 
     // ==================== DOCUMENTS ====================
