@@ -398,6 +398,95 @@ class OpenRouterService {
     }
 
     /**
+     * Récupère la liste des modèles disponibles depuis OpenRouter
+     * @param {Object} filters - Filtres optionnels (free, sortBy, limit)
+     */
+    async getAvailableModels(filters = {}) {
+        try {
+            console.log('🔍 Récupération des modèles OpenRouter...');
+
+            const response = await axios.get(`${this.baseUrl}/models`, {
+                headers: {
+                    'Authorization': `Bearer ${this.apiKey}`,
+                    'HTTP-Referer': 'http://localhost:3002',
+                    'X-Title': 'RDS Viewer DocuCortex'
+                },
+                timeout: 15000
+            });
+
+            if (!response.data || !response.data.data) {
+                return {
+                    success: false,
+                    error: 'Format de réponse inattendu'
+                };
+            }
+
+            let models = response.data.data;
+
+            // Filtrer les modèles gratuits si demandé
+            if (filters.free === true) {
+                models = models.filter(model => {
+                    const pricing = model.pricing || {};
+                    const isFree = (
+                        (pricing.prompt === '0' && pricing.completion === '0') ||
+                        model.id.endsWith(':free') ||
+                        model.name?.toLowerCase().includes('free')
+                    );
+                    return isFree;
+                });
+            }
+
+            // Trier par date de création (les plus récents d'abord)
+            if (filters.sortBy === 'recent') {
+                models.sort((a, b) => {
+                    const createdA = parseInt(a.created) || 0;
+                    const createdB = parseInt(b.created) || 0;
+                    return createdB - createdA;
+                });
+            }
+
+            // Limiter le nombre de résultats
+            if (filters.limit && filters.limit > 0) {
+                models = models.slice(0, filters.limit);
+            }
+
+            // Formater les modèles pour l'interface
+            const formattedModels = models.map(model => ({
+                id: model.id,
+                name: model.name || model.id,
+                description: model.description || '',
+                contextLength: model.context_length || 0,
+                created: model.created ? new Date(model.created * 1000).toISOString() : null,
+                pricing: {
+                    prompt: model.pricing?.prompt || '0',
+                    completion: model.pricing?.completion || '0',
+                    isFree: (model.pricing?.prompt === '0' && model.pricing?.completion === '0') ||
+                            model.id.endsWith(':free')
+                },
+                architecture: model.architecture,
+                topProvider: model.top_provider
+            }));
+
+            console.log(`✅ ${formattedModels.length} modèle(s) récupéré(s)`);
+
+            return {
+                success: true,
+                models: formattedModels,
+                total: formattedModels.length,
+                filtered: !!filters.free
+            };
+
+        } catch (error) {
+            console.error('❌ Erreur récupération modèles OpenRouter:', error.message);
+            return {
+                success: false,
+                error: error.message,
+                models: []
+            };
+        }
+    }
+
+    /**
      * Récupère les statistiques d'utilisation
      */
     getStats() {

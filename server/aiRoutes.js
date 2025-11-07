@@ -446,6 +446,92 @@ module.exports = (broadcast) => {
         }
     }));
 
+    /**
+     * GET /ai/providers/:provider/models - Récupère la liste des modèles disponibles
+     */
+    router.get('/providers/:provider/models', asyncHandler(async (req, res) => {
+        try {
+            const { provider } = req.params;
+            const { free, sortBy, limit, task, sort } = req.query;
+
+            if (!aiService.providers[provider]) {
+                return res.status(404).json({
+                    success: false,
+                    error: `Provider ${provider} non trouvé`
+                });
+            }
+
+            const providerService = aiService.providers[provider].service;
+
+            // Vérifier que le service a la méthode getAvailableModels
+            if (typeof providerService.getAvailableModels !== 'function') {
+                return res.status(400).json({
+                    success: false,
+                    error: `Le provider ${provider} ne supporte pas la récupération de modèles`
+                });
+            }
+
+            // Préparer les filtres selon le provider
+            let filters = {};
+            if (provider === 'openrouter') {
+                filters = {
+                    free: free === 'true',
+                    sortBy: sortBy || 'recent',
+                    limit: parseInt(limit) || 20
+                };
+            } else if (provider === 'huggingface') {
+                filters = {
+                    task: task || 'text-generation',
+                    sort: sort || 'downloads',
+                    limit: parseInt(limit) || 20,
+                    publicOnly: true
+                };
+            }
+
+            // Récupérer les modèles
+            const result = await providerService.getAvailableModels(filters);
+
+            res.json(result);
+        } catch (error) {
+            console.error(`Erreur récupération modèles ${req.params.provider}:`, error);
+            res.status(500).json({
+                success: false,
+                error: 'Erreur récupération modèles',
+                details: error.message
+            });
+        }
+    }));
+
+    /**
+     * GET /ai/models/recommended - Récupère les modèles recommandés
+     */
+    router.get('/models/recommended', asyncHandler(async (req, res) => {
+        try {
+            const huggingfaceService = require('../backend/services/ai/huggingfaceService');
+
+            const recommendedModels = [
+                ...huggingfaceService.constructor.getRecommendedModels().map(m => ({
+                    ...m,
+                    provider: 'huggingface'
+                })),
+                ...huggingfaceService.constructor.getMistralFreeModels()
+            ];
+
+            res.json({
+                success: true,
+                models: recommendedModels,
+                total: recommendedModels.length
+            });
+        } catch (error) {
+            console.error('Erreur récupération modèles recommandés:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Erreur récupération modèles recommandés',
+                details: error.message
+            });
+        }
+    }));
+
     // ==================== STATISTIQUES ====================
 
     /**

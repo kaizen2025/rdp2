@@ -36,6 +36,7 @@ import {
 
 import { useApp } from '../../contexts/AppContext';
 import { usePermissions } from '../../hooks/usePermissions';
+import ModelSelector from './ModelSelector';
 import axios from 'axios';
 
 const API_BASE = '/api/ai';
@@ -252,22 +253,19 @@ const AISettingsPanel = () => {
                     </Grid>
 
                     <Grid item xs={12} md={8}>
-                        <TextField
-                            fullWidth
-                            label="Modèle"
+                        <ModelSelector
+                            provider="huggingface"
                             value={aiConfig.providers.huggingface.model}
-                            onChange={(e) => setAiConfig({
+                            onChange={(newModel) => setAiConfig({
                                 ...aiConfig,
                                 providers: {
                                     ...aiConfig.providers,
                                     huggingface: {
                                         ...aiConfig.providers.huggingface,
-                                        model: e.target.value
+                                        model: newModel
                                     }
                                 }
                             })}
-                            placeholder="mistralai/Mistral-7B-Instruct-v0.2"
-                            helperText="Modèle Hugging Face à utiliser"
                             disabled={!aiConfig.providers.huggingface.enabled}
                         />
                     </Grid>
@@ -366,22 +364,19 @@ const AISettingsPanel = () => {
                     </Grid>
 
                     <Grid item xs={12} md={8}>
-                        <TextField
-                            fullWidth
-                            label="Modèle"
+                        <ModelSelector
+                            provider="openrouter"
                             value={aiConfig.providers.openrouter.model}
-                            onChange={(e) => setAiConfig({
+                            onChange={(newModel) => setAiConfig({
                                 ...aiConfig,
                                 providers: {
                                     ...aiConfig.providers,
                                     openrouter: {
                                         ...aiConfig.providers.openrouter,
-                                        model: e.target.value
+                                        model: newModel
                                     }
                                 }
                             })}
-                            placeholder="openai/gpt-3.5-turbo"
-                            helperText="Modèle OpenRouter à utiliser"
                             disabled={!aiConfig.providers.openrouter.enabled}
                         />
                     </Grid>
