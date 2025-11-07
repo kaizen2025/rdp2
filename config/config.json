@@ -1,155 +1,252 @@
 {
-  "appPasswordHash": "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918",
-  "domain": "anecoopfr.local",
-  "username": "admin_anecoop",
-  "password": "vCQhNZ2aY2v!",
-  "excelFilePath": "\\\\192.168.1.230\\Donnees\\Informatique\\PROGRAMMES\\Programme RDS\\RDS Viewer Group\\Data_utilisateur_partage.xlsx",
-  "databasePath": "\\\\192.168.1.230\\Donnees\\Informatique\\PROGRAMMES\\Programme RDS\\RDS Viewer Group\\rds_viewer_data.sqlite",
-  "updateUrl": "http://192.168.1.232/update/",
-  "rds_servers": [
-    "SRV-RDS-1",
-    "SRV-RDS-2",
-    "SRV-RDS-3",
-    "SRV-RDS-4"
-  ],
-  "server_groups": {
-    "🏢 Infrastructure": ["SRV-AD-1", "SRV-AD-2", "SRV-AD-FLORENSUD", "SRV-DATA", "SRV-VPN-EDI"],
-    "🖥️ Services RDS": ["SRV-RDS-1", "SRV-RDS-2", "SRV-RDS-3", "SRV-RDS-4", "SRV-TSE-FLORENSUD"],
-    "📊 Applications": ["HRM-V9", "SAGERADIO64B", "SAGESEI_DOMAINENOK", "SRV-DIMENSION", "SRV-HOROQUARTZ", "SRV-ORACLE-SAGE", "SRV-QLIKVIEW", "SRV-QV", "SRV-SYRACUSE", "ServeurGED_DOMAINENOK", "ServeurQV_DOMAINENOK"],
-    "🔧 Autres": ["SRV-CENTOS-ZABBIX", "SRV-DIA", "SRWEXTRA01", "SRWINTRA01"]
-  },
-  "ad_groups": {
-    "VPN": { "name": "VPN", "description": "Accès VPN distant", "type": "Sécurité" },
-    "Sortants_responsables": { "name": "Sortants_responsables", "description": "Accès Internet complet", "type": "Sécurité" }
-  },
-  "roles": {
-    "super_admin": {
-      "name": "Super Administrateur",
-      "description": "Accès complet à toutes les fonctionnalités",
-      "permissions": ["*"],
-      "icon": "👑",
-      "color": "#d32f2f",
-      "priority": 100
+    "appPasswordHash": "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918",
+    "domain": "anecoopfr.local",
+    "username": "admin_anecoop",
+    "password": "vCQhNZ2aY2v!",
+    "excelFilePath": "\\\\192.168.1.230\\Donnees\\Informatique\\PROGRAMMES\\Programme RDS\\RDS Viewer Group\\Data_utilisateur_partage.xlsx",
+    "databasePath": "\\\\192.168.1.230\\Donnees\\Informatique\\PROGRAMMES\\Programme RDS\\RDS Viewer Group\\rds_viewer_data.sqlite",
+    "updateUrl": "http://192.168.1.232/update/",
+    "rds_servers": [
+        "SRV-RDS-1",
+        "SRV-RDS-2",
+        "SRV-RDS-3",
+        "SRV-RDS-4"
+    ],
+    "server_groups": {
+        "🏢 Infrastructure": [
+            "SRV-AD-1",
+            "SRV-AD-2",
+            "SRV-AD-FLORENSUD",
+            "SRV-DATA",
+            "SRV-VPN-EDI"
+        ],
+        "🖥️ Services RDS": [
+            "SRV-RDS-1",
+            "SRV-RDS-2",
+            "SRV-RDS-3",
+            "SRV-RDS-4",
+            "SRV-TSE-FLORENSUD"
+        ],
+        "📊 Applications": [
+            "HRM-V9",
+            "SAGERADIO64B",
+            "SAGESEI_DOMAINENOK",
+            "SRV-DIMENSION",
+            "SRV-HOROQUARTZ",
+            "SRV-ORACLE-SAGE",
+            "SRV-QLIKVIEW",
+            "SRV-QV",
+            "SRV-SYRACUSE",
+            "ServeurGED_DOMAINENOK",
+            "ServeurQV_DOMAINENOK"
+        ],
+        "🔧 Autres": [
+            "SRV-CENTOS-ZABBIX",
+            "SRV-DIA",
+            "SRWEXTRA01",
+            "SRWINTRA01"
+        ]
     },
-    "admin": {
-      "name": "Administrateur",
-      "description": "Gestion complète sauf configuration système",
-      "permissions": [
-        "dashboard:view",
-        "sessions:*",
-        "users:*",
-        "servers:*",
-        "ad_groups:*",
-        "loans:*",
-        "chat_ged:view",
-        "chat_ged:search",
-        "ai_assistant:view",
-        "reports:*",
-        "notifications:*"
-      ],
-      "icon": "🔑",
-      "color": "#f57c00",
-      "priority": 90
+    "ad_groups": {
+        "VPN": {
+            "name": "VPN",
+            "description": "Accès VPN distant",
+            "type": "Sécurité"
+        },
+        "Sortants_responsables": {
+            "name": "Sortants_responsables",
+            "description": "Accès Internet complet",
+            "type": "Sécurité"
+        }
     },
-    "ged_specialist": {
-      "name": "Spécialiste GED",
-      "description": "Expert en gestion documentaire et DocuCortex IA",
-      "permissions": [
-        "dashboard:view",
-        "chat_ged:*",
-        "ai_assistant:*",
-        "ged_upload:create",
-        "ged_delete:delete",
-        "ged_network_scan:admin",
-        "ged_index_manage:admin",
-        "reports:view",
-        "reports:export"
-      ],
-      "icon": "📚",
-      "color": "#9c27b0",
-      "priority": 80
+    "roles": {
+        "super_admin": {
+            "name": "Super Administrateur",
+            "description": "Accès complet à toutes les fonctionnalités",
+            "permissions": [
+                "*"
+            ],
+            "icon": "👑",
+            "color": "#d32f2f",
+            "priority": 100
+        },
+        "admin": {
+            "name": "Administrateur",
+            "description": "Gestion complète sauf configuration système",
+            "permissions": [
+                "dashboard:view",
+                "sessions:*",
+                "users:*",
+                "servers:*",
+                "ad_groups:*",
+                "loans:*",
+                "chat_ged:view",
+                "chat_ged:search",
+                "ai_assistant:view",
+                "reports:*",
+                "notifications:*"
+            ],
+            "icon": "🔑",
+            "color": "#f57c00",
+            "priority": 90
+        },
+        "ged_specialist": {
+            "name": "Spécialiste GED",
+            "description": "Expert en gestion documentaire et DocuCortex IA",
+            "permissions": [
+                "dashboard:view",
+                "chat_ged:*",
+                "ai_assistant:*",
+                "ged_upload:create",
+                "ged_delete:delete",
+                "ged_network_scan:admin",
+                "ged_index_manage:admin",
+                "reports:view",
+                "reports:export"
+            ],
+            "icon": "📚",
+            "color": "#9c27b0",
+            "priority": 80
+        },
+        "manager": {
+            "name": "Manager",
+            "description": "Supervision et consultation",
+            "permissions": [
+                "dashboard:view",
+                "sessions:view",
+                "users:view",
+                "servers:view",
+                "loans:view",
+                "loans:create",
+                "loans:edit",
+                "chat_ged:view",
+                "chat_ged:search",
+                "ai_assistant:view",
+                "reports:view",
+                "reports:export"
+            ],
+            "icon": "👔",
+            "color": "#1976d2",
+            "priority": 60
+        },
+        "technician": {
+            "name": "Technicien",
+            "description": "Gestion quotidienne des sessions et utilisateurs",
+            "permissions": [
+                "dashboard:view",
+                "sessions:view",
+                "sessions:disconnect",
+                "users:view",
+                "users:edit",
+                "servers:view",
+                "loans:view",
+                "loans:create",
+                "chat_ged:view",
+                "ai_assistant:view"
+            ],
+            "icon": "🔧",
+            "color": "#388e3c",
+            "priority": 40
+        },
+        "viewer": {
+            "name": "Observateur",
+            "description": "Consultation uniquement",
+            "permissions": [
+                "dashboard:view",
+                "sessions:view",
+                "users:view",
+                "servers:view",
+                "reports:view"
+            ],
+            "icon": "👁️",
+            "color": "#757575",
+            "priority": 20
+        }
     },
-    "manager": {
-      "name": "Manager",
-      "description": "Supervision et consultation",
-      "permissions": [
-        "dashboard:view",
-        "sessions:view",
-        "users:view",
-        "servers:view",
-        "loans:view",
-        "loans:create",
-        "loans:edit",
-        "chat_ged:view",
-        "chat_ged:search",
-        "ai_assistant:view",
-        "reports:view",
-        "reports:export"
-      ],
-      "icon": "👔",
-      "color": "#1976d2",
-      "priority": 60
+    "it_technicians": [
+        {
+            "id": "kevin_bivia",
+            "name": "Kevin BIVIA",
+            "position": "Chef de projet",
+            "email": "kevin.bivia@anecoop.fr",
+            "isActive": true,
+            "role": "super_admin",
+            "avatar": "KB"
+        },
+        {
+            "id": "meher_benhassine",
+            "name": "Meher BENHASSINE",
+            "position": "Chef de projet",
+            "email": "meher.benhassine@anecoop.fr",
+            "isActive": true,
+            "role": "admin",
+            "avatar": "MB"
+        },
+        {
+            "id": "christelle_moles",
+            "name": "Christelle MOLES",
+            "position": "Responsable informatique",
+            "email": "christelle.moles@anecoop.fr",
+            "isActive": true,
+            "role": "admin",
+            "avatar": "CM"
+        },
+        {
+            "id": "macha_anton",
+            "name": "Macha ANTON",
+            "position": "Alternante informatique",
+            "email": "macha.anton@anecoop.fr",
+            "isActive": true,
+            "role": "technician",
+            "avatar": "MA"
+        }
+    ],
+    "it_staff": [
+        "Kevin BIVIA",
+        "Meher BENHASSINE",
+        "Macha ANTON",
+        "Christelle MOLES"
+    ],
+    "loans": {
+        "maxLoanDays": 90,
+        "maxExtensions": 3,
+        "autoNotifications": true
     },
-    "technician": {
-      "name": "Technicien",
-      "description": "Gestion quotidienne des sessions et utilisateurs",
-      "permissions": [
-        "dashboard:view",
-        "sessions:view",
-        "sessions:disconnect",
-        "users:view",
-        "users:edit",
-        "servers:view",
-        "loans:view",
-        "loans:create",
-        "chat_ged:view",
-        "ai_assistant:view"
-      ],
-      "icon": "🔧",
-      "color": "#388e3c",
-      "priority": 40
+    "notifications": {
+        "enabled": true,
+        "loanReminders": true,
+        "overdueLoanAlerts": true
     },
-    "viewer": {
-      "name": "Observateur",
-      "description": "Consultation uniquement",
-      "permissions": [
-        "dashboard:view",
-        "sessions:view",
-        "users:view",
-        "servers:view",
-        "reports:view"
-      ],
-      "icon": "👁️",
-      "color": "#757575",
-      "priority": 20
+    "ui": {
+        "theme": "light",
+        "autoRefresh": true,
+        "compactView": false
+    },
+    "excelColumnMapping": {
+        "Identifiant": "username",
+        "Nom complet": "displayName",
+        "Serveur": "server",
+        "Mot de passe": "password",
+        "Office": "officePassword",
+        "Email": "email",
+        "Service": "department"
+    },
+    "networkDocuments": {
+        "serverPath": "\\\\192.168.1.230\\Donnees",
+        "workingDirectory": "",
+        "autoIndex": true,
+        "scanInterval": 30,
+        "allowedExtensions": [
+            "*"
+        ],
+        "excludedFolders": [
+            "Temp",
+            "Backup",
+            "$RECYCLE.BIN",
+            "System Volume Information",
+            "node_modules",
+            ".git"
+        ],
+        "maxFileSize": 104857600
     }
-  },
-  "it_technicians": [
-    { "id": "kevin_bivia", "name": "Kevin BIVIA", "position": "Chef de projet", "email": "kevin.bivia@anecoop.fr", "isActive": true, "role": "super_admin", "avatar": "KB" },
-    { "id": "meher_benhassine", "name": "Meher BENHASSINE", "position": "Chef de projet", "email": "meher.benhassine@anecoop.fr", "isActive": true, "role": "admin", "avatar": "MB" },
-    { "id": "christelle_moles", "name": "Christelle MOLES", "position": "Responsable informatique", "email": "christelle.moles@anecoop.fr", "isActive": true, "role": "admin", "avatar": "CM" },
-    { "id": "macha_anton", "name": "Macha ANTON", "position": "Alternante informatique", "email": "macha.anton@anecoop.fr", "isActive": true, "role": "technician", "avatar": "MA" }
-  ],
-  "it_staff": ["Kevin BIVIA", "Meher BENHASSINE", "Macha ANTON", "Christelle MOLES"],
-  "loans": { "maxLoanDays": 90, "maxExtensions": 3, "autoNotifications": true },
-  "notifications": { "enabled": true, "loanReminders": true, "overdueLoanAlerts": true },
-  "ui": { "theme": "light", "autoRefresh": true, "compactView": false },
-  "excelColumnMapping": {
-    "Identifiant": "username",
-    "Nom complet": "displayName",
-    "Serveur": "server",
-    "Mot de passe": "password",
-    "Office": "officePassword",
-    "Email": "email",
-    "Service": "department"
-  },
-  "networkDocuments": {
-    "serverPath": "\\\\192.168.1.230\\Donnees",
-    "workingDirectory": "",
-    "autoIndex": true,
-    "scanInterval": 30,
-    "allowedExtensions": ["*"],
-    "excludedFolders": ["Temp", "Backup", "$RECYCLE.BIN", "System Volume Information", "node_modules", ".git"],
-    "maxFileSize": 104857600
-  }
 }
