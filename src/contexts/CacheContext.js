@@ -38,11 +38,20 @@ export const CacheProvider = ({ children }) => {
                     default: return;
                 }
             }
+            // ✅ S'assurer que data n'est jamais undefined/null
+            if (data === undefined || data === null) {
+                data = entity.startsWith('ad_groups:') ? [] : (entity === 'excel_users' ? {} : []);
+            }
             setCache(prev => ({ ...prev, [entity]: data }));
             return data;
         } catch (err) {
             console.error(`Erreur chargement ${entity}:`, err);
             setError(err.message);
+            showNotification('error', `Impossible de charger les données: ${entity}`);
+            // ✅ CORRECTION CRITIQUE: Mettre un tableau/objet vide dans le cache en cas d'erreur
+            const fallbackData = entity.startsWith('ad_groups:') ? [] : (entity === 'excel_users' ? {} : []);
+            setCache(prev => ({ ...prev, [entity]: fallbackData }));
+            return fallbackData;
 
             // ✅ FIX: Set empty default value to prevent undefined errors
             // Don't show notification for AD groups if it's a transient connection error
