@@ -9,6 +9,9 @@ const fs = require('fs');
 const os = require('os');
 const isDev = require('electron-is-dev');
 
+// Import du bridge Active Directory
+const { initializeAdBridge, cleanupAdBridge } = require('./ad-bridge');
+
 // --- Configuration des logs améliorée ---
 log.transports.file.level = 'info';
 log.transports.console.level = 'info';
@@ -342,11 +345,15 @@ function setupIpcHandlers() {
 app.whenReady().then(() => {
     startServer();
     setupAutoUpdater();
+    initializeAdBridge();  // ✅ Initialize AD IPC bridge
     setupIpcHandlers();
     createWindow();
     app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
-app.on('will-quit', () => logToUI('info', '[Main] 🛑 Arrêt de l\'application.'));
+app.on('will-quit', () => {
+    logToUI('info', '[Main] 🛑 Arrêt de l\'application.');
+    cleanupAdBridge();  // ✅ Cleanup AD bridge on app quit
+});
 process.on('uncaughtException', (error) => logToUI('error', '[Main] ❌ Erreur non capturée:', error));

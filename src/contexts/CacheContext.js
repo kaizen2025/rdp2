@@ -26,7 +26,16 @@ export const CacheProvider = ({ children }) => {
             // ✅ AJOUT: Logique pour charger les groupes AD
             if (entity.startsWith('ad_groups:')) {
                 const groupName = entity.split(':')[1];
-                data = await apiService.getAdGroupMembers(groupName);
+
+                // ✅ Utiliser l'API Electron si disponible (mode desktop), sinon fallback HTTP
+                if (window.electronAPI && window.electronAPI.getAdGroupMembers) {
+                    console.log(`[CacheContext] Utilisation de l'API Electron pour ${entity}`);
+                    const result = await window.electronAPI.getAdGroupMembers(groupName);
+                    data = result.success ? result.members : [];
+                } else {
+                    console.log(`[CacheContext] Fallback HTTP API pour ${entity}`);
+                    data = await apiService.getAdGroupMembers(groupName);
+                }
             } else {
                 switch (entity) {
                     case 'loans': data = await apiService.getLoans(); break;
