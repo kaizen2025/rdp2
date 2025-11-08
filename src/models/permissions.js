@@ -215,6 +215,15 @@ export const MODULES = {
     path: '/ai-assistant',
     description: 'Assistant IA documentaire avec Hugging Face et OpenRouter',
     requiredPermission: 'ai_assistant:view'
+  },
+
+  ASSISTANT: {
+    id: 'assistant',
+    label: 'Assistant',
+    icon: '🤖',
+    path: '/assistant',
+    description: 'Assistant IA avec Gemini Flash',
+    requiredPermission: 'ai_assistant:view'
   }
 
   // ✅ 7 ONGLETS PRINCIPAUX (navigation essentielle):

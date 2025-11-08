@@ -74,17 +74,9 @@ async function refreshAndStoreRdsSessions() {
 
     console.log(`🔍 Interrogation de ${servers.length} serveurs RDS...`);
 
-    const promises = servers.map(async (server) => {
-        console.log(`   → Ping TCP sur ${server}:3389...`);
-        const pingResult = await pingServer(server);
-
-        if (!pingResult.success) {
-            console.warn(`   ⚠️ Ping échoué pour ${server}: ${pingResult.output}`);
-            return []; // Ne pas tenter quser si le ping échoue
-        }
-
-        console.log(`   ✅ Ping réussi pour ${server}, tentative quser...`);
-        return new Promise((resolve) => {
+    const promises = servers.map(server =>
+        new Promise((resolve) => {
+            console.log(`   → Tentative quser sur ${server}...`);
             exec(`quser /server:${server}`, { encoding: 'buffer', timeout: 8000 }, (error, stdout, stderr) => {
                 const stderrStr = iconv.decode(stderr, 'cp850').trim();
 
@@ -99,8 +91,8 @@ async function refreshAndStoreRdsSessions() {
                 console.log(`   ✅ ${server}: ${sessions.length} session(s) trouvée(s)`);
                 resolve(sessions);
             });
-        });
-    });
+        })
+    );
 
     const results = await Promise.all(promises);
     const allSessions = results.flat();

@@ -15,6 +15,7 @@ const filePreviewService = require('./filePreviewService');
 const ocrService = require('./ocrService');
 const huggingfaceService = require('./huggingfaceService'); // ✅ Service Hugging Face (PRIORITAIRE)
 const openrouterService = require('./openrouterService'); // ✅ Service OpenRouter (FALLBACK)
+const geminiService = require('./geminiService'); // ✅ Service Gemini (NOUVEAU)
 const path = require('path');
 const fs = require('fs').promises;
 
@@ -30,7 +31,8 @@ class AIService {
         // Système multi-provider avec fallback
         this.providers = {
             huggingface: { enabled: false, service: huggingfaceService },
-            openrouter: { enabled: false, service: openrouterService }
+            openrouter: { enabled: false, service: openrouterService },
+            gemini: { enabled: false, service: geminiService }
         };
         this.activeProvider = 'default'; // Provider actuellement utilisé
         this.config = null; // Configuration complète chargée depuis ai-config.json

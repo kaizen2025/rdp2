@@ -896,4 +896,5 @@
 # downloads/
 
 .env.ai
-model.nlp 
+model.nlp
+.react-port.json
