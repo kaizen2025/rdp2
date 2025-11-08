@@ -770,6 +770,7 @@
 **/.env*
 !**/.env.example
 !**/.env.template
+!**/.env.ai.example
 **/*.pem
 **/*.key
 **/*.p12

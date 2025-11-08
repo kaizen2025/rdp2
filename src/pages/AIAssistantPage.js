@@ -1,8 +1,8 @@
 /**
  * Page principale de l'Assistant IA - DocuCortex
  * VERSION SIMPLIFIÉE ET PROFESSIONNELLE
- * ✅ Interface unique focalisée sur le chat avec Hugging Face & OpenRouter
- * ✅ Upload de documents intégré dans le chat (à venir)
+ * ✅ Interface unique focalisée sur le chat avec Gemini (principal) & OpenRouter (fallback)
+ * ✅ Upload de documents intégré dans le chat
  * ✅ Statistiques simples en haut
  */
 
@@ -80,7 +80,7 @@ const AIAssistantPage = () => {
                         </Typography>
                         <Typography variant="body2" sx={{ opacity: 0.9, display: 'flex', alignItems: 'center', gap: 1 }}>
                             <AnalyticsIcon sx={{ fontSize: 16 }} />
-                            Assistant documentaire intelligent • Powered by Hugging Face & OpenRouter
+                            Assistant documentaire intelligent • Powered by Gemini & OpenRouter
                         </Typography>
                     </Box>
                 </Box>
