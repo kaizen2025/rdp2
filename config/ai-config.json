@@ -1,9 +1,18 @@
 {
-  "aiProvider": "openrouter",
+  "aiProvider": "gemini",
   "providers": {
-    "openrouter": {
+    "gemini": {
       "enabled": true,
       "priority": 1,
+      "apiKey": "STORED_IN_ENV_FILE",
+      "model": "gemini-1.5-flash",
+      "timeout": 120000,
+      "temperature": 0.7,
+      "max_tokens": 4096
+    },
+    "openrouter": {
+      "enabled": true,
+      "priority": 2,
       "apiKey": "STORED_IN_ENV_FILE",
       "baseUrl": "https://openrouter.ai/api/v1",
       "model": "openrouter/polaris-alpha",

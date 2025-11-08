@@ -155,6 +155,7 @@ class ApiService {
     
     // Conversations - ✅ Using enhanced endpoint with OpenRouter support
     sendAIMessage = async (sessionId, message, userId = null, aiProvider = 'openrouter') => this.request('/ai/chat/enhanced', { method: 'POST', body: JSON.stringify({ sessionId, message, userId, aiProvider }) })
+    sendGeminiMessage = async (sessionId, message, fileText, userId = null) => this.request('/ai/chat/enhanced', { method: 'POST', body: JSON.stringify({ sessionId, message, fileText, userId, aiProvider: 'gemini' }) })
     getAIConversationHistory = async (sessionId, limit = 50) => this.request(`/ai/conversations/${sessionId}?limit=${limit}`)
     getAllAIConversations = async (limit = 50) => this.request(`/ai/conversations?limit=${limit}`)
     
