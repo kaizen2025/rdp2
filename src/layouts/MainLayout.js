@@ -34,7 +34,6 @@ const AIConfigPage = lazy(() => import('../pages/AIConfigPage'));
 const SettingsPage = lazy(() => import('../pages/SettingsPage'));
 const ChatDialog = lazy(() => import('../pages/ChatPage'));
 const NotificationsPanel = lazy(() => import('../components/NotificationsPanel'));
-const GeminiAssistant = lazy(() => import('../components/GeminiAssistant'));
 
 const LoadingFallback = () => (
     <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 180px)' }}>
@@ -52,7 +51,6 @@ const moduleIcons = {
     'loans': <LaptopChromebookIcon />,
     'ai_assistant': <SmartToyIcon />,
     'chat_ged': <ChatIcon />,
-    'assistant': <SmartToyIcon />,
 };
 
 function MainLayout({ onLogout, currentTechnician, onChatClick }) {
@@ -251,14 +249,6 @@ function MainLayout({ onLogout, currentTechnician, onChatClick }) {
                             <Route path="/ai-assistant" element={
                                 <ProtectedRoute requiredPermission="ai_assistant:view">
                                     <AIAssistantPage />
-                                </ProtectedRoute>
-                            } />
-
-                            <Route path="/assistant" element={
-                                <ProtectedRoute requiredPermission="ai_assistant:view">
-                                    <Suspense fallback={<LoadingFallback />}>
-                                        <GeminiAssistant />
-                                    </Suspense>
                                 </ProtectedRoute>
                             } />
 

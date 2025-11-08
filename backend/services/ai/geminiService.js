@@ -1,6 +1,12 @@
 // backend/services/ai/geminiService.js
 
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+let GoogleGenerativeAI;
+try {
+  GoogleGenerativeAI = require('@google/generative-ai').GoogleGenerativeAI;
+} catch (error) {
+  console.warn('⚠️ Package @google/generative-ai non disponible. Installez-le avec: npm install @google/generative-ai');
+  GoogleGenerativeAI = null;
+}
 
 let genAI;
 let model;
@@ -8,6 +14,9 @@ let config;
 
 async function initialize(options) {
   try {
+    if (!GoogleGenerativeAI) {
+      throw new Error('Package @google/generative-ai non installé');
+    }
     if (!options.apiKey || options.apiKey === 'VOTRE_CLE_API_GEMINI') {
       throw new Error('Clé API Gemini non configurée');
     }
@@ -24,6 +33,9 @@ async function initialize(options) {
 
 async function processConversation(messages, options = {}) {
   try {
+    if (!GoogleGenerativeAI || !model) {
+      throw new Error('Service Gemini non initialisé ou package non installé');
+    }
     const prompt = messages.map(m => `${m.role}: ${m.content}`).join('\n');
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -37,6 +49,9 @@ async function processConversation(messages, options = {}) {
 
 async function testConnection(apiKey, modelName) {
   try {
+    if (!GoogleGenerativeAI) {
+      throw new Error('Package @google/generative-ai non installé');
+    }
     const testAI = new GoogleGenerativeAI(apiKey || config.apiKey);
     const testModel = testAI.getGenerativeModel({ model: modelName || config.model });
     const result = await testModel.generateContent('test');
