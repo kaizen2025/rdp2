@@ -39,13 +39,18 @@ function startServer() {
         logToUI('info', '[Main] 🚀 Environnement de production détecté. Démarrage du serveur Node.js interne...');
 
         try {
-            // En mode packagé sans ASAR, les fichiers sont directement dans resources/app
+            // En mode packagé avec ASAR, les fichiers unpacked sont dans app.asar.unpacked
             const appPath = app.getAppPath();
+            const unpackedPath = appPath.replace('app.asar', 'app.asar.unpacked');
+
+            // Utiliser unpacked si ASAR est utilisé, sinon utiliser appPath directement
+            const basePath = appPath.includes('.asar') ? unpackedPath : appPath;
 
             logToUI('info', `[Main] Chemin app: ${appPath}`);
+            logToUI('info', `[Main] Chemin base: ${basePath}`);
 
-            // ✅ SOLUTION SANS ASAR: Configurer NODE_PATH pour node_modules dans app
-            const nodeModulesPath = path.join(appPath, 'node_modules');
+            // ✅ Configurer NODE_PATH pour node_modules dans le bon chemin
+            const nodeModulesPath = path.join(basePath, 'node_modules');
             process.env.NODE_PATH = nodeModulesPath;
             require('module').Module._initPaths(); // Reload module paths
 
@@ -68,8 +73,8 @@ function startServer() {
             process.env.RUNNING_IN_ELECTRON = 'true';
             process.env.PORT = '3002';
 
-            // Chemin du serveur
-            const serverPath = path.join(appPath, 'server', 'server.js');
+            // Chemin du serveur (dans unpacked)
+            const serverPath = path.join(basePath, 'server', 'server.js');
 
             logToUI('info', `[Main] Chemin du serveur: ${serverPath}`);
 
@@ -80,8 +85,7 @@ function startServer() {
 
             logToUI('info', '[Main] ✅ Fichier serveur trouvé, chargement...');
 
-            // ✅ DÉMARRER LE SERVEUR DANS LE PROCESSUS ELECTRON (pas de fork)
-            // Cela garantit que tous les modules sont accessibles
+            // ✅ DÉMARRER LE SERVEUR DANS LE PROCESSUS ELECTRON
             require(serverPath);
 
             logToUI('info', '[Main] ✅ Serveur backend chargé et démarré avec succès');

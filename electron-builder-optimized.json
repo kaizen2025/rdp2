@@ -20,15 +20,7 @@
     "data/**/*",
     "node_modules/**/*",
     "package.json",
-    "!build/**/*.map",
-    "!build/**/*.gz",
-    "!build/**/*.br",
-    "!node_modules/**/{CHANGELOG.md,README.md,readme.md,README,readme,HISTORY.md,CONTRIBUTING.md}",
-    "!node_modules/**/{test,__tests__,tests,powered-test,example,examples,samples,docs,doc,website,images}",
-    "!node_modules/**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj,ts,tsx,map}",
-    "!node_modules/**/.{DS_Store,git,hg,svn,idea,vscode,editorconfig,eslintrc,prettierrc,babelrc}",
-    "!node_modules/**/LICENSE",
-    "!node_modules/**/license"
+    "!build/**/*.map"
   ],
   "extraResources": [
     {
@@ -43,8 +35,13 @@
     }
   ],
   "compression": "maximum",
-  "asar": false,
-  "asarUnpack": [],
+  "asar": true,
+  "asarUnpack": [
+    "node_modules/**/*",
+    "backend/**/*",
+    "server/**/*",
+    "config/**/*"
+  ],
   "win": {
     "target": [
       {
@@ -63,8 +60,7 @@
   "portable": {
     "artifactName": "${productName}-${version}-Portable-Optimized.exe",
     "requestExecutionLevel": "user",
-    "useZip": true,
-    "splashImage": "assets/icon.png",
+    "useZip": false,
     "unpackDirName": "RDSViewer-Portable"
   },
   "linux": {
