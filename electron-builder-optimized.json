@@ -43,14 +43,8 @@
     }
   ],
   "compression": "maximum",
-  "asar": true,
-  "asarUnpack": [
-    "node_modules/better-sqlite3/**/*",
-    "node_modules/bcrypt/**/*",
-    "backend/**/*",
-    "server/**/*",
-    "config/**/*"
-  ],
+  "asar": false,
+  "asarUnpack": [],
   "win": {
     "target": [
       {
