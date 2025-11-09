@@ -38,13 +38,7 @@
     }
   ],
   "compression": "maximum",
-  "asar": true,
-  "asarUnpack": [
-    "node_modules/**/*",
-    "backend/**/*",
-    "server/**/*",
-    "config/**/*"
-  ],
+  "asar": false,
   "win": {
     "target": [
       {
