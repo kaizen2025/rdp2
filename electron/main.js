@@ -107,8 +107,9 @@ function createWindow() {
         // --- LOGIQUE D'ATTENTE ROBUSTE AVEC VÉRIFICATION DE CONNEXION ---
         const reactPortFilePath = path.join(__dirname, '..', '.react-port.json');
         const net = require('net');
-        let maxRetries = 30; // Increased to 30 seconds
+        let maxRetries = 90; // ✅ FIX: Increased to 90 seconds for slow React compilation
         const retryDelay = 1000;
+        const DEFAULT_REACT_PORT = 3000; // Port React par défaut
 
         // Vérifier si le serveur React accepte des connexions
         const checkServerConnection = (port) => {
@@ -135,56 +136,51 @@ function createWindow() {
         };
 
         const loadDevUrl = async () => {
+            let portToTry = DEFAULT_REACT_PORT;
+
+            // ✅ FIX: Try to read port from file, but fallback to default port
             if (fs.existsSync(reactPortFilePath)) {
                 try {
                     const { port } = JSON.parse(fs.readFileSync(reactPortFilePath, 'utf8'));
-
-                    // ✅ CRITIQUE: Vérifier que le serveur répond avant loadURL
-                    const isServerReady = await checkServerConnection(port);
-
-                    if (isServerReady) {
-                        const devUrl = `http://localhost:${port}`;
-                        logToUI('info', `[Main] ✅ Serveur React répond sur le port ${port}. Chargement: ${devUrl}`);
-
-                        mainWindow.loadURL(devUrl).catch(err => {
-                            logToUI('error', `[Main] ❌ Erreur loadURL: ${err.message}`);
-                            // Retry on connection error
-                            if (maxRetries > 0) {
-                                maxRetries--;
-                                logToUI('info', `[Main] Nouvelle tentative... (${maxRetries} restantes)`);
-                                setTimeout(loadDevUrl, retryDelay);
-                            } else {
-                                dialog.showErrorBox('Erreur de chargement', `Impossible de se connecter au serveur React.\n\nErreur: ${err.message}`);
-                            }
-                        });
-                        mainWindow.webContents.openDevTools();
-                    } else {
-                        // Server not ready yet, retry
-                        logToUI('info', `[Main] Serveur React pas encore prêt (port ${port}). Nouvelle tentative... (${maxRetries} restantes)`);
-                        if (maxRetries > 0) {
-                            maxRetries--;
-                            setTimeout(loadDevUrl, retryDelay);
-                        } else {
-                            dialog.showErrorBox('Erreur de Démarrage', 'Le serveur React ne répond pas après 30 secondes.');
-                        }
-                    }
-
+                    portToTry = port;
+                    logToUI('info', `[Main] 📄 Port trouvé dans .react-port.json: ${port}`);
                 } catch (error) {
-                    logToUI('error', `[Main] Erreur lecture .react-port.json: ${error.message}`);
-                    if (maxRetries > 0) {
-                        maxRetries--;
-                        setTimeout(loadDevUrl, retryDelay);
-                    } else {
-                        dialog.showErrorBox('Erreur Critique', 'Impossible de lire le port du serveur React.');
-                    }
+                    logToUI('warn', `[Main] ⚠️ Erreur lecture .react-port.json: ${error.message}, utilisation du port par défaut ${DEFAULT_REACT_PORT}`);
                 }
             } else {
-                 logToUI('info', `[Main] En attente de .react-port.json... (${maxRetries} tentatives restantes)`);
+                logToUI('info', `[Main] ⏳ Fichier .react-port.json absent, essai du port par défaut ${DEFAULT_REACT_PORT}... (${maxRetries}s restantes)`);
+            }
+
+            // ✅ CRITIQUE: Vérifier que le serveur répond avant loadURL
+            const isServerReady = await checkServerConnection(portToTry);
+
+            if (isServerReady) {
+                const devUrl = `http://localhost:${portToTry}`;
+                logToUI('info', `[Main] ✅ Serveur React PRÊT sur le port ${portToTry}. Chargement: ${devUrl}`);
+
+                mainWindow.loadURL(devUrl).catch(err => {
+                    logToUI('error', `[Main] ❌ Erreur loadURL: ${err.message}`);
+                    // Retry on connection error
+                    if (maxRetries > 0) {
+                        maxRetries--;
+                        logToUI('info', `[Main] Nouvelle tentative... (${maxRetries}s restantes)`);
+                        setTimeout(loadDevUrl, retryDelay);
+                    } else {
+                        dialog.showErrorBox('Erreur de chargement', `Impossible de se connecter au serveur React après 90 secondes.\n\nErreur: ${err.message}`);
+                    }
+                });
+                mainWindow.webContents.openDevTools();
+            } else {
+                // Server not ready yet, retry
                 if (maxRetries > 0) {
                     maxRetries--;
+                    // Log moins verbose après 60 secondes
+                    if (maxRetries % 10 === 0 || maxRetries > 80) {
+                        logToUI('info', `[Main] ⏳ Compilation React en cours... (${maxRetries}s restantes)`);
+                    }
                     setTimeout(loadDevUrl, retryDelay);
                 } else {
-                    dialog.showErrorBox('Erreur de Démarrage', 'Le serveur de développement React n\'a pas démarré à temps.');
+                    dialog.showErrorBox('Erreur de Démarrage', `Le serveur React ne répond pas après 90 secondes.\n\nVérifiez la compilation dans la console.`);
                 }
             }
         };
