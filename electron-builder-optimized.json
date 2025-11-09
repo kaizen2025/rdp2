@@ -18,16 +18,8 @@
     "backend/**/*",
     "config/**/*",
     "data/**/*",
-    "node_modules/**/*",
     "package.json",
-    "!build/**/*.map",
-    "!build/**/*.gz",
-    "!node_modules/**/README.md",
-    "!node_modules/**/LICENSE",
-    "!node_modules/**/CHANGELOG.md",
-    "!node_modules/**/{test,tests,__tests__,examples,example,docs,doc}/**",
-    "!node_modules/**/*.{md,ts,flow,map}",
-    "!node_modules/.cache/**"
+    "!build/**/*.map"
   ],
   "extraResources": [
     {
@@ -42,7 +34,12 @@
     }
   ],
   "compression": "normal",
-  "asar": false,
+  "asar": true,
+  "asarUnpack": [
+    "**/*.node",
+    "**/node_modules/bcrypt/**/*",
+    "**/node_modules/better-sqlite3/**/*"
+  ],
   "win": {
     "target": [
       {

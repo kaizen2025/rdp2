@@ -18,12 +18,8 @@
     "backend/**/*",
     "config/**/*",
     "data/**/*",
-    "node_modules/**/*",
     "package.json",
-    "!node_modules/**/{CHANGELOG.md,README.md,readme.md,README,readme}",
-    "!node_modules/**/{test,__tests__,tests,powered-test,example,examples}",
-    "!node_modules/**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
-    "!node_modules/**/.{DS_Store,git,hg,svn,idea,vscode,editorconfig}"
+    "!build/**/*.map"
   ],
   "extraResources": [
     {
@@ -38,7 +34,12 @@
     }
   ],
   "compression": "maximum",
-  "asar": false,
+  "asar": true,
+  "asarUnpack": [
+    "**/*.node",
+    "**/node_modules/bcrypt/**/*",
+    "**/node_modules/better-sqlite3/**/*"
+  ],
   "win": {
     "target": [
       {
