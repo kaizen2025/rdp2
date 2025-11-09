@@ -20,7 +20,14 @@
     "data/**/*",
     "node_modules/**/*",
     "package.json",
-    "!build/**/*.map"
+    "!build/**/*.map",
+    "!build/**/*.gz",
+    "!node_modules/**/README.md",
+    "!node_modules/**/LICENSE",
+    "!node_modules/**/CHANGELOG.md",
+    "!node_modules/**/{test,tests,__tests__,examples,example,docs,doc}/**",
+    "!node_modules/**/*.{md,ts,flow,map}",
+    "!node_modules/.cache/**"
   ],
   "extraResources": [
     {
@@ -34,7 +41,7 @@
       "filter": ["**/*"]
     }
   ],
-  "compression": "maximum",
+  "compression": "normal",
   "asar": false,
   "win": {
     "target": [
@@ -55,7 +62,8 @@
     "artifactName": "${productName}-${version}-Portable-Optimized.exe",
     "requestExecutionLevel": "user",
     "useZip": false,
-    "unpackDirName": "RDSViewer-Portable"
+    "unpackDirName": "RDSViewer-Portable",
+    "unicode": false
   },
   "linux": {
     "target": [
