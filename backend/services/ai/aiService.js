@@ -2647,6 +2647,237 @@ ${contextDocs}
         // (principe de précaution - mieux vaut chercher que ne pas chercher)
         return true;
     }
+
+    // ==================== NOUVELLES MÉTHODES DOCUCORTEX GED ====================
+
+    /**
+     * Liste les fichiers d'un dossier spécifique
+     */
+    async listFolderFiles(options) {
+        try {
+            const { folderPath, includeSubfolders, fileTypes, sortBy, sortOrder, limit, offset } = options;
+
+            if (!folderPath) {
+                return {
+                    success: false,
+                    errorCode: 'MISSING_PATH',
+                    error: 'Chemin du dossier requis'
+                };
+            }
+
+            const fs = require('fs').promises;
+            const path = require('path');
+
+            // Vérifier que le dossier existe
+            try {
+                const stats = await fs.stat(folderPath);
+                if (!stats.isDirectory()) {
+                    return {
+                        success: false,
+                        errorCode: 'NOT_A_DIRECTORY',
+                        error: 'Le chemin ne pointe pas vers un dossier'
+                    };
+                }
+            } catch (error) {
+                return {
+                    success: false,
+                    errorCode: 'FOLDER_NOT_FOUND',
+                    error: 'Dossier introuvable: ' + error.message
+                };
+            }
+
+            // Lire le contenu du dossier
+            const entries = await fs.readdir(folderPath, { withFileTypes: true });
+
+            const files = [];
+            const folders = [];
+
+            for (const entry of entries) {
+                const fullPath = path.join(folderPath, entry.name);
+
+                try {
+                    const stats = await fs.stat(fullPath);
+
+                    if (entry.isDirectory()) {
+                        folders.push({
+                            name: entry.name,
+                            path: fullPath,
+                            type: 'folder',
+                            modifiedAt: stats.mtime,
+                            createdAt: stats.birthtime
+                        });
+                    } else if (entry.isFile()) {
+                        // Filtrer par type de fichier si spécifié
+                        if (fileTypes.length > 0) {
+                            const ext = path.extname(entry.name).toLowerCase().slice(1);
+                            if (!fileTypes.includes(ext)) continue;
+                        }
+
+                        files.push({
+                            name: entry.name,
+                            path: fullPath,
+                            type: 'file',
+                            extension: path.extname(entry.name).toLowerCase().slice(1),
+                            size: stats.size,
+                            sizeFormatted: this._formatFileSize(stats.size),
+                            modifiedAt: stats.mtime,
+                            createdAt: stats.birthtime,
+                            isReadable: true
+                        });
+                    }
+                } catch (error) {
+                    console.warn(`Erreur lecture ${entry.name}:`, error.message);
+                }
+            }
+
+            // Trier les résultats
+            const sortFn = (a, b) => {
+                let comparison = 0;
+                if (sortBy === 'name') {
+                    comparison = a.name.localeCompare(b.name);
+                } else if (sortBy === 'size') {
+                    comparison = (a.size || 0) - (b.size || 0);
+                } else if (sortBy === 'modified') {
+                    comparison = new Date(a.modifiedAt) - new Date(b.modifiedAt);
+                }
+                return sortOrder === 'desc' ? -comparison : comparison;
+            };
+
+            files.sort(sortFn);
+            folders.sort((a, b) => a.name.localeCompare(b.name));
+
+            // Pagination
+            const start = offset || 0;
+            const end = start + (limit || 1000);
+            const paginatedFiles = files.slice(start, end);
+
+            return {
+                success: true,
+                files: paginatedFiles,
+                folders: folders,
+                totalFiles: files.length,
+                totalFolders: folders.length,
+                folderPath: folderPath
+            };
+
+        } catch (error) {
+            console.error('Erreur listFolderFiles:', error);
+            return {
+                success: false,
+                errorCode: 'INTERNAL_ERROR',
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Archive une conversation
+     */
+    async archiveConversation(sessionId) {
+        try {
+            if (!sessionId) {
+                return {
+                    success: false,
+                    error: 'Session ID requis'
+                };
+            }
+
+            // Utiliser conversationService pour archiver
+            const result = conversationService.archiveConversation(sessionId);
+
+            return {
+                success: true,
+                sessionId: sessionId,
+                archived: true,
+                archivedAt: new Date().toISOString(),
+                message: 'Conversation archivée avec succès'
+            };
+
+        } catch (error) {
+            console.error('Erreur archiveConversation:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Supprime une conversation
+     */
+    async deleteConversation(sessionId, permanent = false) {
+        try {
+            if (!sessionId) {
+                return {
+                    success: false,
+                    error: 'Session ID requis'
+                };
+            }
+
+            // Utiliser conversationService pour supprimer
+            const result = conversationService.deleteConversation(sessionId, permanent);
+
+            return {
+                success: true,
+                sessionId: sessionId,
+                deleted: true,
+                deletedAt: new Date().toISOString(),
+                permanent: permanent,
+                message: permanent ? 'Conversation supprimée définitivement' : 'Conversation supprimée'
+            };
+
+        } catch (error) {
+            console.error('Erreur deleteConversation:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Liste toutes les conversations
+     */
+    async listConversations(options) {
+        try {
+            const { includeArchived, userId, limit, offset, sortBy } = options;
+
+            // Utiliser conversationService pour lister
+            const conversations = conversationService.listConversations({
+                includeArchived: includeArchived,
+                userId: userId,
+                limit: limit,
+                offset: offset,
+                sortBy: sortBy
+            });
+
+            return {
+                success: true,
+                conversations: conversations || [],
+                total: conversations.length || 0
+            };
+
+        } catch (error) {
+            console.error('Erreur listConversations:', error);
+            return {
+                success: false,
+                conversations: [],
+                total: 0,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Formate la taille de fichier en format lisible
+     */
+    _formatFileSize(bytes) {
+        if (!bytes) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
 }
 
 
