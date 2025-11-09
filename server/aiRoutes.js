@@ -2138,5 +2138,249 @@ module.exports = (broadcast) => {
         res.json(stats);
     }));
 
+    // ==================== NOUVELLES FONCTIONNALITÉS DOCUCORTEX GED ====================
+
+    /**
+     * GET /ai/network/folders/:folderPath/files - Liste les fichiers d'un dossier spécifique
+     * Usage: /ai/network/folders/encode(path)/files
+     */
+    router.get('/network/folders/:folderPath/files', asyncHandler(async (req, res) => {
+        try {
+            const folderPath = decodeURIComponent(req.params.folderPath);
+            const {
+                includeSubfolders,
+                fileTypes,
+                sortBy,
+                sortOrder,
+                limit,
+                offset
+            } = req.query;
+
+            const options = {
+                folderPath: folderPath,
+                includeSubfolders: includeSubfolders === 'true',
+                fileTypes: fileTypes ? fileTypes.split(',') : [],
+                sortBy: sortBy || 'name',
+                sortOrder: sortOrder || 'asc',
+                limit: Math.min(parseInt(limit) || 1000, 5000),
+                offset: parseInt(offset) || 0
+            };
+
+            const result = await aiService.listFolderFiles(options);
+
+            if (!result.success) {
+                if (result.errorCode === 'FOLDER_NOT_FOUND') {
+                    return res.status(404).json(result);
+                } else if (result.errorCode === 'ACCESS_DENIED') {
+                    return res.status(403).json(result);
+                }
+                return res.status(result.errorCode || 500).json(result);
+            }
+
+            res.json({
+                success: true,
+                folder: folderPath,
+                files: result.files || [],
+                folders: result.folders || [],
+                totalFiles: result.totalFiles || 0,
+                totalFolders: result.totalFolders || 0,
+                pagination: {
+                    limit: options.limit,
+                    offset: options.offset,
+                    hasMore: (result.totalFiles || 0) > (options.offset + options.limit)
+                },
+                timestamp: new Date().toISOString()
+            });
+
+        } catch (error) {
+            console.error('Erreur liste fichiers dossier:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Erreur lors de la liste des fichiers',
+                details: error.message
+            });
+        }
+    }));
+
+    /**
+     * POST /ai/conversations/new - Crée une nouvelle conversation
+     */
+    router.post('/conversations/new', asyncHandler(async (req, res) => {
+        try {
+            const { userId, title, metadata } = req.body;
+
+            const sessionId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+            const result = {
+                success: true,
+                sessionId: sessionId,
+                title: title || 'Nouvelle conversation',
+                createdAt: new Date().toISOString(),
+                userId: userId || 'anonymous',
+                metadata: metadata || {}
+            };
+
+            // Notifier via WebSocket
+            broadcast({
+                type: 'conversation_created',
+                sessionId: sessionId,
+                timestamp: new Date().toISOString()
+            });
+
+            res.json(result);
+
+        } catch (error) {
+            console.error('Erreur création conversation:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Erreur lors de la création de la conversation',
+                details: error.message
+            });
+        }
+    }));
+
+    /**
+     * POST /ai/conversations/:sessionId/archive - Archive une conversation
+     */
+    router.post('/conversations/:sessionId/archive', asyncHandler(async (req, res) => {
+        try {
+            const { sessionId } = req.params;
+
+            const result = await aiService.archiveConversation(sessionId);
+
+            if (result.success) {
+                broadcast({
+                    type: 'conversation_archived',
+                    sessionId: sessionId,
+                    timestamp: new Date().toISOString()
+                });
+            }
+
+            res.json(result);
+
+        } catch (error) {
+            console.error('Erreur archivage conversation:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Erreur lors de l\'archivage de la conversation',
+                details: error.message
+            });
+        }
+    }));
+
+    /**
+     * DELETE /ai/conversations/:sessionId - Supprime une conversation
+     */
+    router.delete('/conversations/:sessionId', asyncHandler(async (req, res) => {
+        try {
+            const { sessionId } = req.params;
+            const { permanent } = req.query;
+
+            const result = await aiService.deleteConversation(sessionId, permanent === 'true');
+
+            if (result.success) {
+                broadcast({
+                    type: 'conversation_deleted',
+                    sessionId: sessionId,
+                    permanent: permanent === 'true',
+                    timestamp: new Date().toISOString()
+                });
+            }
+
+            res.json(result);
+
+        } catch (error) {
+            console.error('Erreur suppression conversation:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Erreur lors de la suppression de la conversation',
+                details: error.message
+            });
+        }
+    }));
+
+    /**
+     * GET /ai/conversations/list - Liste toutes les conversations (actives et archivées)
+     */
+    router.get('/conversations/list', asyncHandler(async (req, res) => {
+        try {
+            const {
+                includeArchived,
+                userId,
+                limit,
+                offset,
+                sortBy
+            } = req.query;
+
+            const options = {
+                includeArchived: includeArchived === 'true',
+                userId: userId || null,
+                limit: Math.min(parseInt(limit) || 50, 500),
+                offset: parseInt(offset) || 0,
+                sortBy: sortBy || 'updated_at'
+            };
+
+            const result = await aiService.listConversations(options);
+
+            res.json({
+                success: true,
+                conversations: result.conversations || [],
+                total: result.total || 0,
+                pagination: {
+                    limit: options.limit,
+                    offset: options.offset,
+                    hasMore: (result.total || 0) > (options.offset + options.limit)
+                },
+                timestamp: new Date().toISOString()
+            });
+
+        } catch (error) {
+            console.error('Erreur liste conversations:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Erreur lors de la liste des conversations',
+                details: error.message
+            });
+        }
+    }));
+
+    /**
+     * GET /ai/provider/active - Obtient le provider actif et sa configuration
+     */
+    router.get('/provider/active', asyncHandler(async (req, res) => {
+        try {
+            const activeProvider = aiService.activeProvider || 'default';
+            const providerInfo = aiService.providers[activeProvider] || null;
+
+            const config = aiService.config || {};
+            const providerConfig = config.providers ? config.providers[activeProvider] : null;
+
+            res.json({
+                success: true,
+                activeProvider: activeProvider,
+                enabled: providerInfo?.enabled || false,
+                model: providerConfig?.model || 'unknown',
+                priority: providerConfig?.priority || 999,
+                status: {
+                    initialized: aiService.initialized || false,
+                    ready: providerInfo?.enabled || false
+                },
+                availableProviders: Object.keys(aiService.providers || {}).filter(
+                    p => aiService.providers[p]?.enabled
+                ),
+                fallbackEnabled: config.fallback?.enabled || false,
+                timestamp: new Date().toISOString()
+            });
+
+        } catch (error) {
+            console.error('Erreur récupération provider actif:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Erreur lors de la récupération du provider actif',
+                details: error.message
+            });
+        }
+    }));
+
     return router;
 };

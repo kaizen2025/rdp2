@@ -135,10 +135,18 @@ const AdGroupsPage = () => {
         if (!member) return null;
         return <MemberRow member={member} style={style} isOdd={index % 2 === 1} onRemove={data.onRemove} groupName={data.groupName} />;
     }, []);
-    const currentGroupData = useMemo(() => adGroups[selectedGroup] || {}, [adGroups, selectedGroup]);
+    const currentGroupData = useMemo(() => {
+        if (!adGroups || typeof adGroups !== 'object') return {};
+        return adGroups[selectedGroup] || {};
+    }, [adGroups, selectedGroup]);
 
     // ✅ Afficher le loading si le cache n'est pas encore chargé ou si config est vide
-    if (isCacheLoading || !config || Object.keys(config).length === 0) {
+    if (isCacheLoading || !config || typeof config !== 'object' || Object.keys(config).length === 0) {
+        return <LoadingScreen type="list" />;
+    }
+
+    // ✅ Protection supplémentaire: vérifier que adGroups est bien défini
+    if (!adGroups || typeof adGroups !== 'object') {
         return <LoadingScreen type="list" />;
     }
 

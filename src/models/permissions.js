@@ -213,16 +213,7 @@ export const MODULES = {
     label: 'DocuCortex IA',
     icon: '🤖',
     path: '/ai-assistant',
-    description: 'Assistant IA documentaire avec Hugging Face et OpenRouter',
-    requiredPermission: 'ai_assistant:view'
-  },
-
-  ASSISTANT: {
-    id: 'assistant',
-    label: 'Assistant',
-    icon: '🤖',
-    path: '/assistant',
-    description: 'Assistant IA avec Gemini Flash',
+    description: 'Assistant IA documentaire avec Gemini et OpenRouter',
     requiredPermission: 'ai_assistant:view'
   }
 
@@ -233,9 +224,10 @@ export const MODULES = {
   // 4. Utilisateurs - Gestion des utilisateurs (LE PLUS IMPORTANT)
   // 5. Groupes AD - Gestion Active Directory
   // 6. Prêts - Gestion des prêts de matériel
-  // 7. DocuCortex IA - Assistant IA documentaire
+  // 7. DocuCortex IA - Assistant documentaire (Gemini + OpenRouter)
 
   // ❌ SUPPRIMÉS (non utilisés ou doublons):
+  // - ASSISTANT: Consolidé dans DocuCortex IA (Gemini intégré)
   // - COMPUTERS: Géré via Serveurs
   // - CHAT_GED: Doublon avec DocuCortex IA
   // - REPORTS: Pas implémenté

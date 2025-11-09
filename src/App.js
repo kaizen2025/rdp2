@@ -39,15 +39,41 @@ function AppContent() {
                 setConfigError(errorMessage);
             }
 
-            // Étape 2: Vérifier l'authentification locale (ne change pas)
-            // On peut tenter de s'authentifier même si le serveur a un problème de config,
-            // car l'admin pourrait avoir besoin d'accéder à la page des paramètres.
+            // Étape 2: Vérifier l'authentification locale et charger les données complètes
             const storedTechnicianId = localStorage.getItem('currentTechnicianId');
             if (storedTechnicianId) {
-                // Idéalement, on devrait valider le technicien auprès de l'API ici
-                const technicianData = { id: storedTechnicianId }; // Simulation simple
-                setCurrentTechnician(technicianData); // ✅ Mettre à jour le contexte
-                setIsAuthenticated(true);
+                try {
+                    // ✅ FIX: Charger la configuration complète pour obtenir le technicien avec rôle et permissions
+                    const config = await apiService.getConfig();
+                    const technician = config.it_technicians?.find(t => t.id === storedTechnicianId);
+
+                    if (technician && technician.isActive) {
+                        // Enrichir avec les permissions du rôle
+                        const enrichedTechnician = { ...technician };
+                        if (config.roles && technician.role) {
+                            const roleConfig = config.roles[technician.role];
+                            if (roleConfig && roleConfig.permissions) {
+                                enrichedTechnician.permissions = roleConfig.permissions;
+                            } else {
+                                console.warn(`⚠️ Rôle "${technician.role}" introuvable, permissions viewer par défaut`);
+                                enrichedTechnician.permissions = ['dashboard:view', 'sessions:view'];
+                            }
+                        } else {
+                            console.warn('⚠️ Config non disponible, permissions viewer par défaut');
+                            enrichedTechnician.permissions = ['dashboard:view', 'sessions:view'];
+                        }
+
+                        setCurrentTechnician(enrichedTechnician);
+                        setIsAuthenticated(true);
+                    } else {
+                        // Technicien non trouvé ou désactivé, déconnecter
+                        localStorage.removeItem('currentTechnicianId');
+                    }
+                } catch (error) {
+                    console.error('Erreur chargement technicien:', error);
+                    // En cas d'erreur, déconnecter pour forcer une vraie connexion
+                    localStorage.removeItem('currentTechnicianId');
+                }
             }
 
             setIsLoading(false);
