@@ -5,8 +5,25 @@ echo  Reduction 1.5GB -^> 400MB node_modules
 echo ================================================
 echo.
 
+REM Nettoyage complet
+echo [1/9] Nettoyage dossiers build/dist...
+if exist dist (
+    echo Suppression dist...
+    rmdir /s /q dist
+)
+if exist build (
+    echo Suppression build...
+    rmdir /s /q build
+)
+if exist node_modules\.cache (
+    echo Suppression cache...
+    rmdir /s /q node_modules\.cache
+)
+echo Nettoyage termine!
+echo.
+
 REM Sauvegarder node_modules dev
-echo [1/8] Sauvegarde environnement dev...
+echo [2/9] Sauvegarde environnement dev...
 if exist node_modules_dev_backup (
     echo Suppression ancienne sauvegarde...
     rmdir /s /q node_modules_dev_backup
@@ -15,7 +32,7 @@ echo Sauvegarde node_modules...
 move node_modules node_modules_dev_backup
 
 REM Installer SEULEMENT production dependencies
-echo [2/8] Installation dependencies PRODUCTION uniquement...
+echo [3/9] Installation dependencies PRODUCTION uniquement...
 call npm install --production --legacy-peer-deps
 if %errorlevel% neq 0 (
     echo ERREUR lors de l'installation production!
@@ -27,12 +44,12 @@ if %errorlevel% neq 0 (
 )
 
 REM Afficher taille node_modules prod
-echo [3/8] Verification taille node_modules production...
+echo [4/9] Verification taille node_modules production...
 dir node_modules | find "File(s)"
 echo.
 
 REM Build React
-echo [4/8] Build React optimise...
+echo [5/9] Build React optimise...
 call npm run build
 if %errorlevel% neq 0 (
     echo ERREUR lors du build React!
@@ -44,7 +61,7 @@ if %errorlevel% neq 0 (
 )
 
 REM Package Electron
-echo [5/8] Package Electron portable...
+echo [6/9] Package Electron portable...
 call electron-builder --config electron-builder-optimized.json --win portable --x64
 if %errorlevel% neq 0 (
     echo ERREUR lors du packaging Electron!
@@ -56,7 +73,7 @@ if %errorlevel% neq 0 (
 )
 
 REM Restaurer node_modules dev
-echo [6/8] Restauration environnement dev...
+echo [7/9] Restauration environnement dev...
 if exist node_modules (
     echo Suppression node_modules production...
     rmdir /s /q node_modules
@@ -65,7 +82,7 @@ echo Restauration node_modules dev...
 move node_modules_dev_backup node_modules
 
 REM Verification
-echo [7/8] Verification fichier genere...
+echo [8/9] Verification fichier genere...
 if exist "dist\RDS Viewer-3.0.26-Portable-Optimized.exe" (
     echo.
     echo ================================================
@@ -81,7 +98,7 @@ if exist "dist\RDS Viewer-3.0.26-Portable-Optimized.exe" (
     )
 )
 
-echo [8/8] Environnement dev restaure
+echo [9/9] Environnement dev restaure
 echo.
 echo ================================================
 echo  TERMINE!
