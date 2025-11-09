@@ -36,7 +36,7 @@ echo.
 REM Package Electron (electron-builder inclut automatiquement seulement prod deps)
 echo [3/3] Package Electron portable...
 echo electron-builder va inclure seulement les production dependencies
-call electron-builder --config electron-builder-optimized.json --win portable --x64
+call npx electron-builder --config electron-builder-optimized.json --win portable --x64
 if %errorlevel% neq 0 (
     echo ERREUR lors du packaging Electron!
     pause
