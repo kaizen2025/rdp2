@@ -39,27 +39,37 @@ function startServer() {
         logToUI('info', '[Main] 🚀 Environnement de production détecté. Démarrage du serveur Node.js interne...');
 
         try {
-            // En mode packagé, server/ est dans app.asar.unpacked (asarUnpack)
+            // En mode packagé sans ASAR, les fichiers sont directement dans resources/app
             const appPath = app.getAppPath();
-            const unpackedPath = appPath.replace('app.asar', 'app.asar.unpacked');
 
             logToUI('info', `[Main] Chemin app: ${appPath}`);
-            logToUI('info', `[Main] Chemin unpacked: ${unpackedPath}`);
 
-            // ✅ SOLUTION ROBUSTE: Configurer NODE_PATH AVANT require()
-            const nodeModulesPath = path.join(unpackedPath, 'node_modules');
+            // ✅ SOLUTION SANS ASAR: Configurer NODE_PATH pour node_modules dans app
+            const nodeModulesPath = path.join(appPath, 'node_modules');
             process.env.NODE_PATH = nodeModulesPath;
             require('module').Module._initPaths(); // Reload module paths
 
             logToUI('info', `[Main] ✅ NODE_PATH configuré: ${nodeModulesPath}`);
 
+            // Vérifier que node_modules existe
+            if (!fs.existsSync(nodeModulesPath)) {
+                throw new Error(`Dossier node_modules introuvable: ${nodeModulesPath}`);
+            }
+
+            // Vérifier que express existe
+            const expressPath = path.join(nodeModulesPath, 'express');
+            if (!fs.existsSync(expressPath)) {
+                throw new Error(`Module express introuvable dans: ${nodeModulesPath}`);
+            }
+
+            logToUI('info', '[Main] ✅ Modules Node.js trouvés');
+
             // Configurer les variables d'environnement pour le serveur
             process.env.RUNNING_IN_ELECTRON = 'true';
             process.env.PORT = '3002';
 
-            // Changer le répertoire de travail pour le serveur
-            const serverDir = path.join(unpackedPath, 'server');
-            const serverPath = path.join(serverDir, 'server.js');
+            // Chemin du serveur
+            const serverPath = path.join(appPath, 'server', 'server.js');
 
             logToUI('info', `[Main] Chemin du serveur: ${serverPath}`);
 
