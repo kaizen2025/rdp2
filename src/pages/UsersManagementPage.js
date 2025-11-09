@@ -93,13 +93,23 @@ const UsersManagementPage = () => {
     const [ouUsers, setOuUsers] = useState([]);
     const [isLoadingOUUsers, setIsLoadingOUUsers] = useState(false);
 
-    // ✅ FIX: Explicit null check (typeof null === 'object' in JavaScript!)
+    // ✅ FIX: Protection robuste contre undefined et null
     const users = useMemo(() => {
+        if (!cache || typeof cache !== 'object') {
+            return [];
+        }
         if (!cache.excel_users || cache.excel_users === null || typeof cache.excel_users !== 'object') {
             return [];
         }
-        return Object.values(cache.excel_users).flat();
-    }, [cache.excel_users]);
+        // Additional safety: check if it's actually an object with values
+        try {
+            const values = Object.values(cache.excel_users);
+            return Array.isArray(values) ? values.flat() : [];
+        } catch (error) {
+            console.error('Error parsing excel_users:', error);
+            return [];
+        }
+    }, [cache]);
 
     const vpnMembers = useMemo(() => new Set((cache['ad_groups:VPN'] || []).map(m => m?.SamAccountName).filter(Boolean)), [cache]);
     const internetMembers = useMemo(() => new Set((cache['ad_groups:Sortants_responsables'] || []).map(m => m?.SamAccountName).filter(Boolean)), [cache]);
