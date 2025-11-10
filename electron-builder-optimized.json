@@ -18,8 +18,11 @@
     "backend/**/*",
     "config/**/*",
     "data/**/*",
+    "node_modules/**/*",
     "package.json",
-    "!build/**/*.map"
+    "!build/**/*.map",
+    "!node_modules/**/{test,__tests__,tests}/**",
+    "!node_modules/**/.*"
   ],
   "extraResources": [
     {
