@@ -1,8 +1,6 @@
 // src/pages/UsersManagementPage.js - VERSION FINALE CORRIGÉE ET AMÉLIORÉE
 
 import React, { useState, useMemo, useCallback, memo, useEffect } from 'react';
-import { List } from 'react-window';
-import AutoSizer from 'react-virtualized-auto-sizer';
 import { Box, Paper, Typography, Button, IconButton, Tooltip, CircularProgress, FormControl, InputLabel, Select, MenuItem, Chip, Grid, Checkbox } from '@mui/material';
 import { PersonAdd as PersonAddIcon, Refresh as RefreshIcon, Clear as ClearIcon, Edit as EditIcon, Delete as DeleteIcon, Print as PrintIcon, VpnKey as VpnKeyIcon, Language as LanguageIcon, Settings as SettingsIcon, Person as PersonIcon, Dns as DnsIcon, Login as LoginIcon, Circle as CircleIcon } from '@mui/icons-material';
 
@@ -34,7 +32,7 @@ const AdGroupBadge = memo(({ groupName, isMember, onToggle, isLoading }) => {
 });
 AdGroupBadge.displayName = 'AdGroupBadge';
 
-const UserRow = memo(({ user, style, isOdd, onEdit, onDelete, onConnectWithCredentials, onPrint, onOpenAdDialog, vpnMembers, internetMembers, onMembershipChange, onSelect, isSelected }) => {
+const UserRow = memo(({ user, isOdd, onEdit, onDelete, onConnectWithCredentials, onPrint, onOpenAdDialog, vpnMembers, internetMembers, onMembershipChange, onSelect, isSelected }) => {
     const { showNotification } = useApp();
     const [isUpdatingVpn, setIsUpdatingVpn] = useState(false);
     const [isUpdatingInternet, setIsUpdatingInternet] = useState(false);
@@ -62,7 +60,7 @@ const UserRow = memo(({ user, style, isOdd, onEdit, onDelete, onConnectWithCrede
     const statusTooltip = adStatus === 'enabled' ? 'Compte AD activé' : adStatus === 'disabled' ? 'Compte AD désactivé' : 'Statut AD non vérifié';
 
     return (
-        <Box style={style} sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1.5, backgroundColor: isOdd ? 'grey.50' : 'white', borderBottom: '1px solid #e0e0e0', '&:hover': { backgroundColor: 'action.hover' }, gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1.5, minHeight: 70, backgroundColor: isOdd ? 'grey.50' : 'white', borderBottom: '1px solid #e0e0e0', '&:hover': { backgroundColor: 'action.hover' }, gap: 2 }}>
             <Checkbox checked={isSelected} onChange={() => onSelect(user.username)} sx={{ p: 0, mr: 1 }} />
             <Box sx={{ flex: '1 1 150px', minWidth: 120, overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Tooltip title={statusTooltip}><CircleIcon sx={{ fontSize: 10, color: statusColor }} /></Tooltip>
@@ -83,6 +81,51 @@ const UserRow = memo(({ user, style, isOdd, onEdit, onDelete, onConnectWithCrede
     );
 });
 UserRow.displayName = 'UserRow';
+
+// 🛡️ LISTE SIMPLE SANS REACT-WINDOW - Plus robuste et sans dépendances problématiques
+const SimpleUserList = memo(({ users, vpnMembers, internetMembers, selectedUsernames, onEdit, onDelete, onConnectWithCredentials, onPrint, onOpenAdDialog, onMembershipChange, onSelect }) => {
+    console.log('[SimpleUserList] Rendering', { usersCount: users?.length });
+
+    if (!Array.isArray(users) || users.length === 0) {
+        return null;
+    }
+
+    return (
+        <Box sx={{
+            maxHeight: 600,
+            overflow: 'auto',
+            '&::-webkit-scrollbar': {
+                width: '8px',
+            },
+            '&::-webkit-scrollbar-track': {
+                backgroundColor: 'grey.100',
+            },
+            '&::-webkit-scrollbar-thumb': {
+                backgroundColor: 'grey.400',
+                borderRadius: '4px',
+            },
+        }}>
+            {users.map((user, index) => (
+                <UserRow
+                    key={user?.username || `user-${index}`}
+                    user={user}
+                    isOdd={index % 2 === 1}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onConnectWithCredentials={onConnectWithCredentials}
+                    onPrint={onPrint}
+                    onOpenAdDialog={onOpenAdDialog}
+                    vpnMembers={vpnMembers}
+                    internetMembers={internetMembers}
+                    onMembershipChange={onMembershipChange}
+                    onSelect={onSelect}
+                    isSelected={selectedUsernames.has(user.username)}
+                />
+            ))}
+        </Box>
+    );
+});
+SimpleUserList.displayName = 'SimpleUserList';
 
 const UsersManagementPage = () => {
     const { showNotification } = useApp();
@@ -250,63 +293,15 @@ const UsersManagementPage = () => {
         }
     };
 
-    // 🔥 ULTIMATE FIX: Create itemData with useMemo and validate it's ready before rendering
-    const itemData = useMemo(() => ({
-        users: Array.isArray(filteredUsers) ? filteredUsers : [],
-        vpnMembers: (vpnMembers instanceof Set) ? vpnMembers : new Set(),
-        internetMembers: (internetMembers instanceof Set) ? internetMembers : new Set(),
-        selectedUsernames: (selectedUsernames instanceof Set) ? selectedUsernames : new Set()
-    }), [filteredUsers, vpnMembers, internetMembers, selectedUsernames]);
-
-    // 🎯 CRITICAL: Verify that ALL required cache keys exist before rendering
+    // 🎯 VÉRIFICATION SIMPLIFIÉE
     const isDataReady = useMemo(() => {
         if (isCacheLoading || !cache || typeof cache !== 'object') return false;
         // Check that all required cache entries are loaded
         const hasExcelUsers = cache.excel_users !== undefined;
         const hasVpnGroup = cache['ad_groups:VPN'] !== undefined;
         const hasInternetGroup = cache['ad_groups:Sortants_responsables'] !== undefined;
-        if (!hasExcelUsers || !hasVpnGroup || !hasInternetGroup) return false;
-
-        // ✅ CRITICAL: Verify that itemData dependencies are valid
-        if (!Array.isArray(filteredUsers)) return false;
-        if (!(vpnMembers instanceof Set)) return false;
-        if (!(internetMembers instanceof Set)) return false;
-        if (!(selectedUsernames instanceof Set)) return false;
-
-        return true;
-    }, [isCacheLoading, cache, filteredUsers, vpnMembers, internetMembers, selectedUsernames]);
-
-    const Row = useCallback(({ index, style, data }) => {
-        // ✅ Use data.users passed via itemData for safety
-        if (!data || typeof data !== 'object') return null;
-
-        const users = data.users || [];
-        const user = users[index];
-        if (!user) return null;
-
-        // ✅ Protection: Ensure Sets are valid
-        const vpnMembers = data.vpnMembers instanceof Set ? data.vpnMembers : new Set();
-        const internetMembers = data.internetMembers instanceof Set ? data.internetMembers : new Set();
-        const selectedUsernames = data.selectedUsernames instanceof Set ? data.selectedUsernames : new Set();
-
-        return (
-            <UserRow
-                user={user}
-                style={style}
-                isOdd={index % 2 === 1}
-                onEdit={u => setDialog({ type: 'editExcel', data: u })}
-                onDelete={handleDeleteUser}
-                onConnectWithCredentials={handleConnectUserWithCredentials}
-                onPrint={u => setDialog({ type: 'print', data: u })}
-                onOpenAdDialog={u => setDialog({ type: 'adActions', data: u })}
-                vpnMembers={vpnMembers}
-                internetMembers={internetMembers}
-                onMembershipChange={() => { invalidate('ad_groups:VPN'); invalidate('ad_groups:Sortants_responsables'); }}
-                onSelect={handleSelectUser}
-                isSelected={selectedUsernames.has(user.username)}
-            />
-        );
-    }, [handleDeleteUser, handleConnectUserWithCredentials, invalidate]);
+        return hasExcelUsers && hasVpnGroup && hasInternetGroup;
+    }, [isCacheLoading, cache]);
 
     const clearFilters = () => { setSearchTerm(''); setServerFilter('all'); setDepartmentFilter('all'); };
 
@@ -377,26 +372,27 @@ const UsersManagementPage = () => {
                         <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: 2, minHeight: 500 }}>
                             <Box sx={{ px: 2, py: 1.5, backgroundColor: 'primary.main', color: 'white', display: 'flex', gap: 2, fontWeight: 600, alignItems: 'center' }}>
                                 <Checkbox
-                                    indeterminate={selectedUsernames.size > 0 && selectedUsernames.size < itemData.users.length}
-                                    checked={itemData.users.length > 0 && selectedUsernames.size === itemData.users.length}
+                                    indeterminate={selectedUsernames.size > 0 && selectedUsernames.size < filteredUsers.length}
+                                    checked={filteredUsers.length > 0 && selectedUsernames.size === filteredUsers.length}
                                     onChange={handleSelectAll}
                                     sx={{ color: 'white', '&.Mui-checked': { color: 'white' }, '&.MuiCheckbox-indeterminate': { color: 'white' }, p: 0, mr: 1 }}
                                 />
                                 <Box sx={{ flex: '1 1 150px' }}>Utilisateur</Box><Box sx={{ flex: '0.8 1 100px' }}>Service</Box><Box sx={{ flex: '1.2 1 180px' }}>Email</Box><Box sx={{ flex: '1 1 160px' }}>Mots de passe</Box><Box sx={{ flex: '1 1 120px' }}>Groupes</Box><Box sx={{ flex: '0 0 auto', width: '180px' }}>Actions</Box>
                             </Box>
-                            <Box sx={{ flex: 1, overflow: 'auto', minHeight: 400 }}>
-                                <AutoSizer>{({ height, width }) => (
-                                    <List
-                                        height={height}
-                                        width={width}
-                                        itemCount={itemData.users.length}
-                                        itemSize={80}
-                                        itemKey={(index, data) => data?.users?.[index]?.username || `user-${index}`}
-                                        itemData={itemData}
-                                    >
-                                        {Row}
-                                    </List>
-                                )}</AutoSizer>
+                            <Box sx={{ flex: 1, overflow: 'hidden' }}>
+                                <SimpleUserList
+                                    users={filteredUsers}
+                                    vpnMembers={vpnMembers}
+                                    internetMembers={internetMembers}
+                                    selectedUsernames={selectedUsernames}
+                                    onEdit={u => setDialog({ type: 'editExcel', data: u })}
+                                    onDelete={handleDeleteUser}
+                                    onConnectWithCredentials={handleConnectUserWithCredentials}
+                                    onPrint={u => setDialog({ type: 'print', data: u })}
+                                    onOpenAdDialog={u => setDialog({ type: 'adActions', data: u })}
+                                    onMembershipChange={() => { invalidate('ad_groups:VPN'); invalidate('ad_groups:Sortants_responsables'); }}
+                                    onSelect={handleSelectUser}
+                                />
                             </Box>
                         </Paper>
                     )}
