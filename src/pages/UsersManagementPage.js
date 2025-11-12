@@ -265,8 +265,16 @@ const UsersManagementPage = () => {
         const hasExcelUsers = cache.excel_users !== undefined;
         const hasVpnGroup = cache['ad_groups:VPN'] !== undefined;
         const hasInternetGroup = cache['ad_groups:Sortants_responsables'] !== undefined;
-        return hasExcelUsers && hasVpnGroup && hasInternetGroup;
-    }, [isCacheLoading, cache]);
+        if (!hasExcelUsers || !hasVpnGroup || !hasInternetGroup) return false;
+
+        // ✅ CRITICAL: Verify that itemData dependencies are valid
+        if (!Array.isArray(filteredUsers)) return false;
+        if (!(vpnMembers instanceof Set)) return false;
+        if (!(internetMembers instanceof Set)) return false;
+        if (!(selectedUsernames instanceof Set)) return false;
+
+        return true;
+    }, [isCacheLoading, cache, filteredUsers, vpnMembers, internetMembers, selectedUsernames]);
 
     const Row = useCallback(({ index, style, data }) => {
         // ✅ Use data.users passed via itemData for safety

@@ -144,8 +144,14 @@ const AdGroupsPage = () => {
         if (!config || typeof config !== 'object' || Object.keys(config).length === 0) return false;
         // Check that the current group's data is loaded
         if (selectedGroup && cache[`ad_groups:${selectedGroup}`] === undefined) return false;
+
+        // ✅ CRITICAL: Verify that itemData dependencies are valid
+        if (!Array.isArray(filteredMembers)) return false;
+        if (typeof handleRemoveUser !== 'function') return false;
+        if (typeof selectedGroup !== 'string') return false;
+
         return true;
-    }, [isCacheLoading, cache, config, selectedGroup]);
+    }, [isCacheLoading, cache, config, selectedGroup, filteredMembers, handleRemoveUser]);
 
     const currentGroupData = useMemo(() => {
         if (!adGroups || typeof adGroups !== 'object') return {};
