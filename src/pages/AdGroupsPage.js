@@ -36,7 +36,7 @@ const MemberRow = memo(({ member, style, isOdd, onRemove, groupName }) => {
 });
 MemberRow.displayName = 'MemberRow';
 
-// 🛡️ COMPOSANT WRAPPER ULTRA-SÉCURISÉ - Ne rend JAMAIS FixedSizeList sans itemData valide
+// 🛡️ COMPOSANT WRAPPER ULTRA-SÉCURISÉ - Ne rend JAMAIS List sans itemData ET dimensions valides
 const SafeVirtualizedList = memo(({ itemData, Row, height, width }) => {
     // 🔍 LOG 1: Vérification initiale
     console.log('[SafeVirtualizedList] RENDER ATTEMPT', {
@@ -46,8 +46,20 @@ const SafeVirtualizedList = memo(({ itemData, Row, height, width }) => {
         membersIsArray: Array.isArray(itemData?.members),
         membersLength: itemData?.members?.length,
         height,
-        width
+        width,
+        heightValid: typeof height === 'number' && height > 0,
+        widthValid: typeof width === 'number' && width > 0
     });
+
+    // 🛡️ PROTECTION 0: height ou width invalides
+    if (typeof height !== 'number' || height <= 0 || typeof width !== 'number' || width <= 0) {
+        console.warn('[SafeVirtualizedList] ❌ BLOCKED: Invalid dimensions', { height, width });
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
 
     // 🛡️ PROTECTION 1: itemData null ou undefined
     if (!itemData) {
@@ -89,8 +101,18 @@ const SafeVirtualizedList = memo(({ itemData, Row, height, width }) => {
         );
     }
 
-    // ✅ Toutes les vérifications passées - On peut rendre FixedSizeList en toute sécurité
-    console.log('[SafeVirtualizedList] ✅ ALL CHECKS PASSED - Rendering FixedSizeList with', itemData.members.length, 'members');
+    // 🛡️ PROTECTION 5: Row n'est pas une fonction
+    if (typeof Row !== 'function') {
+        console.warn('[SafeVirtualizedList] ❌ BLOCKED: Row is not a function', typeof Row);
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    // ✅ Toutes les vérifications passées - On peut rendre List en toute sécurité
+    console.log('[SafeVirtualizedList] ✅ ALL CHECKS PASSED - Rendering List with', itemData.members.length, 'members');
 
     try {
         return (
@@ -99,7 +121,7 @@ const SafeVirtualizedList = memo(({ itemData, Row, height, width }) => {
                 itemCount={itemData.members.length}
                 itemSize={60}
                 width={width}
-                itemKey={(index, data) => data?.members?.[index]?.SamAccountName || `member-${index}`}
+                itemKey={(index) => itemData.members[index]?.SamAccountName || `member-${index}`}
                 itemData={itemData}
             >
                 {Row}
