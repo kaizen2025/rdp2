@@ -1,0 +1,31 @@
+INSTRUCTIONS DE RECHARGEMENT FORCÉ
+===================================
+
+Le webpack garde en cache l'ancienne version du code. Suivez ces étapes EXACTEMENT :
+
+1. Arrêter TOUT (Ctrl+C dans TOUS les terminaux)
+
+2. Supprimer les caches :
+   rmdir /s /q node_modules\.cache
+   rmdir /s /q build
+   rmdir /s /q .cache
+   del /f /q .ports.json
+
+3. Récupérer le code :
+   git pull origin claude/fix-ad-user-group-access-011CV4L1PgQSpHXEcK4Ko2t1
+
+4. Redémarrer SANS Electron (juste React) :
+   npm run start
+
+5. Ouvrir dans le navigateur :
+   http://localhost:3000
+
+6. Vider le cache navigateur :
+   Ctrl + Shift + Delete
+   Cocher "Images et fichiers en cache"
+   Effacer
+
+7. Recharger :
+   Ctrl + F5
+
+Si ça ne marche toujours pas, le problème est différent.

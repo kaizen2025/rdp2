@@ -1,9 +1,9 @@
-// src/pages/AdGroupsPage.js - VERSION FINALE AVEC IMPORTS CORRIGÉS
+// src/pages/AdGroupsPage.js - VERSION ULTRA-ROBUSTE ANTI-CRASH
 
 import React, { useState, useMemo, memo, useCallback, useEffect } from 'react';
-import { List as FixedSizeList } from 'react-window';
+import { List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
-import { Box, Paper, Typography, Button, IconButton, Tooltip, CircularProgress, InputAdornment, Chip, FormControl, InputLabel, Select, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemText, ListItemIcon, Divider, TextField } from '@mui/material';
+import { Box, Paper, Typography, Button, IconButton, Tooltip, CircularProgress, InputAdornment, Chip, FormControl, InputLabel, Select, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, List as MuiList, ListItem, ListItemText, ListItemIcon, Divider, TextField } from '@mui/material';
 
 // ✅ CORRECTION: Imports des icônes depuis le module principal
 import {
@@ -36,10 +36,98 @@ const MemberRow = memo(({ member, style, isOdd, onRemove, groupName }) => {
 });
 MemberRow.displayName = 'MemberRow';
 
+// 🛡️ COMPOSANT WRAPPER ULTRA-SÉCURISÉ - Ne rend JAMAIS FixedSizeList sans itemData valide
+const SafeVirtualizedList = memo(({ itemData, Row, height, width }) => {
+    // 🔍 LOG 1: Vérification initiale
+    console.log('[SafeVirtualizedList] RENDER ATTEMPT', {
+        hasItemData: !!itemData,
+        itemDataType: typeof itemData,
+        hasMembers: itemData?.members ? true : false,
+        membersIsArray: Array.isArray(itemData?.members),
+        membersLength: itemData?.members?.length,
+        height,
+        width
+    });
+
+    // 🛡️ PROTECTION 1: itemData null ou undefined
+    if (!itemData) {
+        console.warn('[SafeVirtualizedList] ❌ BLOCKED: itemData is null/undefined');
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    // 🛡️ PROTECTION 2: itemData.members n'est pas un tableau
+    if (!Array.isArray(itemData.members)) {
+        console.warn('[SafeVirtualizedList] ❌ BLOCKED: itemData.members is not an array', typeof itemData.members);
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    // 🛡️ PROTECTION 3: itemData.onRemove n'est pas une fonction
+    if (typeof itemData.onRemove !== 'function') {
+        console.warn('[SafeVirtualizedList] ❌ BLOCKED: itemData.onRemove is not a function');
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    // 🛡️ PROTECTION 4: itemData.groupName est vide
+    if (!itemData.groupName) {
+        console.warn('[SafeVirtualizedList] ❌ BLOCKED: itemData.groupName is empty');
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    // ✅ Toutes les vérifications passées - On peut rendre FixedSizeList en toute sécurité
+    console.log('[SafeVirtualizedList] ✅ ALL CHECKS PASSED - Rendering FixedSizeList with', itemData.members.length, 'members');
+
+    try {
+        return (
+            <List
+                height={height}
+                itemCount={itemData.members.length}
+                itemSize={60}
+                width={width}
+                itemKey={(index, data) => data?.members?.[index]?.SamAccountName || `member-${index}`}
+                itemData={itemData}
+            >
+                {Row}
+            </List>
+        );
+    } catch (error) {
+        console.error('[SafeVirtualizedList] ❌ CRASH DURING RENDER:', error);
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height, flexDirection: 'column', gap: 2 }}>
+                <Typography color="error">Erreur lors du rendu de la liste</Typography>
+                <Typography variant="caption">{error.message}</Typography>
+            </Box>
+        );
+    }
+});
+SafeVirtualizedList.displayName = 'SafeVirtualizedList';
+
 const AdGroupsPage = () => {
     const { showNotification } = useApp();
     const { cache, isLoading: isCacheLoading, invalidate } = useCache();
     const electronAD = useElectronAD();
+
+    // 🔍 LOG 2: État du cache
+    console.log('[AdGroupsPage] RENDER', {
+        isCacheLoading,
+        hasCache: !!cache,
+        cacheType: typeof cache
+    });
 
     // ✅ Protection robuste contre undefined/null
     const config = useMemo(() => {
@@ -56,7 +144,7 @@ const AdGroupsPage = () => {
         if (!adGroups || typeof adGroups !== 'object') return [];
         return Object.keys(adGroups);
     }, [adGroups]);
-    
+
     const [selectedGroup, setSelectedGroup] = useState(groupKeys.length > 0 ? groupKeys[0] : '');
     const [searchTerm, setSearchTerm] = useState('');
     const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
@@ -65,8 +153,12 @@ const AdGroupsPage = () => {
     const [userSearchTerm, setUserSearchTerm] = useState('');
     const [isRefreshing, setIsRefreshing] = useState(false);
 
+    // 🔍 LOG 3: Groupe sélectionné
+    console.log('[AdGroupsPage] selectedGroup:', selectedGroup);
+
     const members = useMemo(() => {
         const data = cache[`ad_groups:${selectedGroup}`];
+        console.log(`[AdGroupsPage] members for ${selectedGroup}:`, Array.isArray(data) ? data.length : typeof data);
         return Array.isArray(data) ? data : [];
     }, [cache, selectedGroup]);
 
@@ -79,6 +171,7 @@ const AdGroupsPage = () => {
 
     useEffect(() => {
         if (selectedGroup && !cache[`ad_groups:${selectedGroup}`]) {
+            console.log('[AdGroupsPage] Loading group data for:', selectedGroup);
             invalidate(`ad_groups:${selectedGroup}`);
         }
     }, [selectedGroup, cache, invalidate]);
@@ -88,7 +181,6 @@ const AdGroupsPage = () => {
         if (!searchTerm) return safeMembers;
         const term = searchTerm.toLowerCase();
         const filtered = safeMembers.filter(m => m && ((m.DisplayName || m.name || '').toLowerCase().includes(term) || (m.SamAccountName || m.sam || '').toLowerCase().includes(term)));
-        // ✅ Ensure we always return an array
         return Array.isArray(filtered) ? filtered : [];
     }, [members, searchTerm]);
 
@@ -130,28 +222,92 @@ const AdGroupsPage = () => {
 
     const handleOpenAddDialog = () => { setUserSearchTerm(''); setAvailableUsers([]); setAddUserDialogOpen(true); };
 
-    // 🔥 ULTIMATE FIX: Create itemData with useMemo and validate before rendering
-    const itemData = useMemo(() => ({
-        members: Array.isArray(filteredMembers) ? filteredMembers : [],
-        onRemove: handleRemoveUser,
-        groupName: selectedGroup || ''
-    }), [filteredMembers, handleRemoveUser, selectedGroup]);
+    // 🔥 CRÉATION ULTRA-SÉCURISÉE DE itemData
+    const itemData = useMemo(() => {
+        // 🔍 LOG 4: Tentative de création de itemData
+        console.log('[AdGroupsPage] Creating itemData', {
+            filteredMembersIsArray: Array.isArray(filteredMembers),
+            filteredMembersLength: filteredMembers?.length,
+            handleRemoveUserType: typeof handleRemoveUser,
+            selectedGroup
+        });
 
-    // 🎯 CRITICAL: Verify that ALL required cache keys exist before rendering
+        // ✅ Validation STRICTE
+        if (!Array.isArray(filteredMembers)) {
+            console.warn('[AdGroupsPage] ❌ itemData = NULL: filteredMembers is not an array');
+            return null;
+        }
+
+        if (typeof handleRemoveUser !== 'function') {
+            console.warn('[AdGroupsPage] ❌ itemData = NULL: handleRemoveUser is not a function');
+            return null;
+        }
+
+        if (!selectedGroup || typeof selectedGroup !== 'string' || selectedGroup === '') {
+            console.warn('[AdGroupsPage] ❌ itemData = NULL: selectedGroup is invalid', selectedGroup);
+            return null;
+        }
+
+        // ✅ Création sécurisée
+        const data = {
+            members: filteredMembers,
+            onRemove: handleRemoveUser,
+            groupName: selectedGroup
+        };
+
+        console.log('[AdGroupsPage] ✅ itemData CREATED:', data.members.length, 'members for group', data.groupName);
+        return data;
+    }, [filteredMembers, handleRemoveUser, selectedGroup]);
+
+    // 🎯 VÉRIFICATION FINALE
     const isDataReady = useMemo(() => {
-        if (isCacheLoading || !cache || typeof cache !== 'object') return false;
-        // Check that config is loaded
-        if (!config || typeof config !== 'object' || Object.keys(config).length === 0) return false;
-        // Check that the current group's data is loaded
-        if (selectedGroup && cache[`ad_groups:${selectedGroup}`] === undefined) return false;
+        console.log('[AdGroupsPage] Checking isDataReady', {
+            isCacheLoading,
+            hasCache: !!cache,
+            hasConfig: !!config,
+            hasItemData: !!itemData,
+            itemDataHasMembers: !!itemData?.members,
+            selectedGroup
+        });
 
-        // ✅ CRITICAL: Verify that itemData dependencies are valid
-        if (!Array.isArray(filteredMembers)) return false;
-        if (typeof handleRemoveUser !== 'function') return false;
-        if (typeof selectedGroup !== 'string') return false;
+        if (isCacheLoading) {
+            console.log('[AdGroupsPage] ❌ NOT READY: cache is loading');
+            return false;
+        }
 
+        if (!cache || typeof cache !== 'object') {
+            console.log('[AdGroupsPage] ❌ NOT READY: cache invalid');
+            return false;
+        }
+
+        if (!config || typeof config !== 'object' || Object.keys(config).length === 0) {
+            console.log('[AdGroupsPage] ❌ NOT READY: config invalid');
+            return false;
+        }
+
+        if (selectedGroup && cache[`ad_groups:${selectedGroup}`] === undefined) {
+            console.log('[AdGroupsPage] ❌ NOT READY: group data not loaded');
+            return false;
+        }
+
+        if (!itemData || !itemData.members || !Array.isArray(itemData.members)) {
+            console.log('[AdGroupsPage] ❌ NOT READY: itemData invalid');
+            return false;
+        }
+
+        if (typeof itemData.onRemove !== 'function') {
+            console.log('[AdGroupsPage] ❌ NOT READY: itemData.onRemove not a function');
+            return false;
+        }
+
+        if (!itemData.groupName) {
+            console.log('[AdGroupsPage] ❌ NOT READY: itemData.groupName empty');
+            return false;
+        }
+
+        console.log('[AdGroupsPage] ✅ DATA READY');
         return true;
-    }, [isCacheLoading, cache, config, selectedGroup, filteredMembers, handleRemoveUser]);
+    }, [isCacheLoading, cache, config, selectedGroup, itemData]);
 
     const currentGroupData = useMemo(() => {
         if (!adGroups || typeof adGroups !== 'object') return {};
@@ -159,23 +315,22 @@ const AdGroupsPage = () => {
     }, [adGroups, selectedGroup]);
 
     const Row = useCallback(({ index, style, data }) => {
-        // ✅ Use data.members passed via itemData for safety
         if (!data || typeof data !== 'object') return null;
-
         const members = data.members || [];
         const member = members[index];
         if (!member) return null;
-
         return <MemberRow member={member} style={style} isOdd={index % 2 === 1} onRemove={data.onRemove} groupName={data.groupName} />;
     }, []);
 
     // ✅ Afficher le loading si le cache n'est pas encore chargé ou si config est vide
     if (isCacheLoading || !config || typeof config !== 'object' || Object.keys(config).length === 0) {
+        console.log('[AdGroupsPage] Rendering LoadingScreen (cache/config loading)');
         return <LoadingScreen type="list" />;
     }
 
     // ✅ Protection supplémentaire: vérifier que adGroups est bien défini
     if (!adGroups || typeof adGroups !== 'object') {
+        console.log('[AdGroupsPage] Rendering LoadingScreen (adGroups invalid)');
         return <LoadingScreen type="list" />;
     }
 
@@ -204,18 +359,16 @@ const AdGroupsPage = () => {
             ) : (
                 <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', minHeight: 500 }}>
                     <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                        <AutoSizer>{({ height, width }) => (
-                            <FixedSizeList
-                                height={height}
-                                itemCount={itemData.members.length}
-                                itemSize={60}
-                                width={width}
-                                itemKey={(index, data) => data?.members?.[index]?.SamAccountName || `member-${index}`}
-                                itemData={itemData}
-                            >
-                                {Row}
-                            </FixedSizeList>
-                        )}</AutoSizer>
+                        <AutoSizer>
+                            {({ height, width }) => (
+                                <SafeVirtualizedList
+                                    itemData={itemData}
+                                    Row={Row}
+                                    height={height}
+                                    width={width}
+                                />
+                            )}
+                        </AutoSizer>
                     </Box>
                 </Paper>
             )}
@@ -224,7 +377,7 @@ const AdGroupsPage = () => {
                 <DialogContent>
                     <TextField autoFocus margin="dense" label="Rechercher un utilisateur" fullWidth variant="outlined" value={userSearchTerm} onChange={(e) => { setUserSearchTerm(e.target.value); searchAdUsers(e.target.value); }} InputProps={{ startAdornment: (<InputAdornment position="start">{searchingUsers ? <CircularProgress size={20} /> : <SearchIcon />}</InputAdornment>), }} />
                     <Box sx={{ mt: 2, maxHeight: 400, overflow: 'auto' }}>
-                        {availableUsers.length === 0 ? (<Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 3 }}>{userSearchTerm.length < 2 ? 'Tapez au moins 2 caractères' : 'Aucun utilisateur trouvé'}</Typography>) : (<List>{availableUsers.map((user, index) => { const alreadyMember = members.some(m => (m.SamAccountName || m.sam) === user.SamAccountName); return (<React.Fragment key={user.SamAccountName}><ListItem button onClick={() => !alreadyMember && handleAddUser(user.SamAccountName)} disabled={alreadyMember}><ListItemIcon>{alreadyMember ? (<CheckCircleIcon color="success" />) : (<PersonAddIcon color="primary" />)}</ListItemIcon><ListItemText primary={user.DisplayName} secondary={<Box><Typography variant="caption" display="block">{user.SamAccountName}</Typography>{user.EmailAddress && (<Typography variant="caption" color="text.secondary">{user.EmailAddress}</Typography>)}</Box>} />{alreadyMember && (<Chip label="Déjà membre" size="small" color="success" />)}</ListItem>{index < availableUsers.length - 1 && <Divider />}</React.Fragment>); })}</List>)}
+                        {availableUsers.length === 0 ? (<Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 3 }}>{userSearchTerm.length < 2 ? 'Tapez au moins 2 caractères' : 'Aucun utilisateur trouvé'}</Typography>) : (<MuiList>{availableUsers.map((user, index) => { const alreadyMember = members.some(m => (m.SamAccountName || m.sam) === user.SamAccountName); return (<React.Fragment key={user.SamAccountName}><ListItem button onClick={() => !alreadyMember && handleAddUser(user.SamAccountName)} disabled={alreadyMember}><ListItemIcon>{alreadyMember ? (<CheckCircleIcon color="success" />) : (<PersonAddIcon color="primary" />)}</ListItemIcon><ListItemText primary={user.DisplayName} secondary={<Box><Typography variant="caption" display="block">{user.SamAccountName}</Typography>{user.EmailAddress && (<Typography variant="caption" color="text.secondary">{user.EmailAddress}</Typography>)}</Box>} />{alreadyMember && (<Chip label="Déjà membre" size="small" color="success" />)}</ListItem>{index < availableUsers.length - 1 && <Divider />}</React.Fragment>); })}</MuiList>)}
                     </Box>
                 </DialogContent>
                 <DialogActions><Button onClick={() => setAddUserDialogOpen(false)}>Fermer</Button></DialogActions>
@@ -233,4 +386,4 @@ const AdGroupsPage = () => {
     );
 };
 
-export default memo(AdGroupsPage);
+export default AdGroupsPage;
