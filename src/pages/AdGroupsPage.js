@@ -128,6 +128,41 @@ const AdGroupsPage = () => {
     }, [electronAD, showNotification]);
 
     const handleOpenAddDialog = () => { setUserSearchTerm(''); setAvailableUsers([]); setAddUserDialogOpen(true); };
+
+    // ✅ CRITICAL FIX: Memoize itemData to prevent undefined/null issues in react-window
+    const itemData = useMemo(() => {
+        const safeData = {
+            members: Array.isArray(filteredMembers) ? filteredMembers : [],
+            onRemove: handleRemoveUser,
+            groupName: selectedGroup || ''
+        };
+        // Ensure all properties are defined and not null
+        Object.keys(safeData).forEach(key => {
+            if (safeData[key] === undefined || safeData[key] === null) {
+                if (key === 'members') safeData[key] = [];
+                else if (key === 'groupName') safeData[key] = '';
+            }
+        });
+        return safeData;
+    }, [filteredMembers, handleRemoveUser, selectedGroup]);
+
+    // ✅ CRITICAL FIX: Validate itemData before rendering List
+    const isItemDataValid = useMemo(() => {
+        if (!itemData || typeof itemData !== 'object') {
+            console.warn('[AdGroupsPage] itemData is not an object');
+            return false;
+        }
+        if (!Array.isArray(itemData.members)) {
+            console.warn('[AdGroupsPage] itemData.members is not an Array', itemData.members);
+            return false;
+        }
+        if (typeof itemData.groupName !== 'string') {
+            console.warn('[AdGroupsPage] itemData.groupName is not a string', itemData.groupName);
+            return false;
+        }
+        return true;
+    }, [itemData]);
+
     const Row = useCallback(({ index, style, data }) => {
         // ✅ Use data.members passed via itemData for safety
         const members = data?.members || [];
@@ -166,20 +201,24 @@ const AdGroupsPage = () => {
                 </Box>
                 {currentGroupData.description && (<Box sx={{ p: 1.5, backgroundColor: 'info.lighter', borderRadius: 1, display: 'flex', gap: 1 }}><InfoIcon color="info" fontSize="small" /><Typography variant="body2" color="info.dark">{currentGroupData.description}</Typography></Box>)}
             </Paper>
-            {isRefreshing ? <LoadingScreen type="list" /> : filteredMembers.length === 0 ? <Paper elevation={2} sx={{ p: 4 }}><EmptyState type={searchTerm ? 'search' : 'empty'} onAction={searchTerm ? () => setSearchTerm('') : handleOpenAddDialog} /></Paper> : (
+            {isRefreshing ? <LoadingScreen type="list" /> : !isItemDataValid ? (
+                <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 8, minHeight: 500 }}>
+                    <CircularProgress size={64} />
+                    <Typography variant="h6" sx={{ mt: 3, color: 'text.secondary' }}>
+                        Chargement des données du groupe...
+                    </Typography>
+                </Paper>
+            ) : filteredMembers.length === 0 ? <Paper elevation={2} sx={{ p: 4 }}><EmptyState type={searchTerm ? 'search' : 'empty'} onAction={searchTerm ? () => setSearchTerm('') : handleOpenAddDialog} /></Paper> : (
                 <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', minHeight: 500 }}>
                     <Box sx={{ flex: 1, overflow: 'hidden' }}>
                         <AutoSizer>{({ height, width }) => (
                             <FixedSizeList
                                 height={height}
-                                itemCount={Array.isArray(filteredMembers) ? filteredMembers.length : 0}
+                                itemCount={itemData.members.length}
                                 itemSize={60}
                                 width={width}
-                                itemData={{
-                                    members: Array.isArray(filteredMembers) ? filteredMembers : [],
-                                    onRemove: handleRemoveUser,
-                                    groupName: selectedGroup
-                                }}
+                                itemKey={(index, data) => data?.members?.[index]?.SamAccountName || `member-${index}`}
+                                itemData={itemData}
                             >
                                 {Row}
                             </FixedSizeList>
