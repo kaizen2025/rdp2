@@ -1,4 +1,4 @@
-// src/pages/UsersManagementPage.js - VERSION FINALE AVEC RENDU CONDITIONNEL
+// src/pages/UsersManagementPage.js - VERSION FINALE CORRIGÉE ET AMÉLIORÉE
 
 import React, { useState, useMemo, useCallback, memo, useEffect } from 'react';
 import { List } from 'react-window';
@@ -32,18 +32,16 @@ const AdGroupBadge = memo(({ groupName, isMember, onToggle, isLoading }) => {
         </Tooltip>
     );
 });
+AdGroupBadge.displayName = 'AdGroupBadge';
 
 const UserRow = memo(({ user, style, isOdd, onEdit, onDelete, onConnectWithCredentials, onPrint, onOpenAdDialog, vpnMembers, internetMembers, onMembershipChange, onSelect, isSelected }) => {
     const { showNotification } = useApp();
     const [isUpdatingVpn, setIsUpdatingVpn] = useState(false);
     const [isUpdatingInternet, setIsUpdatingInternet] = useState(false);
 
-    // Protection: if user is undefined, return null
-    if (!user || !user.username) {
-        return null;
-    }
-
+    // ✅ HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURN
     const toggleGroup = useCallback(async (group, isMember, setLoading) => {
+        if (!user || !user.username) return;
         setLoading(true);
         try {
             const action = isMember ? apiService.removeUserFromGroup : apiService.addUserToGroup;
@@ -52,7 +50,12 @@ const UserRow = memo(({ user, style, isOdd, onEdit, onDelete, onConnectWithCrede
             onMembershipChange();
         } catch (error) { showNotification('error', `Erreur: ${error.message}`); }
         finally { setLoading(false); }
-    }, [user.username, onMembershipChange, showNotification]);
+    }, [user, onMembershipChange, showNotification]);
+
+    // Protection: if user is undefined, return null AFTER all hooks
+    if (!user || !user.username) {
+        return null;
+    }
 
     const adStatus = user.adEnabled === 1 ? 'enabled' : user.adEnabled === 0 ? 'disabled' : 'unknown';
     const statusColor = adStatus === 'enabled' ? 'success.main' : adStatus === 'disabled' ? 'error.main' : 'action.disabled';
@@ -79,6 +82,7 @@ const UserRow = memo(({ user, style, isOdd, onEdit, onDelete, onConnectWithCrede
         </Box>
     );
 });
+UserRow.displayName = 'UserRow';
 
 const UsersManagementPage = () => {
     const { showNotification } = useApp();
@@ -111,6 +115,12 @@ const UsersManagementPage = () => {
         }
     }, [cache]);
 
+    // ✅ FIX: Protection robuste contre cache undefined/null
+    const vpnMembers = useMemo(() => {
+        if (!cache || typeof cache !== 'object') return new Set();
+        const members = cache['ad_groups:VPN'];
+        if (!Array.isArray(members)) return new Set();
+        return new Set(members.map(m => m?.SamAccountName).filter(Boolean));
     const vpnMembers = useMemo(() => {
         if (!cache || typeof cache !== 'object') return new Set();
         return new Set((cache['ad_groups:VPN'] || []).map(m => m?.SamAccountName).filter(Boolean));
@@ -118,6 +128,9 @@ const UsersManagementPage = () => {
 
     const internetMembers = useMemo(() => {
         if (!cache || typeof cache !== 'object') return new Set();
+        const members = cache['ad_groups:Sortants_responsables'];
+        if (!Array.isArray(members)) return new Set();
+        return new Set(members.map(m => m?.SamAccountName).filter(Boolean));
         return new Set((cache['ad_groups:Sortants_responsables'] || []).map(m => m?.SamAccountName).filter(Boolean));
     }, [cache]);
 
@@ -198,7 +211,7 @@ const UsersManagementPage = () => {
             totalServers: Array.isArray(servers) ? servers.length : 0,
         };
     }, [users, vpnMembers, internetMembers, servers]);
-    
+
     const handleSaveUser = async (userData) => {
         try {
             await apiService.saveUserToExcel({ user: userData, isEdit: !!dialog.data });
@@ -245,6 +258,23 @@ const UsersManagementPage = () => {
         }
     };
 
+    // 🔥 ULTIMATE FIX: Create itemData with useMemo and validate it's ready before rendering
+    const itemData = useMemo(() => ({
+        users: Array.isArray(filteredUsers) ? filteredUsers : [],
+        vpnMembers: (vpnMembers instanceof Set) ? vpnMembers : new Set(),
+        internetMembers: (internetMembers instanceof Set) ? internetMembers : new Set(),
+        selectedUsernames: (selectedUsernames instanceof Set) ? selectedUsernames : new Set()
+    }), [filteredUsers, vpnMembers, internetMembers, selectedUsernames]);
+
+    // 🎯 CRITICAL: Verify that ALL required cache keys exist before rendering
+    const isDataReady = useMemo(() => {
+        if (isCacheLoading || !cache || typeof cache !== 'object') return false;
+        // Check that all required cache entries are loaded
+        const hasExcelUsers = cache.excel_users !== undefined;
+        const hasVpnGroup = cache['ad_groups:VPN'] !== undefined;
+        const hasInternetGroup = cache['ad_groups:Sortants_responsables'] !== undefined;
+        return hasExcelUsers && hasVpnGroup && hasInternetGroup;
+    }, [isCacheLoading, cache]);
     // ✅ Mémoriser itemData pour éviter les recréations inutiles
     const itemData = useMemo(() => {
         const data = {
@@ -315,12 +345,19 @@ const UsersManagementPage = () => {
 
         return (
             <UserRow
-                user={user} style={style} isOdd={index % 2 === 1}
+                user={user}
+                style={style}
+                isOdd={index % 2 === 1}
                 onEdit={u => setDialog({ type: 'editExcel', data: u })}
                 onDelete={handleDeleteUser}
                 onConnectWithCredentials={handleConnectUserWithCredentials}
                 onPrint={u => setDialog({ type: 'print', data: u })}
                 onOpenAdDialog={u => setDialog({ type: 'adActions', data: u })}
+                vpnMembers={data?.vpnMembers || new Set()}
+                internetMembers={data?.internetMembers || new Set()}
+                onMembershipChange={() => { invalidate('ad_groups:VPN'); invalidate('ad_groups:Sortants_responsables'); }}
+                onSelect={handleSelectUser}
+                isSelected={data?.selectedUsernames?.has(user.username) || false}
                 vpnMembers={vpnMembers}
                 internetMembers={internetMembers}
                 onMembershipChange={() => { invalidate('ad_groups:VPN'); invalidate('ad_groups:Sortants_responsables'); }}
@@ -351,9 +388,9 @@ const UsersManagementPage = () => {
                 actions={
                     <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
                         {selectedUsernames.size > 0 && (
-                            <Button 
-                                variant="outlined" 
-                                startIcon={<PrintIcon />} 
+                            <Button
+                                variant="outlined"
+                                startIcon={<PrintIcon />}
                                 onClick={() => setDialog({ type: 'print', data: users.filter(u => selectedUsernames.has(u.username)) })}
                             >
                                 Imprimer ({selectedUsernames.size})
@@ -389,6 +426,8 @@ const UsersManagementPage = () => {
                     </Paper>
                 </Grid>
                 <Grid item xs={12} md={9}>
+                    {isLoadingOUUsers || !isDataReady ? (
+                        <LoadingScreen type="list" />
                     {isLoadingOUUsers ? (
                         <LoadingScreen type="list" />
                     ) : !isItemDataSafe ? (
@@ -423,6 +462,7 @@ const UsersManagementPage = () => {
                                         width={width}
                                         itemCount={itemData.users.length}
                                         itemSize={80}
+                                        itemKey={(index, data) => data?.users?.[index]?.username || `user-${index}`}
                                         itemKey={i => itemData.users[i]?.username || `user-${i}`}
                                         itemData={itemData}
                                     >
@@ -434,7 +474,7 @@ const UsersManagementPage = () => {
                     )}
                 </Grid>
             </Grid>
-            
+
             {/* ✅ Rendu conditionnel des dialogues */}
             {dialog.type === 'editExcel' && <UserDialog open={true} onClose={() => setDialog({ type: null })} user={dialog.data} onSave={handleSaveUser} servers={servers} />}
             {dialog.type === 'print' && <PrintPreviewDialog open={true} onClose={() => setDialog({ type: null })} user={dialog.data} />}

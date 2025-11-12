@@ -34,6 +34,7 @@ const MemberRow = memo(({ member, style, isOdd, onRemove, groupName }) => {
         </Box>
     );
 });
+MemberRow.displayName = 'MemberRow';
 
 const AdGroupsPage = () => {
     const { showNotification } = useApp();
@@ -91,7 +92,7 @@ const AdGroupsPage = () => {
         return Array.isArray(filtered) ? filtered : [];
     }, [members, searchTerm]);
 
-    const handleRemoveUser = async (username, groupName) => {
+    const handleRemoveUser = useCallback(async (username, groupName) => {
         if (!window.confirm(`Retirer ${username} du groupe ${groupName} ?`)) return;
         try {
             const result = await electronAD.removeUserFromGroup(username, groupName);
@@ -102,7 +103,7 @@ const AdGroupsPage = () => {
                 showNotification('error', `Erreur: ${result.error}`);
             }
         } catch (error) { showNotification('error', `Erreur: ${error.message}`); }
-    };
+    }, [electronAD, showNotification, invalidate]);
 
     const handleAddUser = async (username) => {
         try {
@@ -129,6 +130,22 @@ const AdGroupsPage = () => {
 
     const handleOpenAddDialog = () => { setUserSearchTerm(''); setAvailableUsers([]); setAddUserDialogOpen(true); };
 
+    // 🔥 ULTIMATE FIX: Create itemData with useMemo and validate before rendering
+    const itemData = useMemo(() => ({
+        members: Array.isArray(filteredMembers) ? filteredMembers : [],
+        onRemove: handleRemoveUser,
+        groupName: selectedGroup || ''
+    }), [filteredMembers, handleRemoveUser, selectedGroup]);
+
+    // 🎯 CRITICAL: Verify that ALL required cache keys exist before rendering
+    const isDataReady = useMemo(() => {
+        if (isCacheLoading || !cache || typeof cache !== 'object') return false;
+        // Check that config is loaded
+        if (!config || typeof config !== 'object' || Object.keys(config).length === 0) return false;
+        // Check that the current group's data is loaded
+        if (selectedGroup && cache[`ad_groups:${selectedGroup}`] === undefined) return false;
+        return true;
+    }, [isCacheLoading, cache, config, selectedGroup]);
     const currentGroupData = useMemo(() => {
         if (!adGroups || typeof adGroups !== 'object') return {};
         return adGroups[selectedGroup] || {};
@@ -217,6 +234,7 @@ const AdGroupsPage = () => {
                 </Box>
                 {currentGroupData.description && (<Box sx={{ p: 1.5, backgroundColor: 'info.lighter', borderRadius: 1, display: 'flex', gap: 1 }}><InfoIcon color="info" fontSize="small" /><Typography variant="body2" color="info.dark">{currentGroupData.description}</Typography></Box>)}
             </Paper>
+            {isRefreshing || !isDataReady ? <LoadingScreen type="list" /> : filteredMembers.length === 0 ? <Paper elevation={2} sx={{ p: 4 }}><EmptyState type={searchTerm ? 'search' : 'empty'} onAction={searchTerm ? () => setSearchTerm('') : handleOpenAddDialog} /></Paper> : (
             {isRefreshing ? (
                 <LoadingScreen type="list" />
             ) : !isItemDataSafe ? (
@@ -242,6 +260,7 @@ const AdGroupsPage = () => {
                                 itemCount={itemData.members.length}
                                 itemSize={60}
                                 width={width}
+                                itemKey={(index, data) => data?.members?.[index]?.SamAccountName || `member-${index}`}
                                 itemData={itemData}
                             >
                                 {Row}
