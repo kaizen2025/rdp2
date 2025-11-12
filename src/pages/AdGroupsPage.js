@@ -130,25 +130,15 @@ const AdGroupsPage = () => {
 
     const handleOpenAddDialog = () => { setUserSearchTerm(''); setAvailableUsers([]); setAddUserDialogOpen(true); };
 
-    // 🚀 RADICAL FIX: Use a stable reference for itemData that is NEVER undefined/null
-    const [itemData] = useState(() => ({
-        members: [],
+    // 🔥 ULTIMATE FIX: Create itemData with useMemo and validate before rendering
+    const itemData = useMemo(() => ({
+        members: Array.isArray(filteredMembers) ? filteredMembers : [],
         onRemove: handleRemoveUser,
-        groupName: ''
-    }));
+        groupName: selectedGroup || ''
+    }), [filteredMembers, handleRemoveUser, selectedGroup]);
 
-    // Update the stable object in-place whenever dependencies change
-    useEffect(() => {
-        itemData.members = Array.isArray(filteredMembers) ? filteredMembers : [];
-        itemData.onRemove = handleRemoveUser;
-        itemData.groupName = selectedGroup || '';
-
-        // Force a re-render of the List by updating a counter
-        setListKey(prev => prev + 1);
-    }, [filteredMembers, handleRemoveUser, selectedGroup, itemData]);
-
-    // Use a key to force List re-render when data changes
-    const [listKey, setListKey] = useState(0);
+    // Critical: Only render List when data is ready
+    const isDataReady = !isCacheLoading && config && typeof config === 'object' && Object.keys(config).length > 0;
 
     const Row = useCallback(({ index, style, data }) => {
         // ✅ Use data.members passed via itemData for safety
@@ -188,12 +178,11 @@ const AdGroupsPage = () => {
                 </Box>
                 {currentGroupData.description && (<Box sx={{ p: 1.5, backgroundColor: 'info.lighter', borderRadius: 1, display: 'flex', gap: 1 }}><InfoIcon color="info" fontSize="small" /><Typography variant="body2" color="info.dark">{currentGroupData.description}</Typography></Box>)}
             </Paper>
-            {isRefreshing ? <LoadingScreen type="list" /> : filteredMembers.length === 0 ? <Paper elevation={2} sx={{ p: 4 }}><EmptyState type={searchTerm ? 'search' : 'empty'} onAction={searchTerm ? () => setSearchTerm('') : handleOpenAddDialog} /></Paper> : (
+            {isRefreshing || !isDataReady ? <LoadingScreen type="list" /> : filteredMembers.length === 0 ? <Paper elevation={2} sx={{ p: 4 }}><EmptyState type={searchTerm ? 'search' : 'empty'} onAction={searchTerm ? () => setSearchTerm('') : handleOpenAddDialog} /></Paper> : (
                 <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', minHeight: 500 }}>
                     <Box sx={{ flex: 1, overflow: 'hidden' }}>
                         <AutoSizer>{({ height, width }) => (
                             <FixedSizeList
-                                key={listKey}
                                 height={height}
                                 itemCount={itemData.members.length}
                                 itemSize={60}

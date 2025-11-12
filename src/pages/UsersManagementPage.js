@@ -254,28 +254,16 @@ const UsersManagementPage = () => {
         }
     };
 
-    // 🚀 RADICAL FIX: Use a stable reference for itemData that is NEVER undefined/null
-    // This prevents race conditions in react-window's useMemoizedObject
-    const [itemData] = useState(() => ({
-        users: [],
-        vpnMembers: new Set(),
-        internetMembers: new Set(),
-        selectedUsernames: new Set()
-    }));
+    // 🔥 ULTIMATE FIX: Create itemData with useMemo and validate it's ready before rendering
+    const itemData = useMemo(() => ({
+        users: Array.isArray(filteredUsers) ? filteredUsers : [],
+        vpnMembers: (vpnMembers instanceof Set) ? vpnMembers : new Set(),
+        internetMembers: (internetMembers instanceof Set) ? internetMembers : new Set(),
+        selectedUsernames: (selectedUsernames instanceof Set) ? selectedUsernames : new Set()
+    }), [filteredUsers, vpnMembers, internetMembers, selectedUsernames]);
 
-    // Update the stable object in-place whenever dependencies change
-    useEffect(() => {
-        itemData.users = Array.isArray(filteredUsers) ? filteredUsers : [];
-        itemData.vpnMembers = (vpnMembers instanceof Set) ? vpnMembers : new Set();
-        itemData.internetMembers = (internetMembers instanceof Set) ? internetMembers : new Set();
-        itemData.selectedUsernames = (selectedUsernames instanceof Set) ? selectedUsernames : new Set();
-
-        // Force a re-render of the List by updating a counter
-        setListKey(prev => prev + 1);
-    }, [filteredUsers, vpnMembers, internetMembers, selectedUsernames, itemData]);
-
-    // Use a key to force List re-render when data changes
-    const [listKey, setListKey] = useState(0);
+    // Critical: Only render List when cache is fully loaded and itemData is valid
+    const isDataReady = !isCacheLoading && cache && typeof cache === 'object';
 
     const Row = useCallback(({ index, style, data }) => {
         // ✅ Use data.users passed via itemData for safety
@@ -360,7 +348,7 @@ const UsersManagementPage = () => {
                     </Paper>
                 </Grid>
                 <Grid item xs={12} md={9}>
-                    {isLoadingOUUsers ? (
+                    {isLoadingOUUsers || !isDataReady ? (
                         <LoadingScreen type="list" />
                     ) : !filteredUsers.length ? (
                         <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
@@ -380,7 +368,6 @@ const UsersManagementPage = () => {
                             <Box sx={{ flex: 1, overflow: 'auto', minHeight: 400 }}>
                                 <AutoSizer>{({ height, width }) => (
                                     <List
-                                        key={listKey}
                                         height={height}
                                         width={width}
                                         itemCount={itemData.users.length}
