@@ -17,16 +17,31 @@ import PageHeader from '../components/common/PageHeader';
 import SearchInput from '../components/common/SearchInput';
 import EmptyState from '../components/common/EmptyState';
 import LoadingScreen from '../components/common/LoadingScreen';
-import AdTreeView from '../components/ad-tree/AdTreeView';
 
 const AdGroupBadge = memo(({ groupName, isMember, onToggle, isLoading }) => {
     const isVpn = groupName === 'VPN';
-    const icon = isVpn ? <VpnKeyIcon sx={{ fontSize: '14px' }} /> : <LanguageIcon sx={{ fontSize: '14px' }} />;
-    const displayName = isVpn ? 'VPN' : 'INT';
+    const icon = isVpn ? <VpnKeyIcon sx={{ fontSize: '16px' }} /> : <LanguageIcon sx={{ fontSize: '16px' }} />;
+    const displayName = isVpn ? 'VPN' : 'INTERNET';
     const fullGroupName = isVpn ? 'VPN' : 'Sortants_responsables (Internet)';
     return (
         <Tooltip title={`${isMember ? 'Retirer de' : 'Ajouter à'} ${fullGroupName}`}>
-            <Chip size="small" icon={isLoading ? <CircularProgress size={14} color="inherit" /> : icon} label={displayName} color={isMember ? (isVpn ? 'primary' : 'success') : 'default'} variant="outlined" onClick={onToggle} disabled={isLoading} sx={{ height: 24, fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }} />
+            <Chip
+                icon={isLoading ? <CircularProgress size={16} color="inherit" /> : icon}
+                label={displayName}
+                color={isMember ? (isVpn ? 'primary' : 'success') : 'default'}
+                variant="outlined"
+                onClick={onToggle}
+                disabled={isLoading}
+                sx={{
+                    height: 30,
+                    fontSize: '0.813rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    minWidth: 90,
+                    '& .MuiChip-label': { px: 1.5, fontFamily: 'system-ui' },
+                    '& .MuiChip-icon': { ml: 0.75 }
+                }}
+            />
         </Tooltip>
     );
 });
@@ -60,16 +75,31 @@ const UserRow = memo(({ user, isOdd, onEdit, onDelete, onConnectWithCredentials,
     const statusTooltip = adStatus === 'enabled' ? 'Compte AD activé' : adStatus === 'disabled' ? 'Compte AD désactivé' : 'Statut AD non vérifié';
 
     return (
-        <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1.5, minHeight: 70, backgroundColor: isOdd ? 'grey.50' : 'white', borderBottom: '1px solid #e0e0e0', '&:hover': { backgroundColor: 'action.hover' }, gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1.5, minHeight: 72, backgroundColor: isOdd ? 'grey.50' : 'white', borderBottom: '1px solid #e0e0e0', '&:hover': { backgroundColor: 'action.hover' }, gap: 2 }}>
             <Checkbox checked={isSelected} onChange={() => onSelect(user.username)} sx={{ p: 0, mr: 1 }} />
             <Box sx={{ flex: '1 1 150px', minWidth: 120, overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Tooltip title={statusTooltip}><CircleIcon sx={{ fontSize: 10, color: statusColor }} /></Tooltip>
-                <Box><Typography variant="body2" fontWeight="bold" noWrap>{user.displayName}</Typography><CopyableText text={user.username} /></Box>
+                <Tooltip title={statusTooltip}><CircleIcon sx={{ fontSize: 12, color: statusColor }} /></Tooltip>
+                <Box>
+                    <Typography variant="body1" fontWeight={600} noWrap sx={{ fontSize: '0.938rem' }}>
+                        {user.displayName}
+                    </Typography>
+                    <CopyableText text={user.username} sx={{ fontSize: '0.813rem' }} />
+                </Box>
             </Box>
-            <Box sx={{ flex: '0.8 1 100px', minWidth: 80 }}><Typography variant="body2">{user.department || '-'}</Typography></Box>
-            <Box sx={{ flex: '1.2 1 180px', minWidth: 150, overflow: 'hidden' }}><CopyableText text={user.email} /></Box>
-            <Box sx={{ flex: '1 1 160px', minWidth: 140, display: 'flex', flexDirection: 'column', gap: 0.5 }}><PasswordCompact password={user.password} label="RDS" /><PasswordCompact password={user.officePassword} label="Office" /></Box>
-            <Box sx={{ flex: '1 1 120px', minWidth: 100, display: 'flex', gap: 1 }}><AdGroupBadge groupName="VPN" isMember={vpnMembers.has(user.username)} onToggle={() => toggleGroup('VPN', vpnMembers.has(user.username), setIsUpdatingVpn)} isLoading={isUpdatingVpn} /><AdGroupBadge groupName="Sortants_responsables" isMember={internetMembers.has(user.username)} onToggle={() => toggleGroup('Sortants_responsables', internetMembers.has(user.username), setIsUpdatingInternet)} isLoading={isUpdatingInternet} /></Box>
+            <Box sx={{ flex: '0.8 1 100px', minWidth: 80 }}>
+                <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>{user.department || '-'}</Typography>
+            </Box>
+            <Box sx={{ flex: '1.2 1 180px', minWidth: 150, overflow: 'hidden' }}>
+                <CopyableText text={user.email} sx={{ fontSize: '0.875rem' }} />
+            </Box>
+            <Box sx={{ flex: '1 1 160px', minWidth: 140, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <PasswordCompact password={user.password} label="RDS" />
+                <PasswordCompact password={user.officePassword} label="Office" />
+            </Box>
+            <Box sx={{ flex: '1 1 130px', minWidth: 130, display: 'flex', gap: 1.2, flexWrap: 'wrap' }}>
+                <AdGroupBadge groupName="VPN" isMember={vpnMembers.has(user.username)} onToggle={() => toggleGroup('VPN', vpnMembers.has(user.username), setIsUpdatingVpn)} isLoading={isUpdatingVpn} />
+                <AdGroupBadge groupName="Sortants_responsables" isMember={internetMembers.has(user.username)} onToggle={() => toggleGroup('Sortants_responsables', internetMembers.has(user.username), setIsUpdatingInternet)} isLoading={isUpdatingInternet} />
+            </Box>
             <Box sx={{ flex: '0 0 auto', display: 'flex', justifyContent: 'flex-end', width: '180px' }}>
                 <Tooltip title="Connexion RDP (app bureau)"><span><IconButton size="small" onClick={() => onConnectWithCredentials(user)} disabled={!window.electronAPI} color="success"><LoginIcon /></IconButton></span></Tooltip>
                 <Tooltip title="Éditer (Excel)"><IconButton size="small" onClick={() => onEdit(user)}><EditIcon /></IconButton></Tooltip>
@@ -355,13 +385,7 @@ const UsersManagementPage = () => {
             </Paper>
 
             <Grid container spacing={2}>
-                <Grid item xs={12} md={3}>
-                    <Paper elevation={2} sx={{ p: 2, borderRadius: 2, height: '100%' }}>
-                        <Typography variant="h6" sx={{ mb: 1 }}>Unités d'organisation</Typography>
-                        <AdTreeView onNodeSelect={(nodeId) => setSelectedOU(nodeId)} />
-                    </Paper>
-                </Grid>
-                <Grid item xs={12} md={9}>
+                <Grid item xs={12}>
                     {isLoadingOUUsers || !isDataReady ? (
                         <LoadingScreen type="list" />
                     ) : !filteredUsers.length ? (
@@ -370,14 +394,19 @@ const UsersManagementPage = () => {
                         </Paper>
                     ) : (
                         <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: 2, minHeight: 500 }}>
-                            <Box sx={{ px: 2, py: 1.5, backgroundColor: 'primary.main', color: 'white', display: 'flex', gap: 2, fontWeight: 600, alignItems: 'center' }}>
+                            <Box sx={{ px: 2, py: 2, backgroundColor: 'primary.main', color: 'white', display: 'flex', gap: 2, fontWeight: 700, alignItems: 'center', fontSize: '0.938rem' }}>
                                 <Checkbox
                                     indeterminate={selectedUsernames.size > 0 && selectedUsernames.size < filteredUsers.length}
                                     checked={filteredUsers.length > 0 && selectedUsernames.size === filteredUsers.length}
                                     onChange={handleSelectAll}
                                     sx={{ color: 'white', '&.Mui-checked': { color: 'white' }, '&.MuiCheckbox-indeterminate': { color: 'white' }, p: 0, mr: 1 }}
                                 />
-                                <Box sx={{ flex: '1 1 150px' }}>Utilisateur</Box><Box sx={{ flex: '0.8 1 100px' }}>Service</Box><Box sx={{ flex: '1.2 1 180px' }}>Email</Box><Box sx={{ flex: '1 1 160px' }}>Mots de passe</Box><Box sx={{ flex: '1 1 120px' }}>Groupes</Box><Box sx={{ flex: '0 0 auto', width: '180px' }}>Actions</Box>
+                                <Box sx={{ flex: '1 1 150px' }}>UTILISATEUR</Box>
+                                <Box sx={{ flex: '0.8 1 100px' }}>SERVICE</Box>
+                                <Box sx={{ flex: '1.2 1 180px' }}>EMAIL</Box>
+                                <Box sx={{ flex: '1 1 160px' }}>MOTS DE PASSE</Box>
+                                <Box sx={{ flex: '1 1 130px' }}>GROUPES AD</Box>
+                                <Box sx={{ flex: '0 0 auto', width: '180px' }}>ACTIONS</Box>
                             </Box>
                             <Box sx={{ flex: 1, overflow: 'hidden' }}>
                                 <SimpleUserList
