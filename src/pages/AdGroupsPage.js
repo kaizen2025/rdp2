@@ -134,9 +134,15 @@ const AdGroupsPage = () => {
     const itemData = useMemo(() => {
         // ✅ CRITICAL: Validate all dependencies before creating itemData
         if (!Array.isArray(filteredMembers) || typeof handleRemoveUser !== 'function' || !selectedGroup) {
+            console.log('[AdGroupsPage] itemData is NULL - dependencies invalid:', {
+                filteredMembers: Array.isArray(filteredMembers),
+                handleRemoveUser: typeof handleRemoveUser,
+                selectedGroup
+            });
             return null;
         }
 
+        console.log('[AdGroupsPage] itemData created with', filteredMembers.length, 'members');
         return {
             members: filteredMembers,
             onRemove: handleRemoveUser,
