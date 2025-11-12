@@ -50,6 +50,7 @@ import DnsIcon from '@mui/icons-material/Dns';
 import SecurityIcon from '@mui/icons-material/Security'; // ✅ NOUVEAU - Pour permissions
 import SmartToyIcon from '@mui/icons-material/SmartToy'; // ✅ NOUVEAU - Pour GED/IA
 import ApiIcon from '@mui/icons-material/Api'; // ✅ NOUVEAU - Pour configuration API IA
+import StorageIcon from '@mui/icons-material/Storage'; // ✅ NOUVEAU - Pour serveur AD
 
 // ✅ NOUVEAUX COMPOSANTS - Panneaux de configuration avancés
 import UsersPermissionsPanel from '../components/settings/UsersPermissionsPanel';
@@ -161,6 +162,7 @@ const SettingsPage = ({ open, onClose }) => {
             <Box sx={{ display: 'flex', height: 'calc(100% - 64px)' }}>
                 <Tabs orientation="vertical" variant="scrollable" value={currentTab} onChange={(e, v) => setCurrentTab(v)} sx={{ borderRight: 1, borderColor: 'divider', minWidth: 180 }}>
                     <Tab icon={<LockIcon />} iconPosition="start" label="Général" />
+                    <Tab icon={<StorageIcon />} iconPosition="start" label="Active Directory" />
                     <Tab icon={<DnsIcon />} iconPosition="start" label="Serveurs & Chat" />
                     <Tab icon={<FolderSharedIcon />} iconPosition="start" label="Chemins d'accès" />
                     <Tab icon={<AssignmentIcon />} iconPosition="start" label="Prêts" />
@@ -174,22 +176,84 @@ const SettingsPage = ({ open, onClose }) => {
                 <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
                     <TabPanel value={currentTab} index={0}>
                         <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                            <Typography variant="h5" gutterBottom>Sécurité & Active Directory</Typography>
+                            <Typography variant="h5" gutterBottom>Sécurité Application</Typography>
                             <Grid container spacing={2}>
                                 <Grid item xs={12} sm={6}><TextField label="Nouveau mot de passe App" type="password" fullWidth helperText="Laissez vide pour ne pas changer" /></Grid>
-                                <Grid item xs={12} sm={4}><TextField label="Domaine AD" name="domain" value={editedConfig.domain || ''} onChange={handleFieldChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={4}><TextField label="Utilisateur AD (Admin)" name="username" value={editedConfig.username || ''} onChange={handleFieldChange} fullWidth /></Grid>
-                                <Grid item xs={12} sm={4}><TextField label="Mot de passe AD" name="password" type="password" value={editedConfig.password || ''} onChange={handleFieldChange} fullWidth /></Grid>
                             </Grid>
                         </Paper>
                     </TabPanel>
                     <TabPanel value={currentTab} index={1}>
+                        <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mb: 3 }}>
+                            <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <StorageIcon /> Configuration Active Directory
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                                Configurez l'accès au serveur Active Directory. Laissez vide pour utiliser le serveur par défaut (PC sur le domaine).
+                            </Typography>
+                            <Grid container spacing={3}>
+                                <Grid item xs={12}>
+                                    <TextField
+                                        label="Serveur AD"
+                                        name="ad_server"
+                                        value={editedConfig.ad_server || ''}
+                                        onChange={handleFieldChange}
+                                        fullWidth
+                                        placeholder="Ex: SRV-AD-1"
+                                        helperText="Nom du serveur AD (obligatoire si PC hors domaine avec VPN, laissez vide si PC sur le domaine)"
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={4}>
+                                    <TextField
+                                        label="Domaine AD"
+                                        name="domain"
+                                        value={editedConfig.domain || ''}
+                                        onChange={handleFieldChange}
+                                        fullWidth
+                                        helperText="Ex: anecoopfr.local"
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={4}>
+                                    <TextField
+                                        label="Utilisateur AD (Admin)"
+                                        name="username"
+                                        value={editedConfig.username || ''}
+                                        onChange={handleFieldChange}
+                                        fullWidth
+                                        helperText="Compte avec droits admin AD"
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={4}>
+                                    <TextField
+                                        label="Mot de passe AD"
+                                        name="password"
+                                        type="password"
+                                        value={editedConfig.password || ''}
+                                        onChange={handleFieldChange}
+                                        fullWidth
+                                        helperText="Mot de passe du compte admin"
+                                    />
+                                </Grid>
+                            </Grid>
+                            <Box sx={{ mt: 3, p: 2, backgroundColor: 'info.lighter', borderRadius: 1 }}>
+                                <Typography variant="subtitle2" color="info.dark" sx={{ fontWeight: 'bold', mb: 1 }}>
+                                    💡 Mode d'utilisation :
+                                </Typography>
+                                <Typography variant="body2" color="info.dark" component="div">
+                                    <ul style={{ margin: 0, paddingLeft: 20 }}>
+                                        <li><strong>PC sur le domaine :</strong> Laissez "Serveur AD" vide - les commandes AD fonctionneront en mode natif</li>
+                                        <li><strong>PC hors domaine avec VPN :</strong> Renseignez le nom du serveur AD (ex: SRV-AD-1) - l'authentification distante sera utilisée</li>
+                                    </ul>
+                                </Typography>
+                            </Box>
+                        </Paper>
+                    </TabPanel>
+                    <TabPanel value={currentTab} index={2}>
                         <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
                             <Typography variant="h5" gutterBottom>Serveurs RDS</Typography>
                             <TextField label="Liste des serveurs (un par ligne)" name="rds_servers" value={editedConfig.rds_servers?.join('\n') || ''} onChange={e => setEditedConfig(p => ({ ...p, rds_servers: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) }))} multiline rows={8} fullWidth />
                         </Paper>
                     </TabPanel>
-                    <TabPanel value={currentTab} index={2}>
+                    <TabPanel value={currentTab} index={3}>
                         <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
                             <Typography variant="h5" gutterBottom>Chemins d'Accès</Typography>
                             <Grid container spacing={2}>
@@ -198,22 +262,22 @@ const SettingsPage = ({ open, onClose }) => {
                             </Grid>
                         </Paper>
                     </TabPanel>
-                    <TabPanel value={currentTab} index={3}><Paper sx={{ p: 3 }}><Typography variant="h5" gutterBottom>Paramètres des Prêts</Typography><Grid container spacing={3}><Grid item xs={12} sm={6}><TextField label="Durée maximum (jours)" name="loans.maxLoanDays" type="number" value={editedConfig.loans?.maxLoanDays || 90} onChange={handleFieldChange} fullWidth /></Grid><Grid item xs={12} sm={6}><TextField label="Nombre max de prolongations" name="loans.maxExtensions" type="number" value={editedConfig.loans?.maxExtensions || 3} onChange={handleFieldChange} fullWidth /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="loans.autoNotifications" checked={editedConfig.loans?.autoNotifications ?? true} onChange={handleFieldChange} />} label="Activer les notifications automatiques" /></Grid></Grid></Paper></TabPanel>
-                    <TabPanel value={currentTab} index={4}><Paper sx={{ p: 3 }}><Typography variant="h5" gutterBottom>Notifications</Typography><Grid container spacing={3}><Grid item xs={12}><FormControlLabel control={<Switch name="notifications.enabled" checked={editedConfig.notifications?.enabled ?? true} onChange={handleFieldChange} />} label="Activer les notifications système globales" /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="notifications.loanReminders" checked={editedConfig.notifications?.loanReminders ?? true} onChange={handleFieldChange} />} label="Activer les rappels avant échéance des prêts" /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="notifications.overdueLoanAlerts" checked={editedConfig.notifications?.overdueLoanAlerts ?? true} onChange={handleFieldChange} />} label="Activer les alertes pour les prêts en retard" /></Grid></Grid></Paper></TabPanel>
-                    <TabPanel value={currentTab} index={5}><Paper sx={{ p: 3 }}><Typography variant="h5" gutterBottom>Interface</Typography><Grid container spacing={3}><Grid item xs={12} sm={6}><FormControl fullWidth><InputLabel>Thème</InputLabel><Select name="ui.theme" value={editedConfig.ui?.theme || 'light'} label="Thème" onChange={handleFieldChange}><MenuItem value="light">Clair</MenuItem><MenuItem value="dark">Sombre</MenuItem></Select></FormControl></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="ui.compactView" checked={editedConfig.ui?.compactView ?? false} onChange={handleFieldChange} />} label="Activer le mode compact" /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="ui.autoRefresh" checked={editedConfig.ui?.autoRefresh ?? true} onChange={handleFieldChange} />} label="Activer le rafraîchissement automatique" /></Grid></Grid></Paper></TabPanel>
+                    <TabPanel value={currentTab} index={4}><Paper sx={{ p: 3 }}><Typography variant="h5" gutterBottom>Paramètres des Prêts</Typography><Grid container spacing={3}><Grid item xs={12} sm={6}><TextField label="Durée maximum (jours)" name="loans.maxLoanDays" type="number" value={editedConfig.loans?.maxLoanDays || 90} onChange={handleFieldChange} fullWidth /></Grid><Grid item xs={12} sm={6}><TextField label="Nombre max de prolongations" name="loans.maxExtensions" type="number" value={editedConfig.loans?.maxExtensions || 3} onChange={handleFieldChange} fullWidth /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="loans.autoNotifications" checked={editedConfig.loans?.autoNotifications ?? true} onChange={handleFieldChange} />} label="Activer les notifications automatiques" /></Grid></Grid></Paper></TabPanel>
+                    <TabPanel value={currentTab} index={5}><Paper sx={{ p: 3 }}><Typography variant="h5" gutterBottom>Notifications</Typography><Grid container spacing={3}><Grid item xs={12}><FormControlLabel control={<Switch name="notifications.enabled" checked={editedConfig.notifications?.enabled ?? true} onChange={handleFieldChange} />} label="Activer les notifications système globales" /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="notifications.loanReminders" checked={editedConfig.notifications?.loanReminders ?? true} onChange={handleFieldChange} />} label="Activer les rappels avant échéance des prêts" /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="notifications.overdueLoanAlerts" checked={editedConfig.notifications?.overdueLoanAlerts ?? true} onChange={handleFieldChange} />} label="Activer les alertes pour les prêts en retard" /></Grid></Grid></Paper></TabPanel>
+                    <TabPanel value={currentTab} index={6}><Paper sx={{ p: 3 }}><Typography variant="h5" gutterBottom>Interface</Typography><Grid container spacing={3}><Grid item xs={12} sm={6}><FormControl fullWidth><InputLabel>Thème</InputLabel><Select name="ui.theme" value={editedConfig.ui?.theme || 'light'} label="Thème" onChange={handleFieldChange}><MenuItem value="light">Clair</MenuItem><MenuItem value="dark">Sombre</MenuItem></Select></FormControl></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="ui.compactView" checked={editedConfig.ui?.compactView ?? false} onChange={handleFieldChange} />} label="Activer le mode compact" /></Grid><Grid item xs={12}><FormControlLabel control={<Switch name="ui.autoRefresh" checked={editedConfig.ui?.autoRefresh ?? true} onChange={handleFieldChange} />} label="Activer le rafraîchissement automatique" /></Grid></Grid></Paper></TabPanel>
 
                     {/* ✅ ONGLET AVANCÉ - Permissions & Rôles */}
-                    <TabPanel value={currentTab} index={6}>
+                    <TabPanel value={currentTab} index={7}>
                         <UsersPermissionsPanel />
                     </TabPanel>
 
                     {/* ✅ ONGLET AVANCÉ - DocuCortex IA / GED */}
-                    <TabPanel value={currentTab} index={7}>
+                    <TabPanel value={currentTab} index={8}>
                         <GEDSettingsPanel />
                     </TabPanel>
 
-                    {/* ✅ ONGLET 8: Configuration API IA (Hugging Face & OpenRouter) */}
-                    <TabPanel value={currentTab} index={8}>
+                    {/* ✅ ONGLET 9: Configuration API IA (Hugging Face & OpenRouter) */}
+                    <TabPanel value={currentTab} index={9}>
                         <AISettingsPanel />
                     </TabPanel>
                 </Box>
