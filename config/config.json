@@ -3,6 +3,7 @@
     "domain": "anecoopfr.local",
     "username": "admin_anecoop",
     "password": "vCQhNZ2aY2v!",
+    "ad_server": "SRV-AD-1",
     "excelFilePath": "\\\\192.168.1.230\\Donnees\\Informatique\\PROGRAMMES\\Programme RDS\\RDS Viewer Group\\Data_utilisateur_partage.xlsx",
     "databasePath": "\\\\192.168.1.230\\Donnees\\Informatique\\PROGRAMMES\\Programme RDS\\RDS Viewer Group\\rds_viewer_data.sqlite",
     "updateUrl": "http://192.168.1.232/update/",
