@@ -131,11 +131,18 @@ const AdGroupsPage = () => {
     const handleOpenAddDialog = () => { setUserSearchTerm(''); setAvailableUsers([]); setAddUserDialogOpen(true); };
 
     // 🔥 ULTIMATE FIX: Create itemData with useMemo and validate before rendering
-    const itemData = useMemo(() => ({
-        members: Array.isArray(filteredMembers) ? filteredMembers : [],
-        onRemove: handleRemoveUser,
-        groupName: selectedGroup || ''
-    }), [filteredMembers, handleRemoveUser, selectedGroup]);
+    const itemData = useMemo(() => {
+        // ✅ CRITICAL: Validate all dependencies before creating itemData
+        if (!Array.isArray(filteredMembers) || typeof handleRemoveUser !== 'function' || !selectedGroup) {
+            return null;
+        }
+
+        return {
+            members: filteredMembers,
+            onRemove: handleRemoveUser,
+            groupName: selectedGroup
+        };
+    }, [filteredMembers, handleRemoveUser, selectedGroup]);
 
     // 🎯 CRITICAL: Verify that ALL required cache keys exist before rendering
     const isDataReady = useMemo(() => {
@@ -145,13 +152,13 @@ const AdGroupsPage = () => {
         // Check that the current group's data is loaded
         if (selectedGroup && cache[`ad_groups:${selectedGroup}`] === undefined) return false;
 
-        // ✅ CRITICAL: Verify that itemData dependencies are valid
-        if (!Array.isArray(filteredMembers)) return false;
-        if (typeof handleRemoveUser !== 'function') return false;
-        if (typeof selectedGroup !== 'string' || selectedGroup === '') return false;
+        // ✅ CRITICAL: Verify that itemData is fully constructed and valid
+        if (!itemData || !itemData.members || !Array.isArray(itemData.members)) return false;
+        if (typeof itemData.onRemove !== 'function') return false;
+        if (!itemData.groupName) return false;
 
         return true;
-    }, [isCacheLoading, cache, config, selectedGroup, filteredMembers, handleRemoveUser]);
+    }, [isCacheLoading, cache, config, selectedGroup, itemData]);
 
     const currentGroupData = useMemo(() => {
         if (!adGroups || typeof adGroups !== 'object') return {};
