@@ -120,7 +120,7 @@ async function getAdGroupMembers(groupName) {
         }
     `;
     try {
-        const jsonOutput = await executeEncodedPowerShell(psScript, 15000);
+        const jsonOutput = await executeEncodedPowerShell(psScript, 30000);  // ← Augmenté de 15s à 30s
         const members = JSON.parse(jsonOutput || '[]');
         const membersArray = Array.isArray(members) ? members : [members];
         return membersArray.map(m => ({ ...m, sam: m.SamAccountName, name: m.Name || m.DisplayName }));
