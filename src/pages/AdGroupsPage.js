@@ -1,7 +1,7 @@
 // src/pages/AdGroupsPage.js - VERSION ULTRA-ROBUSTE ANTI-CRASH
 
 import React, { useState, useMemo, memo, useCallback, useEffect } from 'react';
-import { FixedSizeList as List } from 'react-window';
+import { List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { Box, Paper, Typography, Button, IconButton, Tooltip, CircularProgress, InputAdornment, Chip, FormControl, InputLabel, Select, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, List as MuiList, ListItem, ListItemText, ListItemIcon, Divider, TextField } from '@mui/material';
 
