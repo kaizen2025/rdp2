@@ -1,7 +1,7 @@
 // src/pages/AdGroupsPage.js - VERSION ULTRA-ROBUSTE ANTI-CRASH
 
 import React, { useState, useMemo, memo, useCallback, useEffect } from 'react';
-import { FixedSizeList } from 'react-window';
+import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { Box, Paper, Typography, Button, IconButton, Tooltip, CircularProgress, InputAdornment, Chip, FormControl, InputLabel, Select, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemText, ListItemIcon, Divider, TextField } from '@mui/material';
 
@@ -94,7 +94,7 @@ const SafeVirtualizedList = memo(({ itemData, Row, height, width }) => {
 
     try {
         return (
-            <FixedSizeList
+            <List
                 height={height}
                 itemCount={itemData.members.length}
                 itemSize={60}
@@ -103,7 +103,7 @@ const SafeVirtualizedList = memo(({ itemData, Row, height, width }) => {
                 itemData={itemData}
             >
                 {Row}
-            </FixedSizeList>
+            </List>
         );
     } catch (error) {
         console.error('[SafeVirtualizedList] ❌ CRASH DURING RENDER:', error);
