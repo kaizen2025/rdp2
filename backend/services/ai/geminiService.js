@@ -47,6 +47,36 @@ async function processConversation(messages, options = {}) {
   }
 }
 
+/**
+ * Chat multimodal avec Gemini
+ * @param {Array} parts - Array de parts (text, inlineData, etc.)
+ * @param {String} conversationId - ID de la conversation (optionnel)
+ * @returns {Object} - Réponse de Gemini
+ */
+async function chatMultimodal(parts, conversationId = null) {
+  try {
+    if (!GoogleGenerativeAI || !model) {
+      throw new Error('Service Gemini non initialisé ou package non installé');
+    }
+
+    console.log(`🎨 Chat multimodal Gemini: ${parts.length} parts`);
+
+    const result = await model.generateContent(parts);
+    const response = await result.response;
+    const text = response.text();
+
+    return {
+      success: true,
+      response: text,
+      confidence: 95, // Gemini est généralement très confiant
+      conversationId: conversationId
+    };
+  } catch (error) {
+    console.error('❌ Erreur chat multimodal Gemini:', error.message);
+    throw error;
+  }
+}
+
 async function testConnection(apiKey, modelName) {
   try {
     if (!GoogleGenerativeAI) {
@@ -78,6 +108,7 @@ function getStatistics() {
 module.exports = {
   initialize,
   processConversation,
+  chatMultimodal,
   testConnection,
   getStatistics,
 };

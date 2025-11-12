@@ -42,21 +42,31 @@ const AISettingsPanel = () => {
     const { hasPermission, isSuperAdmin } = usePermissions();
 
     const [aiConfig, setAiConfig] = useState({
-        aiProvider: 'openrouter',
+        aiProvider: 'gemini',
         providers: {
-            openrouter: {
+            gemini: {
                 enabled: true,
                 priority: 1,
                 apiKey: '',
-                baseUrl: 'https://openrouter.ai/api/v1',
-                model: 'meta-llama/llama-3.3-8b-instruct:free',
-                timeout: 60000,
+                model: 'gemini-1.5-flash',
+                timeout: 120000,
                 temperature: 0.7,
-                max_tokens: 2048
+                max_tokens: 4096
+            },
+            openrouter: {
+                enabled: true,
+                priority: 2,
+                apiKey: '',
+                baseUrl: 'https://openrouter.ai/api/v1',
+                model: 'openrouter/polaris-alpha',
+                timeout: 120000,
+                temperature: 0.7,
+                max_tokens: 4096
             }
         }
     });
 
+    const [showGeminiKey, setShowGeminiKey] = useState(false);
     const [showORKey, setShowORKey] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
@@ -100,25 +110,29 @@ const AISettingsPanel = () => {
         }
     };
 
-    const handleTestProvider = async () => {
+    const handleTestProvider = async (provider) => {
         try {
-            setTestingProvider('openrouter');
-            setConnectionStatus({ openrouter: null });
+            setTestingProvider(provider);
+            setConnectionStatus({ ...connectionStatus, [provider]: null });
 
-            const response = await axios.post(`${API_BASE}/providers/openrouter/test`, {
-                apiKey: aiConfig.providers.openrouter.apiKey,
-                model: aiConfig.providers.openrouter.model
+            const response = await axios.post(`${API_BASE}/providers/${provider}/test`, {
+                apiKey: aiConfig.providers[provider].apiKey,
+                model: aiConfig.providers[provider].model
             });
 
             setConnectionStatus({
-                openrouter: {
+                ...connectionStatus,
+                [provider]: {
                     success: response.data.success,
-                    message: response.data.connected ? `✅ Connexion réussie (${response.data.modelsAvailable || 0} modèles disponibles)` : response.data.error
+                    message: response.data.connected ?
+                        `✅ Connexion réussie (${response.data.modelsAvailable || 0} modèles disponibles)` :
+                        response.data.error
                 }
             });
         } catch (error) {
             setConnectionStatus({
-                openrouter: {
+                ...connectionStatus,
+                [provider]: {
                     success: false,
                     message: error.response?.data?.details || error.message
                 }
@@ -143,10 +157,10 @@ const AISettingsPanel = () => {
     return (
         <Box>
             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <SettingsIcon /> Configuration OpenRouter
+                <SettingsIcon /> Configuration IA - DocuCortex
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Configurez OpenRouter avec accès à 14 modèles gratuits validés et fonctionnels.
+                Configurez Gemini (priorité 1) et OpenRouter (fallback). Provider actif: <strong>{aiConfig.aiProvider}</strong>
             </Typography>
 
             {error && (
@@ -160,13 +174,121 @@ const AISettingsPanel = () => {
                 </Alert>
             )}
 
-            <Paper sx={{ p: 3, mb: 3 }}>
+            {/* Provider 1: Gemini (Priority 1 - Par défaut) */}
+            <Paper sx={{ p: 3, mb: 3, border: aiConfig.aiProvider === 'gemini' ? '2px solid #1976d2' : 'none' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <AIIcon color="primary" />
+                        <Typography variant="h6">Gemini AI</Typography>
+                        <Chip label="Priorité 1" size="small" color="primary" />
+                        <Chip label="Par défaut" size="small" color="success" variant="outlined" />
+                    </Box>
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={aiConfig.providers.gemini.enabled}
+                                onChange={(e) => setAiConfig({
+                                    ...aiConfig,
+                                    aiProvider: e.target.checked ? 'gemini' : 'openrouter',
+                                    providers: {
+                                        ...aiConfig.providers,
+                                        gemini: {
+                                            ...aiConfig.providers.gemini,
+                                            enabled: e.target.checked
+                                        }
+                                    }
+                                })}
+                            />
+                        }
+                        label="Activé"
+                    />
+                </Box>
+                <Divider sx={{ mb: 2 }} />
+
+                <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                        <TextField
+                            fullWidth
+                            label="Clé API Gemini"
+                            type={showGeminiKey ? 'text' : 'password'}
+                            value={aiConfig.providers.gemini.apiKey}
+                            onChange={(e) => setAiConfig({
+                                ...aiConfig,
+                                providers: {
+                                    ...aiConfig.providers,
+                                    gemini: {
+                                        ...aiConfig.providers.gemini,
+                                        apiKey: e.target.value
+                                    }
+                                }
+                            })}
+                            placeholder="AIza..."
+                            helperText="Obtenez votre clé sur https://ai.google.dev/"
+                            disabled={!aiConfig.providers.gemini.enabled}
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton onClick={() => setShowGeminiKey(!showGeminiKey)} edge="end">
+                                            {showGeminiKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                        </IconButton>
+                                    </InputAdornment>
+                                )
+                            }}
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} md={8}>
+                        <TextField
+                            fullWidth
+                            label="Modèle Gemini"
+                            value={aiConfig.providers.gemini.model}
+                            onChange={(e) => setAiConfig({
+                                ...aiConfig,
+                                providers: {
+                                    ...aiConfig.providers,
+                                    gemini: {
+                                        ...aiConfig.providers.gemini,
+                                        model: e.target.value
+                                    }
+                                }
+                            })}
+                            disabled={!aiConfig.providers.gemini.enabled}
+                            helperText="gemini-1.5-flash (rapide) ou gemini-1.5-pro (puissant)"
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} md={4}>
+                        <Button
+                            fullWidth
+                            variant="outlined"
+                            onClick={() => handleTestProvider('gemini')}
+                            disabled={!aiConfig.providers.gemini.enabled || testingProvider === 'gemini'}
+                            startIcon={testingProvider === 'gemini' ? <RefreshIcon /> : connectionStatus.gemini ? (connectionStatus.gemini.success ? <CheckIcon /> : <ErrorIcon />) : <RefreshIcon />}
+                            color={connectionStatus.gemini ? (connectionStatus.gemini.success ? 'success' : 'error') : 'primary'}
+                            sx={{ height: '56px' }}
+                        >
+                            {testingProvider === 'gemini' ? 'Test...' : 'Tester'}
+                        </Button>
+                    </Grid>
+
+                    {connectionStatus.gemini && (
+                        <Grid item xs={12}>
+                            <Alert severity={connectionStatus.gemini.success ? 'success' : 'error'}>
+                                {connectionStatus.gemini.message}
+                            </Alert>
+                        </Grid>
+                    )}
+                </Grid>
+            </Paper>
+
+            {/* Provider 2: OpenRouter (Priority 2 - Fallback) */}
+            <Paper sx={{ p: 3, mb: 3, border: aiConfig.aiProvider === 'openrouter' ? '2px solid #1976d2' : 'none' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <AIIcon color="secondary" />
                         <Typography variant="h6">OpenRouter</Typography>
-                        <Chip label="14 modèles validés" size="small" color="success" variant="outlined" />
-                        <Chip label="100% gratuits" size="small" color="primary" variant="outlined" />
+                        <Chip label="Priorité 2" size="small" color="secondary" />
+                        <Chip label="Fallback" size="small" color="warning" variant="outlined" />
                     </Box>
                     <FormControlLabel
                         control={
@@ -175,6 +297,7 @@ const AISettingsPanel = () => {
                                 onChange={(e) => setAiConfig({
                                     ...aiConfig,
                                     providers: {
+                                        ...aiConfig.providers,
                                         openrouter: {
                                             ...aiConfig.providers.openrouter,
                                             enabled: e.target.checked
@@ -198,6 +321,7 @@ const AISettingsPanel = () => {
                             onChange={(e) => setAiConfig({
                                 ...aiConfig,
                                 providers: {
+                                    ...aiConfig.providers,
                                     openrouter: {
                                         ...aiConfig.providers.openrouter,
                                         apiKey: e.target.value
@@ -226,6 +350,7 @@ const AISettingsPanel = () => {
                             onChange={(newModel) => setAiConfig({
                                 ...aiConfig,
                                 providers: {
+                                    ...aiConfig.providers,
                                     openrouter: {
                                         ...aiConfig.providers.openrouter,
                                         model: newModel
@@ -240,7 +365,7 @@ const AISettingsPanel = () => {
                         <Button
                             fullWidth
                             variant="outlined"
-                            onClick={handleTestProvider}
+                            onClick={() => handleTestProvider('openrouter')}
                             disabled={!aiConfig.providers.openrouter.enabled || testingProvider === 'openrouter'}
                             startIcon={testingProvider === 'openrouter' ? <RefreshIcon /> : connectionStatus.openrouter ? (connectionStatus.openrouter.success ? <CheckIcon /> : <ErrorIcon />) : <RefreshIcon />}
                             color={connectionStatus.openrouter ? (connectionStatus.openrouter.success ? 'success' : 'error') : 'primary'}
