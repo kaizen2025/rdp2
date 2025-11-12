@@ -111,8 +111,15 @@ const UsersManagementPage = () => {
         }
     }, [cache]);
 
-    const vpnMembers = useMemo(() => new Set((cache['ad_groups:VPN'] || []).map(m => m?.SamAccountName).filter(Boolean)), [cache]);
-    const internetMembers = useMemo(() => new Set((cache['ad_groups:Sortants_responsables'] || []).map(m => m?.SamAccountName).filter(Boolean)), [cache]);
+    const vpnMembers = useMemo(() => {
+        if (!cache || typeof cache !== 'object') return new Set();
+        return new Set((cache['ad_groups:VPN'] || []).map(m => m?.SamAccountName).filter(Boolean));
+    }, [cache]);
+
+    const internetMembers = useMemo(() => {
+        if (!cache || typeof cache !== 'object') return new Set();
+        return new Set((cache['ad_groups:Sortants_responsables'] || []).map(m => m?.SamAccountName).filter(Boolean));
+    }, [cache]);
 
     const handleRefresh = useCallback(async () => {
         setIsRefreshing(true);
@@ -237,11 +244,27 @@ const UsersManagementPage = () => {
         }
     };
 
+    // ✅ Mémoriser itemData pour éviter les recréations inutiles
+    const itemData = useMemo(() => ({
+        users: Array.isArray(filteredUsers) ? filteredUsers : [],
+        vpnMembers: vpnMembers instanceof Set ? vpnMembers : new Set(),
+        internetMembers: internetMembers instanceof Set ? internetMembers : new Set(),
+        selectedUsernames: selectedUsernames instanceof Set ? selectedUsernames : new Set()
+    }), [filteredUsers, vpnMembers, internetMembers, selectedUsernames]);
+
     const Row = useCallback(({ index, style, data }) => {
         // ✅ Use data.users passed via itemData for safety
-        const users = data?.users || [];
+        if (!data || typeof data !== 'object') return null;
+
+        const users = data.users || [];
         const user = users[index];
         if (!user) return null;
+
+        // ✅ Protection: Ensure Sets are valid
+        const vpnMembers = data.vpnMembers instanceof Set ? data.vpnMembers : new Set();
+        const internetMembers = data.internetMembers instanceof Set ? data.internetMembers : new Set();
+        const selectedUsernames = data.selectedUsernames instanceof Set ? data.selectedUsernames : new Set();
+
         return (
             <UserRow
                 user={user} style={style} isOdd={index % 2 === 1}
@@ -250,14 +273,15 @@ const UsersManagementPage = () => {
                 onConnectWithCredentials={handleConnectUserWithCredentials}
                 onPrint={u => setDialog({ type: 'print', data: u })}
                 onOpenAdDialog={u => setDialog({ type: 'adActions', data: u })}
-                vpnMembers={data.vpnMembers} internetMembers={data.internetMembers}
+                vpnMembers={vpnMembers}
+                internetMembers={internetMembers}
                 onMembershipChange={() => { invalidate('ad_groups:VPN'); invalidate('ad_groups:Sortants_responsables'); }}
                 onSelect={handleSelectUser}
-                isSelected={data.selectedUsernames.has(user.username)}
+                isSelected={selectedUsernames.has(user.username)}
             />
         );
     }, [handleDeleteUser, handleConnectUserWithCredentials, invalidate]);
-    
+
     const clearFilters = () => { setSearchTerm(''); setServerFilter('all'); setDepartmentFilter('all'); };
 
     if (isCacheLoading) {
@@ -321,8 +345,8 @@ const UsersManagementPage = () => {
                         <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: 2, minHeight: 500 }}>
                             <Box sx={{ px: 2, py: 1.5, backgroundColor: 'primary.main', color: 'white', display: 'flex', gap: 2, fontWeight: 600, alignItems: 'center' }}>
                                 <Checkbox
-                                    indeterminate={selectedUsernames.size > 0 && selectedUsernames.size < filteredUsers.length}
-                                    checked={filteredUsers.length > 0 && selectedUsernames.size === filteredUsers.length}
+                                    indeterminate={selectedUsernames.size > 0 && selectedUsernames.size < itemData.users.length}
+                                    checked={itemData.users.length > 0 && selectedUsernames.size === itemData.users.length}
                                     onChange={handleSelectAll}
                                     sx={{ color: 'white', '&.Mui-checked': { color: 'white' }, '&.MuiCheckbox-indeterminate': { color: 'white' }, p: 0, mr: 1 }}
                                 />
@@ -333,18 +357,10 @@ const UsersManagementPage = () => {
                                     <List
                                         height={height}
                                         width={width}
-                                        itemCount={Array.isArray(filteredUsers) ? filteredUsers.length : 0}
+                                        itemCount={itemData.users.length}
                                         itemSize={80}
-                                        itemKey={i => {
-                                            const users = Array.isArray(filteredUsers) ? filteredUsers : [];
-                                            return users[i]?.username || `user-${i}`;
-                                        }}
-                                        itemData={{
-                                            users: Array.isArray(filteredUsers) ? filteredUsers : [],
-                                            vpnMembers,
-                                            internetMembers,
-                                            selectedUsernames
-                                        }}
+                                        itemKey={i => itemData.users[i]?.username || `user-${i}`}
+                                        itemData={itemData}
                                     >
                                         {Row}
                                     </List>
