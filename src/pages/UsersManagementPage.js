@@ -111,8 +111,20 @@ const UsersManagementPage = () => {
         }
     }, [cache]);
 
-    const vpnMembers = useMemo(() => new Set((cache['ad_groups:VPN'] || []).map(m => m?.SamAccountName).filter(Boolean)), [cache]);
-    const internetMembers = useMemo(() => new Set((cache['ad_groups:Sortants_responsables'] || []).map(m => m?.SamAccountName).filter(Boolean)), [cache]);
+    // ✅ FIX: Protection robuste contre cache undefined/null
+    const vpnMembers = useMemo(() => {
+        if (!cache || typeof cache !== 'object') return new Set();
+        const members = cache['ad_groups:VPN'];
+        if (!Array.isArray(members)) return new Set();
+        return new Set(members.map(m => m?.SamAccountName).filter(Boolean));
+    }, [cache]);
+
+    const internetMembers = useMemo(() => {
+        if (!cache || typeof cache !== 'object') return new Set();
+        const members = cache['ad_groups:Sortants_responsables'];
+        if (!Array.isArray(members)) return new Set();
+        return new Set(members.map(m => m?.SamAccountName).filter(Boolean));
+    }, [cache]);
 
     const handleRefresh = useCallback(async () => {
         setIsRefreshing(true);
@@ -237,6 +249,14 @@ const UsersManagementPage = () => {
         }
     };
 
+    // ✅ FIX: Mémoriser itemData pour éviter les recréations inutiles
+    const itemData = useMemo(() => ({
+        users: Array.isArray(filteredUsers) ? filteredUsers : [],
+        vpnMembers: vpnMembers || new Set(),
+        internetMembers: internetMembers || new Set(),
+        selectedUsernames: selectedUsernames || new Set()
+    }), [filteredUsers, vpnMembers, internetMembers, selectedUsernames]);
+
     const Row = useCallback(({ index, style, data }) => {
         // ✅ Use data.users passed via itemData for safety
         const users = data?.users || [];
@@ -250,10 +270,10 @@ const UsersManagementPage = () => {
                 onConnectWithCredentials={handleConnectUserWithCredentials}
                 onPrint={u => setDialog({ type: 'print', data: u })}
                 onOpenAdDialog={u => setDialog({ type: 'adActions', data: u })}
-                vpnMembers={data.vpnMembers} internetMembers={data.internetMembers}
+                vpnMembers={data?.vpnMembers || new Set()} internetMembers={data?.internetMembers || new Set()}
                 onMembershipChange={() => { invalidate('ad_groups:VPN'); invalidate('ad_groups:Sortants_responsables'); }}
                 onSelect={handleSelectUser}
-                isSelected={data.selectedUsernames.has(user.username)}
+                isSelected={data?.selectedUsernames?.has(user.username) || false}
             />
         );
     }, [handleDeleteUser, handleConnectUserWithCredentials, invalidate]);
@@ -333,18 +353,10 @@ const UsersManagementPage = () => {
                                     <List
                                         height={height}
                                         width={width}
-                                        itemCount={Array.isArray(filteredUsers) ? filteredUsers.length : 0}
+                                        itemCount={itemData.users.length}
                                         itemSize={80}
-                                        itemKey={i => {
-                                            const users = Array.isArray(filteredUsers) ? filteredUsers : [];
-                                            return users[i]?.username || `user-${i}`;
-                                        }}
-                                        itemData={{
-                                            users: Array.isArray(filteredUsers) ? filteredUsers : [],
-                                            vpnMembers,
-                                            internetMembers,
-                                            selectedUsernames
-                                        }}
+                                        itemKey={i => itemData.users[i]?.username || `user-${i}`}
+                                        itemData={itemData}
                                     >
                                         {Row}
                                     </List>
