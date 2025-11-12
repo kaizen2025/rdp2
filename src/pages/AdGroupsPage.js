@@ -146,56 +146,11 @@ const AdGroupsPage = () => {
         if (selectedGroup && cache[`ad_groups:${selectedGroup}`] === undefined) return false;
         return true;
     }, [isCacheLoading, cache, config, selectedGroup]);
+
     const currentGroupData = useMemo(() => {
         if (!adGroups || typeof adGroups !== 'object') return {};
         return adGroups[selectedGroup] || {};
     }, [adGroups, selectedGroup]);
-
-    // ✅ Mémoriser itemData pour éviter les recréations inutiles et garantir la validité
-    const itemData = useMemo(() => {
-        const data = {
-            members: Array.isArray(filteredMembers) ? filteredMembers : [],
-            onRemove: typeof handleRemoveUser === 'function' ? handleRemoveUser : () => {},
-            groupName: selectedGroup || ''
-        };
-
-        // Debug logging to track the issue
-        console.log('[AdGroupsPage itemData DEBUG]', {
-            membersLength: data.members.length,
-            membersValid: Array.isArray(data.members),
-            onRemoveValid: typeof data.onRemove === 'function',
-            groupNameValid: typeof data.groupName === 'string',
-            allDefined: Object.values(data).every(v => v !== undefined && v !== null)
-        });
-
-        return data;
-    }, [filteredMembers, handleRemoveUser, selectedGroup]);
-
-    // ✅ CRITICAL: Validate that itemData is safe to pass to react-window
-    const isItemDataSafe = useMemo(() => {
-        if (!itemData || typeof itemData !== 'object') {
-            console.warn('[AdGroupsPage] itemData is not an object');
-            return false;
-        }
-
-        // Check each property
-        if (!Array.isArray(itemData.members)) {
-            console.warn('[AdGroupsPage] itemData.members is not an array');
-            return false;
-        }
-
-        if (typeof itemData.onRemove !== 'function') {
-            console.warn('[AdGroupsPage] itemData.onRemove is not a function');
-            return false;
-        }
-
-        if (typeof itemData.groupName !== 'string') {
-            console.warn('[AdGroupsPage] itemData.groupName is not a string');
-            return false;
-        }
-
-        return true;
-    }, [itemData]);
 
     const Row = useCallback(({ index, style, data }) => {
         // ✅ Use data.members passed via itemData for safety
@@ -234,19 +189,8 @@ const AdGroupsPage = () => {
                 </Box>
                 {currentGroupData.description && (<Box sx={{ p: 1.5, backgroundColor: 'info.lighter', borderRadius: 1, display: 'flex', gap: 1 }}><InfoIcon color="info" fontSize="small" /><Typography variant="body2" color="info.dark">{currentGroupData.description}</Typography></Box>)}
             </Paper>
-            {isRefreshing || !isDataReady ? <LoadingScreen type="list" /> : filteredMembers.length === 0 ? <Paper elevation={2} sx={{ p: 4 }}><EmptyState type={searchTerm ? 'search' : 'empty'} onAction={searchTerm ? () => setSearchTerm('') : handleOpenAddDialog} /></Paper> : (
-            {isRefreshing ? (
+            {isRefreshing || !isDataReady ? (
                 <LoadingScreen type="list" />
-            ) : !isItemDataSafe ? (
-                <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 8, borderRadius: 2, minHeight: 500 }}>
-                    <CircularProgress size={64} />
-                    <Typography variant="h6" sx={{ mt: 3, color: 'text.secondary' }}>
-                        Chargement des membres du groupe...
-                    </Typography>
-                    <Typography variant="body2" sx={{ mt: 1, color: 'text.disabled' }}>
-                        Synchronisation avec Active Directory en cours
-                    </Typography>
-                </Paper>
             ) : filteredMembers.length === 0 ? (
                 <Paper elevation={2} sx={{ p: 4 }}>
                     <EmptyState type={searchTerm ? 'search' : 'empty'} onAction={searchTerm ? () => setSearchTerm('') : handleOpenAddDialog} />
