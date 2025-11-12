@@ -208,6 +208,8 @@ const AdGroupsPage = () => {
                 <Paper elevation={2} sx={{ p: 4 }}>
                     <EmptyState type={searchTerm ? 'search' : 'empty'} onAction={searchTerm ? () => setSearchTerm('') : handleOpenAddDialog} />
                 </Paper>
+            ) : !itemData || !itemData.members || !Array.isArray(itemData.members) ? (
+                <LoadingScreen type="list" />
             ) : (
                 <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', minHeight: 500 }}>
                     <Box sx={{ flex: 1, overflow: 'hidden' }}>
