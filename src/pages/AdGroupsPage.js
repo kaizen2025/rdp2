@@ -34,6 +34,7 @@ const MemberRow = memo(({ member, style, isOdd, onRemove, groupName }) => {
         </Box>
     );
 });
+MemberRow.displayName = 'MemberRow';
 
 const AdGroupsPage = () => {
     const { showNotification } = useApp();
@@ -91,7 +92,7 @@ const AdGroupsPage = () => {
         return Array.isArray(filtered) ? filtered : [];
     }, [members, searchTerm]);
 
-    const handleRemoveUser = async (username, groupName) => {
+    const handleRemoveUser = useCallback(async (username, groupName) => {
         if (!window.confirm(`Retirer ${username} du groupe ${groupName} ?`)) return;
         try {
             const result = await electronAD.removeUserFromGroup(username, groupName);
@@ -102,7 +103,7 @@ const AdGroupsPage = () => {
                 showNotification('error', `Erreur: ${result.error}`);
             }
         } catch (error) { showNotification('error', `Erreur: ${error.message}`); }
-    };
+    }, [electronAD, showNotification, invalidate]);
 
     const handleAddUser = async (username) => {
         try {

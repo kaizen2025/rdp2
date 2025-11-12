@@ -32,18 +32,16 @@ const AdGroupBadge = memo(({ groupName, isMember, onToggle, isLoading }) => {
         </Tooltip>
     );
 });
+AdGroupBadge.displayName = 'AdGroupBadge';
 
 const UserRow = memo(({ user, style, isOdd, onEdit, onDelete, onConnectWithCredentials, onPrint, onOpenAdDialog, vpnMembers, internetMembers, onMembershipChange, onSelect, isSelected }) => {
     const { showNotification } = useApp();
     const [isUpdatingVpn, setIsUpdatingVpn] = useState(false);
     const [isUpdatingInternet, setIsUpdatingInternet] = useState(false);
 
-    // Protection: if user is undefined, return null
-    if (!user || !user.username) {
-        return null;
-    }
-
+    // ✅ HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURN
     const toggleGroup = useCallback(async (group, isMember, setLoading) => {
+        if (!user || !user.username) return;
         setLoading(true);
         try {
             const action = isMember ? apiService.removeUserFromGroup : apiService.addUserToGroup;
@@ -52,7 +50,12 @@ const UserRow = memo(({ user, style, isOdd, onEdit, onDelete, onConnectWithCrede
             onMembershipChange();
         } catch (error) { showNotification('error', `Erreur: ${error.message}`); }
         finally { setLoading(false); }
-    }, [user.username, onMembershipChange, showNotification]);
+    }, [user, onMembershipChange, showNotification]);
+
+    // Protection: if user is undefined, return null AFTER all hooks
+    if (!user || !user.username) {
+        return null;
+    }
 
     const adStatus = user.adEnabled === 1 ? 'enabled' : user.adEnabled === 0 ? 'disabled' : 'unknown';
     const statusColor = adStatus === 'enabled' ? 'success.main' : adStatus === 'disabled' ? 'error.main' : 'action.disabled';
@@ -79,6 +82,7 @@ const UserRow = memo(({ user, style, isOdd, onEdit, onDelete, onConnectWithCrede
         </Box>
     );
 });
+UserRow.displayName = 'UserRow';
 
 const UsersManagementPage = () => {
     const { showNotification } = useApp();
