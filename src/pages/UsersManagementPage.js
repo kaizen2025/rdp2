@@ -245,12 +245,59 @@ const UsersManagementPage = () => {
     };
 
     // ✅ Mémoriser itemData pour éviter les recréations inutiles
-    const itemData = useMemo(() => ({
-        users: Array.isArray(filteredUsers) ? filteredUsers : [],
-        vpnMembers: vpnMembers instanceof Set ? vpnMembers : new Set(),
-        internetMembers: internetMembers instanceof Set ? internetMembers : new Set(),
-        selectedUsernames: selectedUsernames instanceof Set ? selectedUsernames : new Set()
-    }), [filteredUsers, vpnMembers, internetMembers, selectedUsernames]);
+    const itemData = useMemo(() => {
+        const data = {
+            users: Array.isArray(filteredUsers) ? filteredUsers : [],
+            vpnMembers: vpnMembers instanceof Set ? vpnMembers : new Set(),
+            internetMembers: internetMembers instanceof Set ? internetMembers : new Set(),
+            selectedUsernames: selectedUsernames instanceof Set ? selectedUsernames : new Set()
+        };
+
+        // Debug logging to track the issue
+        console.log('[itemData DEBUG]', {
+            usersLength: data.users.length,
+            vpnMembersSize: data.vpnMembers.size,
+            vpnMembersValid: data.vpnMembers instanceof Set,
+            internetMembersSize: data.internetMembers.size,
+            internetMembersValid: data.internetMembers instanceof Set,
+            selectedUsernamesSize: data.selectedUsernames.size,
+            selectedUsernamesValid: data.selectedUsernames instanceof Set,
+            allDefined: Object.values(data).every(v => v !== undefined && v !== null)
+        });
+
+        return data;
+    }, [filteredUsers, vpnMembers, internetMembers, selectedUsernames]);
+
+    // ✅ CRITICAL: Validate that itemData is safe to pass to react-window
+    const isItemDataSafe = useMemo(() => {
+        if (!itemData || typeof itemData !== 'object') {
+            console.warn('[UsersManagementPage] itemData is not an object');
+            return false;
+        }
+
+        // Check each property
+        if (!Array.isArray(itemData.users)) {
+            console.warn('[UsersManagementPage] itemData.users is not an array');
+            return false;
+        }
+
+        if (!(itemData.vpnMembers instanceof Set)) {
+            console.warn('[UsersManagementPage] itemData.vpnMembers is not a Set');
+            return false;
+        }
+
+        if (!(itemData.internetMembers instanceof Set)) {
+            console.warn('[UsersManagementPage] itemData.internetMembers is not a Set');
+            return false;
+        }
+
+        if (!(itemData.selectedUsernames instanceof Set)) {
+            console.warn('[UsersManagementPage] itemData.selectedUsernames is not a Set');
+            return false;
+        }
+
+        return true;
+    }, [itemData]);
 
     const Row = useCallback(({ index, style, data }) => {
         // ✅ Use data.users passed via itemData for safety
@@ -353,19 +400,30 @@ const UsersManagementPage = () => {
                                 <Box sx={{ flex: '1 1 150px' }}>Utilisateur</Box><Box sx={{ flex: '0.8 1 100px' }}>Service</Box><Box sx={{ flex: '1.2 1 180px' }}>Email</Box><Box sx={{ flex: '1 1 160px' }}>Mots de passe</Box><Box sx={{ flex: '1 1 120px' }}>Groupes</Box><Box sx={{ flex: '0 0 auto', width: '180px' }}>Actions</Box>
                             </Box>
                             <Box sx={{ flex: 1, overflow: 'auto', minHeight: 400 }}>
-                                <AutoSizer>{({ height, width }) => (
-                                    <List
-                                        height={height}
-                                        width={width}
-                                        itemCount={itemData.users.length}
-                                        itemSize={80}
-                                        itemKey={i => itemData.users[i]?.username || `user-${i}`}
-                                        itemData={itemData}
-                                    >
-                                        {Row}
-                                    </List>
-                                )}</AutoSizer>
-                            </Box>
+                                {!isItemDataSafe ? (
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', p: 4 }}>
+                                        <CircularProgress size={48} />
+                                        <Typography variant="body1" sx={{ mt: 2, color: 'text.secondary' }}>
+                                            Chargement des données utilisateurs...
+                                        </Typography>
+                                        <Typography variant="caption" sx={{ mt: 1, color: 'text.disabled' }}>
+                                            Synchronisation avec Active Directory en cours
+                                        </Typography>
+                                    </Box>
+                                ) : (
+                                    <AutoSizer>{({ height, width }) => (
+                                        <List
+                                            height={height}
+                                            width={width}
+                                            itemCount={itemData.users.length}
+                                            itemSize={80}
+                                            itemKey={i => itemData.users[i]?.username || `user-${i}`}
+                                            itemData={itemData}
+                                        >
+                                            {Row}
+                                        </List>
+                                    )}</AutoSizer>
+                                )}</Box>
                         </Paper>
                     )}
                 </Grid>
