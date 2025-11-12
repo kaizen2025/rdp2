@@ -267,6 +267,33 @@ const UsersManagementPage = () => {
         return safeData;
     }, [filteredUsers, vpnMembers, internetMembers, selectedUsernames]);
 
+    // ✅ CRITICAL FIX: Validate itemData is safe for react-window BEFORE rendering
+    const isItemDataValid = useMemo(() => {
+        // Check if itemData exists and is an object
+        if (!itemData || typeof itemData !== 'object') {
+            console.warn('[UsersManagementPage] itemData is not an object');
+            return false;
+        }
+
+        // Check each required property exists and has the correct type
+        const validations = [
+            { key: 'users', check: Array.isArray(itemData.users), type: 'Array' },
+            { key: 'vpnMembers', check: itemData.vpnMembers instanceof Set, type: 'Set' },
+            { key: 'internetMembers', check: itemData.internetMembers instanceof Set, type: 'Set' },
+            { key: 'selectedUsernames', check: itemData.selectedUsernames instanceof Set, type: 'Set' }
+        ];
+
+        for (const { key, check, type } of validations) {
+            if (!check) {
+                console.warn(`[UsersManagementPage] itemData.${key} is not a ${type}`, itemData[key]);
+                return false;
+            }
+        }
+
+        // All validations passed
+        return true;
+    }, [itemData]);
+
     const Row = useCallback(({ index, style, data }) => {
         // ✅ Use data.users passed via itemData for safety
         const users = data?.users || [];
@@ -352,6 +379,16 @@ const UsersManagementPage = () => {
                 <Grid item xs={12} md={9}>
                     {isLoadingOUUsers ? (
                         <LoadingScreen type="list" />
+                    ) : !isItemDataValid ? (
+                        <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 8, borderRadius: 2, minHeight: 500 }}>
+                            <CircularProgress size={64} />
+                            <Typography variant="h6" sx={{ mt: 3, color: 'text.secondary' }}>
+                                Chargement des données utilisateurs...
+                            </Typography>
+                            <Typography variant="body2" sx={{ mt: 1, color: 'text.disabled' }}>
+                                Synchronisation avec Active Directory et Excel en cours
+                            </Typography>
+                        </Paper>
                     ) : !filteredUsers.length ? (
                         <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
                             <EmptyState type={searchTerm ? 'search' : 'empty'} title={searchTerm ? 'Aucun utilisateur trouvé' : 'Aucun utilisateur'} onAction={searchTerm ? clearFilters : () => setDialog({ type: 'createAd' })} />
