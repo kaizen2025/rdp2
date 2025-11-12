@@ -250,49 +250,28 @@ const UsersManagementPage = () => {
         }
     };
 
-    // ✅ FIX: Mémoriser itemData pour éviter les recréations inutiles et garantir qu'il n'est jamais undefined/null
-    const itemData = useMemo(() => {
-        const safeData = {
-            users: Array.isArray(filteredUsers) ? filteredUsers : [],
-            vpnMembers: (vpnMembers instanceof Set) ? vpnMembers : new Set(),
-            internetMembers: (internetMembers instanceof Set) ? internetMembers : new Set(),
-            selectedUsernames: (selectedUsernames instanceof Set) ? selectedUsernames : new Set()
-        };
-        // Ensure all properties are defined and not null
-        Object.keys(safeData).forEach(key => {
-            if (safeData[key] === undefined || safeData[key] === null) {
-                safeData[key] = key === 'users' ? [] : new Set();
-            }
-        });
-        return safeData;
-    }, [filteredUsers, vpnMembers, internetMembers, selectedUsernames]);
+    // 🚀 RADICAL FIX: Use a stable reference for itemData that is NEVER undefined/null
+    // This prevents race conditions in react-window's useMemoizedObject
+    const [itemData] = useState(() => ({
+        users: [],
+        vpnMembers: new Set(),
+        internetMembers: new Set(),
+        selectedUsernames: new Set()
+    }));
 
-    // ✅ CRITICAL FIX: Validate itemData is safe for react-window BEFORE rendering
-    const isItemDataValid = useMemo(() => {
-        // Check if itemData exists and is an object
-        if (!itemData || typeof itemData !== 'object') {
-            console.warn('[UsersManagementPage] itemData is not an object');
-            return false;
-        }
+    // Update the stable object in-place whenever dependencies change
+    useEffect(() => {
+        itemData.users = Array.isArray(filteredUsers) ? filteredUsers : [];
+        itemData.vpnMembers = (vpnMembers instanceof Set) ? vpnMembers : new Set();
+        itemData.internetMembers = (internetMembers instanceof Set) ? internetMembers : new Set();
+        itemData.selectedUsernames = (selectedUsernames instanceof Set) ? selectedUsernames : new Set();
 
-        // Check each required property exists and has the correct type
-        const validations = [
-            { key: 'users', check: Array.isArray(itemData.users), type: 'Array' },
-            { key: 'vpnMembers', check: itemData.vpnMembers instanceof Set, type: 'Set' },
-            { key: 'internetMembers', check: itemData.internetMembers instanceof Set, type: 'Set' },
-            { key: 'selectedUsernames', check: itemData.selectedUsernames instanceof Set, type: 'Set' }
-        ];
+        // Force a re-render of the List by updating a counter
+        setListKey(prev => prev + 1);
+    }, [filteredUsers, vpnMembers, internetMembers, selectedUsernames, itemData]);
 
-        for (const { key, check, type } of validations) {
-            if (!check) {
-                console.warn(`[UsersManagementPage] itemData.${key} is not a ${type}`, itemData[key]);
-                return false;
-            }
-        }
-
-        // All validations passed
-        return true;
-    }, [itemData]);
+    // Use a key to force List re-render when data changes
+    const [listKey, setListKey] = useState(0);
 
     const Row = useCallback(({ index, style, data }) => {
         // ✅ Use data.users passed via itemData for safety
@@ -379,16 +358,6 @@ const UsersManagementPage = () => {
                 <Grid item xs={12} md={9}>
                     {isLoadingOUUsers ? (
                         <LoadingScreen type="list" />
-                    ) : !isItemDataValid ? (
-                        <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 8, borderRadius: 2, minHeight: 500 }}>
-                            <CircularProgress size={64} />
-                            <Typography variant="h6" sx={{ mt: 3, color: 'text.secondary' }}>
-                                Chargement des données utilisateurs...
-                            </Typography>
-                            <Typography variant="body2" sx={{ mt: 1, color: 'text.disabled' }}>
-                                Synchronisation avec Active Directory et Excel en cours
-                            </Typography>
-                        </Paper>
                     ) : !filteredUsers.length ? (
                         <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
                             <EmptyState type={searchTerm ? 'search' : 'empty'} title={searchTerm ? 'Aucun utilisateur trouvé' : 'Aucun utilisateur'} onAction={searchTerm ? clearFilters : () => setDialog({ type: 'createAd' })} />
@@ -407,6 +376,7 @@ const UsersManagementPage = () => {
                             <Box sx={{ flex: 1, overflow: 'auto', minHeight: 400 }}>
                                 <AutoSizer>{({ height, width }) => (
                                     <List
+                                        key={listKey}
                                         height={height}
                                         width={width}
                                         itemCount={itemData.users.length}

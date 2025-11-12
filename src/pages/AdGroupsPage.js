@@ -129,39 +129,25 @@ const AdGroupsPage = () => {
 
     const handleOpenAddDialog = () => { setUserSearchTerm(''); setAvailableUsers([]); setAddUserDialogOpen(true); };
 
-    // ✅ CRITICAL FIX: Memoize itemData to prevent undefined/null issues in react-window
-    const itemData = useMemo(() => {
-        const safeData = {
-            members: Array.isArray(filteredMembers) ? filteredMembers : [],
-            onRemove: handleRemoveUser,
-            groupName: selectedGroup || ''
-        };
-        // Ensure all properties are defined and not null
-        Object.keys(safeData).forEach(key => {
-            if (safeData[key] === undefined || safeData[key] === null) {
-                if (key === 'members') safeData[key] = [];
-                else if (key === 'groupName') safeData[key] = '';
-            }
-        });
-        return safeData;
-    }, [filteredMembers, handleRemoveUser, selectedGroup]);
+    // 🚀 RADICAL FIX: Use a stable reference for itemData that is NEVER undefined/null
+    const [itemData] = useState(() => ({
+        members: [],
+        onRemove: handleRemoveUser,
+        groupName: ''
+    }));
 
-    // ✅ CRITICAL FIX: Validate itemData before rendering List
-    const isItemDataValid = useMemo(() => {
-        if (!itemData || typeof itemData !== 'object') {
-            console.warn('[AdGroupsPage] itemData is not an object');
-            return false;
-        }
-        if (!Array.isArray(itemData.members)) {
-            console.warn('[AdGroupsPage] itemData.members is not an Array', itemData.members);
-            return false;
-        }
-        if (typeof itemData.groupName !== 'string') {
-            console.warn('[AdGroupsPage] itemData.groupName is not a string', itemData.groupName);
-            return false;
-        }
-        return true;
-    }, [itemData]);
+    // Update the stable object in-place whenever dependencies change
+    useEffect(() => {
+        itemData.members = Array.isArray(filteredMembers) ? filteredMembers : [];
+        itemData.onRemove = handleRemoveUser;
+        itemData.groupName = selectedGroup || '';
+
+        // Force a re-render of the List by updating a counter
+        setListKey(prev => prev + 1);
+    }, [filteredMembers, handleRemoveUser, selectedGroup, itemData]);
+
+    // Use a key to force List re-render when data changes
+    const [listKey, setListKey] = useState(0);
 
     const Row = useCallback(({ index, style, data }) => {
         // ✅ Use data.members passed via itemData for safety
@@ -201,18 +187,12 @@ const AdGroupsPage = () => {
                 </Box>
                 {currentGroupData.description && (<Box sx={{ p: 1.5, backgroundColor: 'info.lighter', borderRadius: 1, display: 'flex', gap: 1 }}><InfoIcon color="info" fontSize="small" /><Typography variant="body2" color="info.dark">{currentGroupData.description}</Typography></Box>)}
             </Paper>
-            {isRefreshing ? <LoadingScreen type="list" /> : !isItemDataValid ? (
-                <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 8, minHeight: 500 }}>
-                    <CircularProgress size={64} />
-                    <Typography variant="h6" sx={{ mt: 3, color: 'text.secondary' }}>
-                        Chargement des données du groupe...
-                    </Typography>
-                </Paper>
-            ) : filteredMembers.length === 0 ? <Paper elevation={2} sx={{ p: 4 }}><EmptyState type={searchTerm ? 'search' : 'empty'} onAction={searchTerm ? () => setSearchTerm('') : handleOpenAddDialog} /></Paper> : (
+            {isRefreshing ? <LoadingScreen type="list" /> : filteredMembers.length === 0 ? <Paper elevation={2} sx={{ p: 4 }}><EmptyState type={searchTerm ? 'search' : 'empty'} onAction={searchTerm ? () => setSearchTerm('') : handleOpenAddDialog} /></Paper> : (
                 <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', minHeight: 500 }}>
                     <Box sx={{ flex: 1, overflow: 'hidden' }}>
                         <AutoSizer>{({ height, width }) => (
                             <FixedSizeList
+                                key={listKey}
                                 height={height}
                                 itemCount={itemData.members.length}
                                 itemSize={60}
