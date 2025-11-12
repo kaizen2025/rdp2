@@ -238,7 +238,8 @@ const UsersManagementPage = () => {
 
     const handleSelectAll = (event) => {
         if (event.target.checked) {
-            setSelectedUsernames(new Set(filteredUsers.map(u => u.username)));
+            const safeUsers = Array.isArray(filteredUsers) ? filteredUsers : [];
+            setSelectedUsernames(new Set(safeUsers.map(u => u?.username).filter(Boolean)));
         } else {
             setSelectedUsernames(new Set());
         }
@@ -372,7 +373,11 @@ const UsersManagementPage = () => {
                     <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>Serveur</InputLabel><Select value={serverFilter} label="Serveur" onChange={e => setServerFilter(e.target.value)} sx={{ borderRadius: 2 }}><MenuItem value="all">Tous</MenuItem>{servers.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}</Select></FormControl></Grid>
                     <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>Service</InputLabel><Select value={departmentFilter} label="Service" onChange={e => setDepartmentFilter(e.target.value)} sx={{ borderRadius: 2 }}><MenuItem value="all">Tous</MenuItem>{departments.map(d => <MenuItem key={d} value={d}>{d}</MenuItem>)}</Select></FormControl></Grid>
                     <Grid item xs={6} sm={2}><Button fullWidth size="small" startIcon={<ClearIcon />} onClick={clearFilters} sx={{ borderRadius: 2 }}>Réinitialiser</Button></Grid>
-                    <Grid item xs={6} sm={2} sx={{ textAlign: 'right' }}><Typography variant="body2" color="text.secondary" fontWeight={500}>{filteredUsers.length} / {users.length} affichés</Typography></Grid>
+                    <Grid item xs={6} sm={2} sx={{ textAlign: 'right' }}>
+                        <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                            {Array.isArray(filteredUsers) ? filteredUsers.length : 0} / {Array.isArray(users) ? users.length : 0} affichés
+                        </Typography>
+                    </Grid>
                 </Grid>
             </Paper>
 
@@ -384,7 +389,19 @@ const UsersManagementPage = () => {
                     </Paper>
                 </Grid>
                 <Grid item xs={12} md={9}>
-                    {isLoadingOUUsers ? <LoadingScreen type="list" /> : !filteredUsers.length ? (
+                    {isLoadingOUUsers ? (
+                        <LoadingScreen type="list" />
+                    ) : !isItemDataSafe ? (
+                        <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 8, borderRadius: 2, minHeight: 500 }}>
+                            <CircularProgress size={64} />
+                            <Typography variant="h6" sx={{ mt: 3, color: 'text.secondary' }}>
+                                Chargement des données utilisateurs...
+                            </Typography>
+                            <Typography variant="body2" sx={{ mt: 1, color: 'text.disabled' }}>
+                                Synchronisation avec Active Directory et Excel en cours
+                            </Typography>
+                        </Paper>
+                    ) : !filteredUsers.length ? (
                         <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
                             <EmptyState type={searchTerm ? 'search' : 'empty'} title={searchTerm ? 'Aucun utilisateur trouvé' : 'Aucun utilisateur'} onAction={searchTerm ? clearFilters : () => setDialog({ type: 'createAd' })} />
                         </Paper>
@@ -400,30 +417,19 @@ const UsersManagementPage = () => {
                                 <Box sx={{ flex: '1 1 150px' }}>Utilisateur</Box><Box sx={{ flex: '0.8 1 100px' }}>Service</Box><Box sx={{ flex: '1.2 1 180px' }}>Email</Box><Box sx={{ flex: '1 1 160px' }}>Mots de passe</Box><Box sx={{ flex: '1 1 120px' }}>Groupes</Box><Box sx={{ flex: '0 0 auto', width: '180px' }}>Actions</Box>
                             </Box>
                             <Box sx={{ flex: 1, overflow: 'auto', minHeight: 400 }}>
-                                {!isItemDataSafe ? (
-                                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', p: 4 }}>
-                                        <CircularProgress size={48} />
-                                        <Typography variant="body1" sx={{ mt: 2, color: 'text.secondary' }}>
-                                            Chargement des données utilisateurs...
-                                        </Typography>
-                                        <Typography variant="caption" sx={{ mt: 1, color: 'text.disabled' }}>
-                                            Synchronisation avec Active Directory en cours
-                                        </Typography>
-                                    </Box>
-                                ) : (
-                                    <AutoSizer>{({ height, width }) => (
-                                        <List
-                                            height={height}
-                                            width={width}
-                                            itemCount={itemData.users.length}
-                                            itemSize={80}
-                                            itemKey={i => itemData.users[i]?.username || `user-${i}`}
-                                            itemData={itemData}
-                                        >
-                                            {Row}
-                                        </List>
-                                    )}</AutoSizer>
-                                )}</Box>
+                                <AutoSizer>{({ height, width }) => (
+                                    <List
+                                        height={height}
+                                        width={width}
+                                        itemCount={itemData.users.length}
+                                        itemSize={80}
+                                        itemKey={i => itemData.users[i]?.username || `user-${i}`}
+                                        itemData={itemData}
+                                    >
+                                        {Row}
+                                    </List>
+                                )}</AutoSizer>
+                            </Box>
                         </Paper>
                     )}
                 </Grid>
