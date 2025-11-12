@@ -262,8 +262,15 @@ const UsersManagementPage = () => {
         selectedUsernames: (selectedUsernames instanceof Set) ? selectedUsernames : new Set()
     }), [filteredUsers, vpnMembers, internetMembers, selectedUsernames]);
 
-    // Critical: Only render List when cache is fully loaded and itemData is valid
-    const isDataReady = !isCacheLoading && cache && typeof cache === 'object';
+    // 🎯 CRITICAL: Verify that ALL required cache keys exist before rendering
+    const isDataReady = useMemo(() => {
+        if (isCacheLoading || !cache || typeof cache !== 'object') return false;
+        // Check that all required cache entries are loaded
+        const hasExcelUsers = cache.excel_users !== undefined;
+        const hasVpnGroup = cache['ad_groups:VPN'] !== undefined;
+        const hasInternetGroup = cache['ad_groups:Sortants_responsables'] !== undefined;
+        return hasExcelUsers && hasVpnGroup && hasInternetGroup;
+    }, [isCacheLoading, cache]);
 
     const Row = useCallback(({ index, style, data }) => {
         // ✅ Use data.users passed via itemData for safety

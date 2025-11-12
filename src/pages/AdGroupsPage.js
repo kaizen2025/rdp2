@@ -137,8 +137,15 @@ const AdGroupsPage = () => {
         groupName: selectedGroup || ''
     }), [filteredMembers, handleRemoveUser, selectedGroup]);
 
-    // Critical: Only render List when data is ready
-    const isDataReady = !isCacheLoading && config && typeof config === 'object' && Object.keys(config).length > 0;
+    // 🎯 CRITICAL: Verify that ALL required cache keys exist before rendering
+    const isDataReady = useMemo(() => {
+        if (isCacheLoading || !cache || typeof cache !== 'object') return false;
+        // Check that config is loaded
+        if (!config || typeof config !== 'object' || Object.keys(config).length === 0) return false;
+        // Check that the current group's data is loaded
+        if (selectedGroup && cache[`ad_groups:${selectedGroup}`] === undefined) return false;
+        return true;
+    }, [isCacheLoading, cache, config, selectedGroup]);
 
     const Row = useCallback(({ index, style, data }) => {
         // ✅ Use data.members passed via itemData for safety
