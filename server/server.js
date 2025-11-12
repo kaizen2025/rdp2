@@ -19,6 +19,7 @@ const userService = require('../backend/services/userService');
 const adCacheService = require('../backend/services/adCacheService');
 const apiRoutes = require('./apiRoutes');
 const aiRoutes = require('./aiRoutes');
+const aiMultimodalRoutes = require('../backend/routes/ai-multimodal');
 const { findAllPorts, savePorts, isPortAvailable } = require('../backend/utils/portUtils');
 
 
@@ -209,7 +210,8 @@ async function startServer() {
 
         app.use('/api', apiRoutes(broadcast));
         app.use('/api/ai', aiRoutes(broadcast));
-        console.log('✅ Routes API configurées.');
+        app.use('/api/ai', aiMultimodalRoutes); // Routes multimodales (chat, upload, files)
+        console.log('✅ Routes API configurées (standard + multimodal).');
         
         // Démarrage des tâches de fond APRÈS que le serveur soit prêt
         startBackgroundTasks();
