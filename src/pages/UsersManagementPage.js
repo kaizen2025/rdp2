@@ -249,13 +249,22 @@ const UsersManagementPage = () => {
         }
     };
 
-    // ✅ FIX: Mémoriser itemData pour éviter les recréations inutiles
-    const itemData = useMemo(() => ({
-        users: Array.isArray(filteredUsers) ? filteredUsers : [],
-        vpnMembers: vpnMembers || new Set(),
-        internetMembers: internetMembers || new Set(),
-        selectedUsernames: selectedUsernames || new Set()
-    }), [filteredUsers, vpnMembers, internetMembers, selectedUsernames]);
+    // ✅ FIX: Mémoriser itemData pour éviter les recréations inutiles et garantir qu'il n'est jamais undefined/null
+    const itemData = useMemo(() => {
+        const safeData = {
+            users: Array.isArray(filteredUsers) ? filteredUsers : [],
+            vpnMembers: (vpnMembers instanceof Set) ? vpnMembers : new Set(),
+            internetMembers: (internetMembers instanceof Set) ? internetMembers : new Set(),
+            selectedUsernames: (selectedUsernames instanceof Set) ? selectedUsernames : new Set()
+        };
+        // Ensure all properties are defined and not null
+        Object.keys(safeData).forEach(key => {
+            if (safeData[key] === undefined || safeData[key] === null) {
+                safeData[key] = key === 'users' ? [] : new Set();
+            }
+        });
+        return safeData;
+    }, [filteredUsers, vpnMembers, internetMembers, selectedUsernames]);
 
     const Row = useCallback(({ index, style, data }) => {
         // ✅ Use data.users passed via itemData for safety
@@ -355,7 +364,7 @@ const UsersManagementPage = () => {
                                         width={width}
                                         itemCount={itemData.users.length}
                                         itemSize={80}
-                                        itemKey={i => itemData.users[i]?.username || `user-${i}`}
+                                        itemKey={(index, data) => data?.users?.[index]?.username || `user-${index}`}
                                         itemData={itemData}
                                     >
                                         {Row}
