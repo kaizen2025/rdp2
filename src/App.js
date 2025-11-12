@@ -25,18 +25,31 @@ function AppContent() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [configError, setConfigError] = useState(null);
+    const [retryCount, setRetryCount] = useState(0);
     const { currentTechnician, setCurrentTechnician } = useApp(); // ✅ Utiliser le contexte
 
     useEffect(() => {
         const checkHealthAndAuth = async () => {
             try {
-                // Étape 1: Vérifier la santé du serveur
+                // Étape 1: Vérifier la santé du serveur avec retry automatique
                 await apiService.checkServerHealth();
                 setConfigError(null); // Si tout va bien, on s'assure qu'il n'y a pas de message d'erreur
+                setRetryCount(0); // Réinitialiser le compteur de retry
             } catch (error) {
                 // Si le serveur renvoie une erreur (ex: 503), on affiche le message
                 const errorMessage = error.response?.data?.message || error.message || "Erreur de communication avec le serveur.";
-                setConfigError(errorMessage);
+
+                // 🔄 RETRY AUTOMATIQUE: Réessayer toutes les 2 secondes pendant 30 secondes
+                if (retryCount < 15 && (error.code === 'ERR_NETWORK' || error.code === 'ERR_CONNECTION_REFUSED' || error.code === 'ERR_SOCKET_NOT_CONNECTED')) {
+                    console.log(`⏳ Backend non disponible, retry ${retryCount + 1}/15 dans 2s...`);
+                    setConfigError(`⏳ Connexion au backend en cours... (tentative ${retryCount + 1}/15)`);
+                    setTimeout(() => {
+                        setRetryCount(prev => prev + 1);
+                    }, 2000);
+                    return; // Ne pas continuer le chargement
+                } else {
+                    setConfigError(errorMessage);
+                }
             }
 
             // Étape 2: Vérifier l'authentification locale et charger les données complètes
@@ -80,7 +93,7 @@ function AppContent() {
         };
 
         checkHealthAndAuth();
-    }, [setCurrentTechnician]);
+    }, [setCurrentTechnician, retryCount]); // ✅ Ajout de retryCount pour déclencher le retry
 
     const handleLoginSuccess = (technician) => {
         setCurrentTechnician(technician); // ✅ Mettre à jour le contexte
