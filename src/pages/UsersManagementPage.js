@@ -118,19 +118,11 @@ const UsersManagementPage = () => {
     // ✅ FIX: Protection robuste contre cache undefined/null
     const vpnMembers = useMemo(() => {
         if (!cache || typeof cache !== 'object') return new Set();
-        const members = cache['ad_groups:VPN'];
-        if (!Array.isArray(members)) return new Set();
-        return new Set(members.map(m => m?.SamAccountName).filter(Boolean));
-    const vpnMembers = useMemo(() => {
-        if (!cache || typeof cache !== 'object') return new Set();
         return new Set((cache['ad_groups:VPN'] || []).map(m => m?.SamAccountName).filter(Boolean));
     }, [cache]);
 
     const internetMembers = useMemo(() => {
         if (!cache || typeof cache !== 'object') return new Set();
-        const members = cache['ad_groups:Sortants_responsables'];
-        if (!Array.isArray(members)) return new Set();
-        return new Set(members.map(m => m?.SamAccountName).filter(Boolean));
         return new Set((cache['ad_groups:Sortants_responsables'] || []).map(m => m?.SamAccountName).filter(Boolean));
     }, [cache]);
 
@@ -273,62 +265,16 @@ const UsersManagementPage = () => {
         const hasExcelUsers = cache.excel_users !== undefined;
         const hasVpnGroup = cache['ad_groups:VPN'] !== undefined;
         const hasInternetGroup = cache['ad_groups:Sortants_responsables'] !== undefined;
-        return hasExcelUsers && hasVpnGroup && hasInternetGroup;
-    }, [isCacheLoading, cache]);
-    // ✅ Mémoriser itemData pour éviter les recréations inutiles
-    const itemData = useMemo(() => {
-        const data = {
-            users: Array.isArray(filteredUsers) ? filteredUsers : [],
-            vpnMembers: vpnMembers instanceof Set ? vpnMembers : new Set(),
-            internetMembers: internetMembers instanceof Set ? internetMembers : new Set(),
-            selectedUsernames: selectedUsernames instanceof Set ? selectedUsernames : new Set()
-        };
+        if (!hasExcelUsers || !hasVpnGroup || !hasInternetGroup) return false;
 
-        // Debug logging to track the issue
-        console.log('[itemData DEBUG]', {
-            usersLength: data.users.length,
-            vpnMembersSize: data.vpnMembers.size,
-            vpnMembersValid: data.vpnMembers instanceof Set,
-            internetMembersSize: data.internetMembers.size,
-            internetMembersValid: data.internetMembers instanceof Set,
-            selectedUsernamesSize: data.selectedUsernames.size,
-            selectedUsernamesValid: data.selectedUsernames instanceof Set,
-            allDefined: Object.values(data).every(v => v !== undefined && v !== null)
-        });
-
-        return data;
-    }, [filteredUsers, vpnMembers, internetMembers, selectedUsernames]);
-
-    // ✅ CRITICAL: Validate that itemData is safe to pass to react-window
-    const isItemDataSafe = useMemo(() => {
-        if (!itemData || typeof itemData !== 'object') {
-            console.warn('[UsersManagementPage] itemData is not an object');
-            return false;
-        }
-
-        // Check each property
-        if (!Array.isArray(itemData.users)) {
-            console.warn('[UsersManagementPage] itemData.users is not an array');
-            return false;
-        }
-
-        if (!(itemData.vpnMembers instanceof Set)) {
-            console.warn('[UsersManagementPage] itemData.vpnMembers is not a Set');
-            return false;
-        }
-
-        if (!(itemData.internetMembers instanceof Set)) {
-            console.warn('[UsersManagementPage] itemData.internetMembers is not a Set');
-            return false;
-        }
-
-        if (!(itemData.selectedUsernames instanceof Set)) {
-            console.warn('[UsersManagementPage] itemData.selectedUsernames is not a Set');
-            return false;
-        }
+        // ✅ CRITICAL: Verify that itemData dependencies are valid
+        if (!Array.isArray(filteredUsers)) return false;
+        if (!(vpnMembers instanceof Set)) return false;
+        if (!(internetMembers instanceof Set)) return false;
+        if (!(selectedUsernames instanceof Set)) return false;
 
         return true;
-    }, [itemData]);
+    }, [isCacheLoading, cache, filteredUsers, vpnMembers, internetMembers, selectedUsernames]);
 
     const Row = useCallback(({ index, style, data }) => {
         // ✅ Use data.users passed via itemData for safety
@@ -353,11 +299,6 @@ const UsersManagementPage = () => {
                 onConnectWithCredentials={handleConnectUserWithCredentials}
                 onPrint={u => setDialog({ type: 'print', data: u })}
                 onOpenAdDialog={u => setDialog({ type: 'adActions', data: u })}
-                vpnMembers={data?.vpnMembers || new Set()}
-                internetMembers={data?.internetMembers || new Set()}
-                onMembershipChange={() => { invalidate('ad_groups:VPN'); invalidate('ad_groups:Sortants_responsables'); }}
-                onSelect={handleSelectUser}
-                isSelected={data?.selectedUsernames?.has(user.username) || false}
                 vpnMembers={vpnMembers}
                 internetMembers={internetMembers}
                 onMembershipChange={() => { invalidate('ad_groups:VPN'); invalidate('ad_groups:Sortants_responsables'); }}
@@ -428,18 +369,6 @@ const UsersManagementPage = () => {
                 <Grid item xs={12} md={9}>
                     {isLoadingOUUsers || !isDataReady ? (
                         <LoadingScreen type="list" />
-                    {isLoadingOUUsers ? (
-                        <LoadingScreen type="list" />
-                    ) : !isItemDataSafe ? (
-                        <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 8, borderRadius: 2, minHeight: 500 }}>
-                            <CircularProgress size={64} />
-                            <Typography variant="h6" sx={{ mt: 3, color: 'text.secondary' }}>
-                                Chargement des données utilisateurs...
-                            </Typography>
-                            <Typography variant="body2" sx={{ mt: 1, color: 'text.disabled' }}>
-                                Synchronisation avec Active Directory et Excel en cours
-                            </Typography>
-                        </Paper>
                     ) : !filteredUsers.length ? (
                         <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
                             <EmptyState type={searchTerm ? 'search' : 'empty'} title={searchTerm ? 'Aucun utilisateur trouvé' : 'Aucun utilisateur'} onAction={searchTerm ? clearFilters : () => setDialog({ type: 'createAd' })} />
@@ -463,7 +392,6 @@ const UsersManagementPage = () => {
                                         itemCount={itemData.users.length}
                                         itemSize={80}
                                         itemKey={(index, data) => data?.users?.[index]?.username || `user-${index}`}
-                                        itemKey={i => itemData.users[i]?.username || `user-${i}`}
                                         itemData={itemData}
                                     >
                                         {Row}

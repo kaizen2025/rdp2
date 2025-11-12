@@ -9,7 +9,7 @@
     "start": "craco start",
     "build": "craco build",
     "server:start": "node server/server.js",
-    "electron:dev": "electron .",
+    "electron:dev": "node scripts/wait-for-backend.js && electron .",
     "dev": "concurrently \"npm run server:start\" \"npm run start\"",
     "electron:start": "concurrently \"npm run server:start\" \"npm run start\" \"npm run electron:dev\"",
     "build:exe": "npm run build && electron-builder --win portable --config electron-builder.json",
