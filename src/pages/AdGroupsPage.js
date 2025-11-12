@@ -148,7 +148,7 @@ const AdGroupsPage = () => {
         // ✅ CRITICAL: Verify that itemData dependencies are valid
         if (!Array.isArray(filteredMembers)) return false;
         if (typeof handleRemoveUser !== 'function') return false;
-        if (typeof selectedGroup !== 'string') return false;
+        if (typeof selectedGroup !== 'string' || selectedGroup === '') return false;
 
         return true;
     }, [isCacheLoading, cache, config, selectedGroup, filteredMembers, handleRemoveUser]);
@@ -204,18 +204,25 @@ const AdGroupsPage = () => {
             ) : (
                 <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', minHeight: 500 }}>
                     <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                        <AutoSizer>{({ height, width }) => (
-                            <FixedSizeList
-                                height={height}
-                                itemCount={itemData.members.length}
-                                itemSize={60}
-                                width={width}
-                                itemKey={(index, data) => data?.members?.[index]?.SamAccountName || `member-${index}`}
-                                itemData={itemData}
-                            >
-                                {Row}
-                            </FixedSizeList>
-                        )}</AutoSizer>
+                        <AutoSizer>{({ height, width }) => {
+                            // 🛡️ ULTIMATE PROTECTION: Verify itemData is valid before rendering List
+                            if (!itemData || !Array.isArray(itemData.members)) {
+                                return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height }}><CircularProgress /></Box>;
+                            }
+
+                            return (
+                                <FixedSizeList
+                                    height={height}
+                                    itemCount={itemData.members.length}
+                                    itemSize={60}
+                                    width={width}
+                                    itemKey={(index, data) => data?.members?.[index]?.SamAccountName || `member-${index}`}
+                                    itemData={itemData}
+                                >
+                                    {Row}
+                                </FixedSizeList>
+                            );
+                        }}</AutoSizer>
                     </Box>
                 </Paper>
             )}
