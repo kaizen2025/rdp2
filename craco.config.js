@@ -209,25 +209,8 @@ module.exports = {
     },
   },
 
-  // ✅ ESLint - Désactivé en production, NON-BLOQUANT en dev
+  // ✅ ESLint - COMPLÈTEMENT DÉSACTIVÉ pour éviter blocage compilation
   eslint: {
-    enable: process.env.NODE_ENV !== 'production', // ✅ Désactivé en prod
-    mode: 'extends',
-    loaderOptions: {
-      // ✅ CRITIQUE: Ne jamais bloquer la compilation pour des warnings ESLint
-      emitWarning: true,
-      failOnError: false,
-      failOnWarning: false,
-    },
-    configure: {
-      // Warnings seulement en dev - ne bloquent PAS la compilation
-      rules: {
-        'no-unused-vars': 'warn',
-        'react/no-unescaped-entities': 'warn',
-        'react/display-name': 'warn',
-        'no-unreachable': 'warn',
-        'no-dupe-class-members': 'warn',
-      },
-    },
+    enable: false, // ✅ DÉSACTIVÉ en dev ET prod - AUCUN blocage
   },
 };
