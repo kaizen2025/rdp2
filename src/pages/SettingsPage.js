@@ -61,42 +61,6 @@ function TabPanel({ children, value, index }) {
     return <div hidden={value !== index}>{value === index && <Box sx={{ p: 3 }}>{children}</Box>}</div>;
 }
 
-const TechnicianDialog = ({ open, onClose, onSave, technician }) => {
-    const [formData, setFormData] = useState({ name: '', position: '', email: '', avatar: '', permissions: [], isActive: true });
-    useEffect(() => {
-        if (technician) setFormData(technician);
-        else setFormData({ name: '', position: '', email: '', avatar: '', permissions: [], isActive: true });
-    }, [technician, open]);
-    const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setFormData(p => ({ ...p, [name]: type === 'checkbox' ? checked : value }));
-    };
-    const handlePermsChange = (e) => setFormData(p => ({ ...p, permissions: typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value }));
-    const handleSubmit = () => {
-        onSave({ ...formData, id: formData.id || formData.name.toLowerCase().replace(/\s+/g, '_') });
-        onClose();
-    };
-    const availablePermissions = ['admin', 'config', 'loans', 'users', 'servers', 'reports'];
-    const permissionTranslations = { admin: 'Administrateur', config: 'Configuration', loans: 'Gestion des prêts', users: 'Gestion des utilisateurs', servers: 'Gestion des serveurs', reports: 'Rapports' };
-    const translatePermission = (p) => permissionTranslations[p] || p;
-    return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-            <DialogTitle>{technician ? 'Modifier' : 'Ajouter'} un technicien</DialogTitle>
-            <DialogContent>
-                <Grid container spacing={2} sx={{ pt: 1 }}>
-                    <Grid item xs={12}><TextField name="name" label="Nom complet" value={formData.name || ''} onChange={handleChange} fullWidth required /></Grid>
-                    <Grid item xs={12}><TextField name="position" label="Poste" value={formData.position || ''} onChange={handleChange} fullWidth /></Grid>
-                    <Grid item xs={12}><TextField name="email" label="Email" value={formData.email || ''} onChange={handleChange} fullWidth /></Grid>
-                    <Grid item xs={12}><TextField name="avatar" label="Avatar (Initiales)" value={formData.avatar || ''} onChange={handleChange} fullWidth inputProps={{ maxLength: 2 }} /></Grid>
-                    <Grid item xs={12}><FormControl fullWidth><InputLabel>Permissions</InputLabel><Select multiple name="permissions" value={formData.permissions || []} onChange={handlePermsChange} renderValue={(selected) => selected.map(translatePermission).join(', ')}>{availablePermissions.map(p => (<MenuItem key={p} value={p}><Checkbox checked={(formData.permissions || []).includes(p)} />{translatePermission(p)}</MenuItem>))}</Select></FormControl></Grid>
-                    <Grid item xs={12}><FormControlLabel control={<Switch name="isActive" checked={formData.isActive} onChange={handleChange} />} label="Compte Actif" /></Grid>
-                </Grid>
-            </DialogContent>
-            <DialogActions><Button onClick={onClose}>Annuler</Button><Button onClick={handleSubmit}>Sauvegarder</Button></DialogActions>
-        </Dialog>
-    );
-};
-
 
 const SettingsPage = ({ open, onClose }) => {
     const { config, handleSaveConfig, showNotification } = useApp();
