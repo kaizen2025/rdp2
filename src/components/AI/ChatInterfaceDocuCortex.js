@@ -97,17 +97,14 @@ const ChatInterfaceDocuCortex = ({ sessionId, onMessageSent }) => {
                         type: 'assistant',
                         content: `Bonjour ! 👋 Je suis **DocuCortex**, l'assistant IA du groupe **Anecoop France**.
 
-🎭 **Chef d'Orchestre Ultra-Intelligent à votre service :**
+🎭 **Votre Assistant Intelligent pour :**
 - 💬 Répondre à **toutes vos questions** (météo, calculs, informations générales)
 - 🔍 Rechercher dans votre **GED** avec intelligence sémantique avancée
-- 🖼️ Analyser **images, factures et tableaux Excel scannés** avec OCR
+- 🖼️ Analyser **images, factures et tableaux Excel scannés** avec OCR avancé
 - 📄 Résumer, comparer et **organiser vos documents** professionnels
 - 📂 **Ouvrir fichiers et dossiers réseau** en 1 clic depuis le chat
 
-✨ **Powered by Google Gemini 2.0 Flash**
-🚀 Vision Multimodale • RAG • Embeddings • Actions Intelligentes
-
-Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du temps !
+Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du temps ! 🚀
 
 **Comment puis-je vous aider aujourd'hui ?**`,
                         isWelcome: true,
@@ -413,17 +410,14 @@ Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du 
                 type: 'assistant',
                 content: `Bonjour ! 👋 Je suis **DocuCortex**, l'assistant IA du groupe **Anecoop France**.
 
-🎭 **Chef d'Orchestre Ultra-Intelligent à votre service :**
+🎭 **Votre Assistant Intelligent pour :**
 - 💬 Répondre à **toutes vos questions** (météo, calculs, informations générales)
 - 🔍 Rechercher dans votre **GED** avec intelligence sémantique avancée
-- 🖼️ Analyser **images, factures et tableaux Excel scannés** avec OCR
+- 🖼️ Analyser **images, factures et tableaux Excel scannés** avec OCR avancé
 - 📄 Résumer, comparer et **organiser vos documents** professionnels
 - 📂 **Ouvrir fichiers et dossiers réseau** en 1 clic depuis le chat
 
-✨ **Powered by Google Gemini 2.0 Flash**
-🚀 Vision Multimodale • RAG • Embeddings • Actions Intelligentes
-
-Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du temps !
+Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du temps ! 🚀
 
 **Comment puis-je vous aider aujourd'hui ?**`,
                 isWelcome: true,
