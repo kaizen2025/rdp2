@@ -102,7 +102,9 @@ class NotificationScheduler {
 
             // Récupérer les paramètres
             const settingsRow = db.prepare('SELECT value FROM key_value_store WHERE key = ?').get('loan_settings');
-            const settings = settingsRow ? JSON.parse(settingsRow.value) : this.getDefaultSettings();
+            // ✅ FIX: Merge avec defaultSettings pour garantir toutes les propriétés
+            const defaultSettings = this.getDefaultSettings();
+            const settings = settingsRow ? { ...defaultSettings, ...JSON.parse(settingsRow.value) } : defaultSettings;
 
             if (!settings.autoNotifications) {
                 console.log('[NotificationScheduler] Notifications automatiques désactivées');

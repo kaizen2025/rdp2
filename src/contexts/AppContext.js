@@ -102,7 +102,29 @@ export const AppProvider = ({ children }) => {
             });
         }
     }, []);
-    
+
+    // ✅ NOUVEAU: Mise à jour partielle d'une entité (sans re-fetch complet)
+    // DOIT être défini AVANT connectWebSocket qui l'utilise
+    const updateCacheEntity = useCallback((entityName, updater) => {
+        setCache(prev => {
+            const currentData = prev[entityName]?.data || [];
+            const newData = typeof updater === 'function' ? updater(currentData) : updater;
+            return {
+                ...prev,
+                [entityName]: { data: newData, loaded: true, loading: false }
+            };
+        });
+    }, []);
+
+    // ✅ NOUVEAU: Invalidation du cache pour forcer un rechargement
+    // DOIT être défini AVANT connectWebSocket qui l'utilise
+    const invalidateCache = useCallback((entityName) => {
+        setCache(prev => ({
+            ...prev,
+            [entityName]: { data: [], loaded: false, loading: false }
+        }));
+    }, []);
+
     const connectWebSocket = useCallback(() => {
         if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
             return;
@@ -218,26 +240,6 @@ export const AppProvider = ({ children }) => {
             return [];
         }
     }, [cache]);
-
-    // ✅ NOUVEAU: Mise à jour partielle d'une entité (sans re-fetch complet)
-    const updateCacheEntity = useCallback((entityName, updater) => {
-        setCache(prev => {
-            const currentData = prev[entityName]?.data || [];
-            const newData = typeof updater === 'function' ? updater(currentData) : updater;
-            return {
-                ...prev,
-                [entityName]: { data: newData, loaded: true, loading: false }
-            };
-        });
-    }, []);
-
-    // ✅ NOUVEAU: Invalidation du cache pour forcer un rechargement
-    const invalidateCache = useCallback((entityName) => {
-        setCache(prev => ({
-            ...prev,
-            [entityName]: { data: [], loaded: false, loading: false }
-        }));
-    }, []);
 
     // ✅ NOUVEAU: Getter de cache pour les composants
     const getCachedData = useCallback((entityName) => {
