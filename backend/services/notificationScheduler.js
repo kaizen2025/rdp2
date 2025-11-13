@@ -7,6 +7,7 @@ const notificationService = require('./notificationService');
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
+const configService = require('./configService');
 
 class NotificationScheduler {
     constructor() {
@@ -18,10 +19,21 @@ class NotificationScheduler {
 
     /**
      * Obtenir la connexion à la base de données
+     * Utilise le chemin configuré dans config.json (base de PRODUCTION)
      */
     getDb() {
         if (!this.db) {
-            const dbPath = path.join(__dirname, '../../data/rds_viewer_data.sqlite');
+            // Utiliser le chemin de config.json (base de PRODUCTION)
+            let dbPath;
+
+            if (configService.appConfig && configService.appConfig.databasePath) {
+                dbPath = configService.appConfig.databasePath;
+            } else {
+                // Fallback sur base locale si config non chargée
+                dbPath = path.join(__dirname, '../../data/rds_viewer_data.sqlite');
+                console.warn(`[NotificationScheduler] ⚠️  Config non chargée, utilisation base locale`);
+            }
+
             const dbDir = path.dirname(dbPath);
 
             if (!fs.existsSync(dbDir)) {
