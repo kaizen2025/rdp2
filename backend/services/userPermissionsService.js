@@ -453,6 +453,57 @@ class UserPermissionsService {
             uniqueUsers: db.prepare('SELECT COUNT(DISTINCT user_id) as count FROM app_login_history').get()?.count || 0
         };
     }
+
+    // ==================== GESTION PHOTOS BLOB ====================
+
+    /**
+     * Mettre à jour la photo de profil d'un utilisateur
+     */
+    updateProfilePicture(userId, imageBuffer) {
+        this.initialize();
+
+        const stmt = this.getDb().prepare(`
+            UPDATE app_users
+            SET profile_picture = ?
+            WHERE id = ?
+        `);
+
+        stmt.run(imageBuffer, userId);
+
+        console.log(`[UserPermissions] Photo de profil mise à jour pour l'utilisateur ${userId}`);
+    }
+
+    /**
+     * Récupérer la photo de profil d'un utilisateur
+     */
+    getProfilePicture(userId) {
+        this.initialize();
+
+        const result = this.getDb().prepare(`
+            SELECT profile_picture
+            FROM app_users
+            WHERE id = ?
+        `).get(userId);
+
+        return result?.profile_picture || null;
+    }
+
+    /**
+     * Supprimer la photo de profil d'un utilisateur
+     */
+    deleteProfilePicture(userId) {
+        this.initialize();
+
+        const stmt = this.getDb().prepare(`
+            UPDATE app_users
+            SET profile_picture = NULL
+            WHERE id = ?
+        `);
+
+        stmt.run(userId);
+
+        console.log(`[UserPermissions] Photo de profil supprimée pour l'utilisateur ${userId}`);
+    }
 }
 
 module.exports = new UserPermissionsService();

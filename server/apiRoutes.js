@@ -265,5 +265,75 @@ module.exports = (broadcast) => {
         res.json(result);
     }));
 
+    // ==================== GESTION PHOTOS BLOB - COMPUTERS ====================
+
+    router.post('/computers/:id/picture', asyncHandler(async (req, res) => {
+        const { imageBase64 } = req.body;
+        if (!imageBase64) {
+            return res.status(400).json({ success: false, error: 'Image manquante' });
+        }
+
+        const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+        const imageBuffer = Buffer.from(base64Data, 'base64');
+
+        const db = require('../backend/services/configService').getDataDb();
+        db.prepare('UPDATE computers SET picture = ? WHERE id = ?').run(imageBuffer, parseInt(req.params.id));
+
+        res.json({ success: true, message: 'Photo du matériel mise à jour' });
+    }));
+
+    router.get('/computers/:id/picture', asyncHandler(async (req, res) => {
+        const db = require('../backend/services/configService').getDataDb();
+        const result = db.prepare('SELECT picture FROM computers WHERE id = ?').get(parseInt(req.params.id));
+
+        if (!result || !result.picture) {
+            return res.status(404).json({ success: false, error: 'Aucune photo trouvée' });
+        }
+
+        const base64Image = `data:image/jpeg;base64,${result.picture.toString('base64')}`;
+        res.json({ success: true, picture: base64Image });
+    }));
+
+    router.delete('/computers/:id/picture', asyncHandler(async (req, res) => {
+        const db = require('../backend/services/configService').getDataDb();
+        db.prepare('UPDATE computers SET picture = NULL WHERE id = ?').run(parseInt(req.params.id));
+        res.json({ success: true, message: 'Photo supprimée' });
+    }));
+
+    // ==================== GESTION PHOTOS BLOB - EXCEL USERS ====================
+
+    router.post('/excel-users/:username/picture', asyncHandler(async (req, res) => {
+        const { imageBase64 } = req.body;
+        if (!imageBase64) {
+            return res.status(400).json({ success: false, error: 'Image manquante' });
+        }
+
+        const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+        const imageBuffer = Buffer.from(base64Data, 'base64');
+
+        const db = require('../backend/services/configService').getDataDb();
+        db.prepare('UPDATE excel_users SET picture = ? WHERE username = ?').run(imageBuffer, req.params.username);
+
+        res.json({ success: true, message: 'Photo utilisateur mise à jour' });
+    }));
+
+    router.get('/excel-users/:username/picture', asyncHandler(async (req, res) => {
+        const db = require('../backend/services/configService').getDataDb();
+        const result = db.prepare('SELECT picture FROM excel_users WHERE username = ?').get(req.params.username);
+
+        if (!result || !result.picture) {
+            return res.status(404).json({ success: false, error: 'Aucune photo trouvée' });
+        }
+
+        const base64Image = `data:image/jpeg;base64,${result.picture.toString('base64')}`;
+        res.json({ success: true, picture: base64Image });
+    }));
+
+    router.delete('/excel-users/:username/picture', asyncHandler(async (req, res) => {
+        const db = require('../backend/services/configService').getDataDb();
+        db.prepare('UPDATE excel_users SET picture = NULL WHERE username = ?').run(req.params.username);
+        res.json({ success: true, message: 'Photo supprimée' });
+    }));
+
     return router;
 };

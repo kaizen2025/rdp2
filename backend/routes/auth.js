@@ -425,4 +425,98 @@ router.get('/users/:id/login-history', (req, res) => {
     }
 });
 
+// ==================== GESTION PHOTOS BLOB ====================
+
+/**
+ * POST /api/auth/users/:id/picture
+ * Upload photo de profil technicien (BLOB)
+ */
+router.post('/users/:id/picture', async (req, res) => {
+    try {
+        const userId = parseInt(req.params.id);
+        const { imageBase64 } = req.body;
+
+        if (!imageBase64) {
+            return res.status(400).json({
+                success: false,
+                error: 'Image manquante'
+            });
+        }
+
+        // Convertir base64 en Buffer (BLOB)
+        const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+        const imageBuffer = Buffer.from(base64Data, 'base64');
+
+        // Sauvegarder dans SQLite
+        userPermissionsService.updateProfilePicture(userId, imageBuffer);
+
+        res.json({
+            success: true,
+            message: 'Photo de profil mise à jour'
+        });
+    } catch (error) {
+        console.error('Erreur upload photo:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
+ * GET /api/auth/users/:id/picture
+ * Récupérer photo de profil technicien (BLOB)
+ */
+router.get('/users/:id/picture', (req, res) => {
+    try {
+        const userId = parseInt(req.params.id);
+
+        const picture = userPermissionsService.getProfilePicture(userId);
+
+        if (!picture) {
+            return res.status(404).json({
+                success: false,
+                error: 'Aucune photo trouvée'
+            });
+        }
+
+        // Renvoyer l'image en base64
+        const base64Image = `data:image/jpeg;base64,${picture.toString('base64')}`;
+
+        res.json({
+            success: true,
+            picture: base64Image
+        });
+    } catch (error) {
+        console.error('Erreur récupération photo:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
+ * DELETE /api/auth/users/:id/picture
+ * Supprimer photo de profil technicien
+ */
+router.delete('/users/:id/picture', (req, res) => {
+    try {
+        const userId = parseInt(req.params.id);
+
+        userPermissionsService.deleteProfilePicture(userId);
+
+        res.json({
+            success: true,
+            message: 'Photo supprimée'
+        });
+    } catch (error) {
+        console.error('Erreur suppression photo:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;
