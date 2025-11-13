@@ -18,7 +18,13 @@ import {
     Card,
     CardContent,
     LinearProgress,
-    Link
+    Link,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Alert,
+    Snackbar
 } from '@mui/material';
 import {
     Send as SendIcon,
@@ -27,7 +33,11 @@ import {
     AttachFile as AttachIcon,
     Download as DownloadIcon,
     Visibility as PreviewIcon,
-    QuestionAnswer as SuggestionIcon
+    QuestionAnswer as SuggestionIcon,
+    CloudUpload as UploadIcon,
+    Delete as DeleteIcon,
+    AddCircle as NewConversationIcon,
+    History as HistoryIcon
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import apiService from '../../services/apiService';
@@ -39,7 +49,12 @@ const ChatInterfaceDocuCortex = ({ sessionId, onMessageSent }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [showWelcome, setShowWelcome] = useState(true);
     const [previewModal, setPreviewModal] = useState({ open: false, documentId: null, filename: '', networkPath: '' }); // ✅ AJOUT
+    const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+    const [uploadFile, setUploadFile] = useState(null);
+    const [uploading, setUploading] = useState(false);
+    const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
     const messagesEndRef = useRef(null);
+    const fileInputRef = useRef(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -201,24 +216,163 @@ Je peux vous aider à :
         setPreviewModal({ open: false, documentId: null, filename: '', networkPath: '' });
     };
 
+    // ✅ NOUVEAU - Gestion upload de documents
+    const handleUploadClick = () => {
+        setUploadDialogOpen(true);
+    };
+
+    const handleFileSelect = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            setUploadFile(file);
+        }
+    };
+
+    const handleUploadDocument = async () => {
+        if (!uploadFile) {
+            setNotification({ open: true, message: 'Veuillez sélectionner un fichier', severity: 'warning' });
+            return;
+        }
+
+        setUploading(true);
+        try {
+            const result = await apiService.uploadAIDocument(uploadFile);
+
+            if (result.success) {
+                setNotification({
+                    open: true,
+                    message: `Document "${uploadFile.name}" uploadé avec succès ! ${result.chunksCreated || 0} chunks indexés.`,
+                    severity: 'success'
+                });
+                setUploadDialogOpen(false);
+                setUploadFile(null);
+
+                // Ajouter un message système dans le chat
+                const systemMessage = {
+                    type: 'assistant',
+                    content: `✅ Document **${uploadFile.name}** ajouté à la base de connaissances.\n\n📊 **${result.chunksCreated || 0}** segments indexés.\n\nVous pouvez maintenant me poser des questions sur ce document !`,
+                    timestamp: new Date(),
+                    isSystem: true
+                };
+                setMessages(prev => [...prev, systemMessage]);
+            } else {
+                throw new Error(result.error || 'Échec de l\'upload');
+            }
+        } catch (error) {
+            console.error('Erreur upload:', error);
+            setNotification({
+                open: true,
+                message: `Erreur lors de l'upload: ${error.message}`,
+                severity: 'error'
+            });
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    // ✅ NOUVEAU - Nouvelle conversation
+    const handleNewConversation = () => {
+        if (window.confirm('Êtes-vous sûr de vouloir démarrer une nouvelle conversation ? L\'historique actuel sera perdu.')) {
+            setMessages([]);
+            setShowWelcome(true);
+            setInputMessage('');
+
+            // Message de bienvenue pour nouvelle conversation
+            const welcomeMessage = {
+                type: 'assistant',
+                content: `Bonjour ! 👋 Je suis **DocuCortex**, votre assistant GED intelligent.\n\nJe peux vous aider à :\n- 🔍 Rechercher des documents dans votre base documentaire\n- 📄 Résumer et analyser des fichiers\n- 💡 Suggérer des documents pertinents\n- 📊 Comparer plusieurs documents\n\n**Comment puis-je vous aider aujourd'hui ?**`,
+                isWelcome: true,
+                timestamp: new Date(),
+                suggestions: [
+                    'Quels types de documents sont disponibles ?',
+                    'Montre-moi les documents les plus récents',
+                    'Trouve-moi des offres de prix',
+                    'Résume les documents modifiés cette semaine'
+                ]
+            };
+            setMessages([welcomeMessage]);
+            setNotification({ open: true, message: 'Nouvelle conversation démarrée', severity: 'info' });
+        }
+    };
+
+    // ✅ NOUVEAU - Purger l'historique
+    const handleClearHistory = () => {
+        if (window.confirm('Êtes-vous sûr de vouloir supprimer tout l\'historique de conversation ?')) {
+            setMessages([]);
+            setShowWelcome(true);
+            setNotification({ open: true, message: 'Historique effacé', severity: 'info' });
+        }
+    };
+
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Header */}
-            <Box sx={{ 
-                p: 2, 
+            <Box sx={{
+                p: 2,
                 borderBottom: '1px solid #e0e0e0',
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 color: 'white'
             }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <BotIcon sx={{ fontSize: 32 }} />
-                    <Box>
-                        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                            DocuCortex
-                        </Typography>
-                        <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                            Le Cortex de vos Documents
-                        </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <BotIcon sx={{ fontSize: 32 }} />
+                        <Box>
+                            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                                DocuCortex
+                            </Typography>
+                            <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                                Le Cortex de vos Documents
+                            </Typography>
+                        </Box>
+                    </Box>
+
+                    {/* ✅ NOUVEAU - Toolbar Actions */}
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Tooltip title="Uploader un document">
+                            <Button
+                                variant="contained"
+                                size="small"
+                                startIcon={<UploadIcon />}
+                                onClick={handleUploadClick}
+                                sx={{
+                                    bgcolor: 'rgba(255,255,255,0.2)',
+                                    color: 'white',
+                                    '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' },
+                                    textTransform: 'none',
+                                    fontWeight: 600
+                                }}
+                            >
+                                Upload
+                            </Button>
+                        </Tooltip>
+
+                        <Tooltip title="Nouvelle conversation">
+                            <IconButton
+                                size="small"
+                                onClick={handleNewConversation}
+                                sx={{
+                                    color: 'white',
+                                    bgcolor: 'rgba(255,255,255,0.2)',
+                                    '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' }
+                                }}
+                            >
+                                <NewConversationIcon />
+                            </IconButton>
+                        </Tooltip>
+
+                        <Tooltip title="Effacer l'historique">
+                            <IconButton
+                                size="small"
+                                onClick={handleClearHistory}
+                                sx={{
+                                    color: 'white',
+                                    bgcolor: 'rgba(255,255,255,0.2)',
+                                    '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' }
+                                }}
+                            >
+                                <DeleteIcon />
+                            </IconButton>
+                        </Tooltip>
                     </Box>
                 </Box>
             </Box>
@@ -295,6 +449,97 @@ Je peux vous aider à :
                     </IconButton>
                 </Box>
             </Paper>
+
+            {/* ✅ NOUVEAU - Upload Dialog */}
+            <Dialog
+                open={uploadDialogOpen}
+                onClose={() => !uploading && setUploadDialogOpen(false)}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle sx={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    fontWeight: 600
+                }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <UploadIcon />
+                        Uploader un document
+                    </Box>
+                </DialogTitle>
+                <DialogContent sx={{ mt: 2 }}>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        onChange={handleFileSelect}
+                        style={{ display: 'none' }}
+                        accept=".pdf,.doc,.docx,.txt,.xlsx,.xls,.ppt,.pptx,.jpg,.jpeg,.png"
+                    />
+                    <Button
+                        variant="outlined"
+                        fullWidth
+                        onClick={() => fileInputRef.current?.click()}
+                        startIcon={<AttachIcon />}
+                        disabled={uploading}
+                        sx={{ mb: 2, py: 2 }}
+                    >
+                        {uploadFile ? uploadFile.name : 'Choisir un fichier'}
+                    </Button>
+
+                    {uploadFile && (
+                        <Alert severity="info" sx={{ mt: 1 }}>
+                            <Typography variant="body2">
+                                <strong>Fichier sélectionné:</strong> {uploadFile.name}
+                            </Typography>
+                            <Typography variant="caption" display="block">
+                                Taille: {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
+                            </Typography>
+                        </Alert>
+                    )}
+
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
+                        Formats supportés: PDF, DOC, DOCX, TXT, XLSX, XLS, PPT, PPTX, JPG, PNG
+                    </Typography>
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button
+                        onClick={() => setUploadDialogOpen(false)}
+                        disabled={uploading}
+                    >
+                        Annuler
+                    </Button>
+                    <Button
+                        variant="contained"
+                        onClick={handleUploadDocument}
+                        disabled={!uploadFile || uploading}
+                        startIcon={uploading ? <CircularProgress size={20} /> : <UploadIcon />}
+                        sx={{
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            '&:hover': {
+                                background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)'
+                            }
+                        }}
+                    >
+                        {uploading ? 'Upload en cours...' : 'Uploader'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* ✅ NOUVEAU - Notifications */}
+            <Snackbar
+                open={notification.open}
+                autoHideDuration={6000}
+                onClose={() => setNotification({ ...notification, open: false })}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert
+                    onClose={() => setNotification({ ...notification, open: false })}
+                    severity={notification.severity}
+                    sx={{ width: '100%' }}
+                >
+                    {notification.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 };
