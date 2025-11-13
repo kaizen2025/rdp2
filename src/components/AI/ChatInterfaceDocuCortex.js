@@ -24,7 +24,8 @@ import {
     DialogContent,
     DialogActions,
     Alert,
-    Snackbar
+    Snackbar,
+    Drawer
 } from '@mui/material';
 import {
     Send as SendIcon,
@@ -44,6 +45,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 import apiService from '../../services/apiService';
 import DocumentPreviewModal from './DocumentPreviewModal'; // ✅ AJOUT
+import ConversationHistory from './ConversationHistory'; // ✅ NOUVEAU
 
 const ChatInterfaceDocuCortex = ({ sessionId, onMessageSent }) => {
     const [messages, setMessages] = useState([]);
@@ -55,6 +57,8 @@ const ChatInterfaceDocuCortex = ({ sessionId, onMessageSent }) => {
     const [uploadFile, setUploadFile] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
+    const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false); // ✅ NOUVEAU
+    const [allConversations, setAllConversations] = useState([]); // ✅ NOUVEAU
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
 
@@ -66,6 +70,18 @@ const ChatInterfaceDocuCortex = ({ sessionId, onMessageSent }) => {
         scrollToBottom();
     }, [messages]);
 
+    // ✅ NOUVEAU - Charger toutes les conversations pour l'historique
+    const loadAllConversations = useCallback(async () => {
+        try {
+            const data = await apiService.getAIConversationHistory(sessionId);
+            if (data.success && data.conversations) {
+                setAllConversations(data.conversations);
+            }
+        } catch (error) {
+            console.error('Erreur chargement historique:', error);
+        }
+    }, [sessionId]);
+
     // Message de bienvenue automatique
     useEffect(() => {
         const loadHistoryAndWelcome = async () => {
@@ -73,6 +89,8 @@ const ChatInterfaceDocuCortex = ({ sessionId, onMessageSent }) => {
                 const data = await apiService.getAIConversationHistory(sessionId);
 
                 if (data.success && data.conversations && data.conversations.length > 0) {
+                    setAllConversations(data.conversations); // ✅ NOUVEAU
+
                     // Historique existe, charger
                     const formattedMessages = data.conversations.reverse().map(conv => ([
                         {
@@ -125,6 +143,68 @@ Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du 
 
         loadHistoryAndWelcome();
     }, [sessionId]);
+
+    // ✅ NOUVEAU - Handlers pour l'historique
+    const handleSelectConversation = (conversation) => {
+        // Charger la conversation sélectionnée
+        const formattedMessages = [
+            {
+                type: 'user',
+                content: conversation.user_message,
+                timestamp: new Date(conversation.created_at)
+            },
+            {
+                type: 'assistant',
+                content: conversation.ai_response,
+                confidence: conversation.confidence_score,
+                sources: conversation.sources ? JSON.parse(conversation.sources) : [],
+                timestamp: new Date(conversation.created_at)
+            }
+        ];
+        setMessages(formattedMessages);
+        setHistoryDrawerOpen(false);
+        setNotification({ open: true, message: 'Conversation chargée', severity: 'success' });
+    };
+
+    const handleTogglePinned = async (conversationId, isPinned) => {
+        try {
+            // ✅ Appel API pour mettre à jour is_pinned dans la base
+            const result = await apiService.updateConversationPinned(conversationId, isPinned);
+
+            if (result.success) {
+                // Mise à jour locale après succès
+                setAllConversations(prev => prev.map(conv =>
+                    conv.id === conversationId ? { ...conv, is_pinned: isPinned } : conv
+                ));
+
+                setNotification({
+                    open: true,
+                    message: isPinned ? 'Conversation épinglée' : 'Conversation désépinglée',
+                    severity: 'success'
+                });
+            }
+        } catch (error) {
+            console.error('Erreur toggle pinned:', error);
+            setNotification({ open: true, message: 'Erreur lors de l\'épinglage', severity: 'error' });
+        }
+    };
+
+    const handleDeleteConversation = async (conversationId) => {
+        try {
+            // ✅ Appel API pour supprimer la conversation
+            const result = await apiService.deleteConversation(conversationId);
+
+            if (result.success) {
+                // Suppression locale après succès
+                setAllConversations(prev => prev.filter(conv => conv.id !== conversationId));
+
+                setNotification({ open: true, message: 'Conversation supprimée', severity: 'success' });
+            }
+        } catch (error) {
+            console.error('Erreur suppression conversation:', error);
+            setNotification({ open: true, message: 'Erreur lors de la suppression', severity: 'error' });
+        }
+    };
 
     const sendMessage = async (messageText = null) => {
         const textToSend = messageText || inputMessage;
@@ -469,6 +549,20 @@ Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du 
 
                     {/* ✅ NOUVEAU - Toolbar Actions */}
                     <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Tooltip title="Historique des conversations">
+                            <IconButton
+                                size="small"
+                                onClick={() => setHistoryDrawerOpen(true)}
+                                sx={{
+                                    color: 'white',
+                                    bgcolor: 'rgba(255,255,255,0.2)',
+                                    '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' }
+                                }}
+                            >
+                                <HistoryIcon />
+                            </IconButton>
+                        </Tooltip>
+
                         <Tooltip title="Uploader un document">
                             <Button
                                 variant="contained"
@@ -715,6 +809,27 @@ Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du 
                     {notification.message}
                 </Alert>
             </Snackbar>
+
+            {/* ✅ NOUVEAU - Drawer Historique Intelligent */}
+            <Drawer
+                anchor="right"
+                open={historyDrawerOpen}
+                onClose={() => setHistoryDrawerOpen(false)}
+                sx={{
+                    '& .MuiDrawer-paper': {
+                        width: { xs: '100%', sm: 400, md: 500 },
+                        boxShadow: 3
+                    }
+                }}
+            >
+                <ConversationHistory
+                    conversations={allConversations}
+                    onSelectConversation={handleSelectConversation}
+                    currentSessionId={sessionId}
+                    onDeleteConversation={handleDeleteConversation}
+                    onTogglePinned={handleTogglePinned}
+                />
+            </Drawer>
         </Box>
     );
 };

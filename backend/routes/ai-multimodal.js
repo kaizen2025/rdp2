@@ -232,16 +232,52 @@ router.get('/conversations/:id', async (req, res) => {
 });
 
 /**
+ * PUT /api/ai/conversations/:id/pin
+ * Épingler/Désépingler une conversation
+ */
+router.put('/conversations/:id/pin', async (req, res) => {
+    try {
+        const { isPinned } = req.body;
+        const success = aiDatabaseService.updateConversationPinned(req.params.id, isPinned);
+
+        if (success) {
+            res.json({
+                success: true,
+                message: isPinned ? 'Conversation épinglée' : 'Conversation désépinglée'
+            });
+        } else {
+            res.status(404).json({
+                success: false,
+                error: 'Conversation non trouvée'
+            });
+        }
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
  * DELETE /api/ai/conversations/:id
  * Supprime une conversation
  */
 router.delete('/conversations/:id', async (req, res) => {
     try {
-        await conversationService.deleteConversation(req.params.id);
-        res.json({
-            success: true,
-            message: 'Conversation supprimée'
-        });
+        const success = aiDatabaseService.deleteConversation(req.params.id);
+
+        if (success) {
+            res.json({
+                success: true,
+                message: 'Conversation supprimée'
+            });
+        } else {
+            res.status(404).json({
+                success: false,
+                error: 'Conversation non trouvée'
+            });
+        }
     } catch (error) {
         res.status(500).json({
             success: false,

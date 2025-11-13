@@ -159,7 +159,11 @@ class ApiService {
     sendGeminiMessage = async (sessionId, message, fileText, userId = null) => this.request('/ai/chat/enhanced', { method: 'POST', body: JSON.stringify({ sessionId, message, fileText, userId, aiProvider: 'gemini' }) })
     getAIConversationHistory = async (sessionId, limit = 50) => this.request(`/ai/conversations/${sessionId}?limit=${limit}`)
     getAllAIConversations = async (limit = 50) => this.request(`/ai/conversations?limit=${limit}`)
-    
+
+    // ✅ NOUVEAU - Gestion historique conversations
+    updateConversationPinned = async (conversationId, isPinned) => this.request(`/ai/conversations/${conversationId}/pin`, { method: 'PUT', body: JSON.stringify({ isPinned }) })
+    deleteConversation = async (conversationId) => this.request(`/ai/conversations/${conversationId}`, { method: 'DELETE' })
+
     // Settings & Statistics
     getAISettings = async () => this.request('/ai/settings')
     updateAISetting = async (key, value) => this.request(`/ai/settings/${key}`, { method: 'PUT', body: JSON.stringify({ value }) })
