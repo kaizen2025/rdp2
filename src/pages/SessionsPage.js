@@ -14,6 +14,7 @@ import PageHeader from '../components/common/PageHeader';
 import SearchInput from '../components/common/SearchInput';
 import EmptyState from '../components/common/EmptyState';
 import LoadingScreen from '../components/common/LoadingScreen';
+import { debounceAsyncLeading } from '../utils/debounce';
 
 const GroupedUserRow = memo(({ user, sessions, onSendMessage, onShowInfo, onShadow, onConnect, getUserInfo }) => {
     const userInfo = useMemo(() => getUserInfo(user), [getUserInfo, user]);
@@ -74,13 +75,23 @@ const SessionsPage = () => {
     const users = useMemo(() => (cache.excel_users && typeof cache.excel_users === 'object') ? cache.excel_users : {}, [cache.excel_users]);
     const config = useMemo(() => cache.config || {}, [cache.config]);
 
-    const handleRefresh = useCallback(async () => {
-        setIsRefreshing(true);
-        showNotification('info', 'Rafraîchissement des sessions en cours...');
-        await apiService.refreshRdsSessions();
-        await invalidate('rds_sessions');
-        setIsRefreshing(false);
-    }, [invalidate, showNotification]);
+    // 🚀 Optimisation TSE: debounceAsyncLeading empêche double refresh
+    const handleRefresh = useCallback(
+        debounceAsyncLeading(async () => {
+            setIsRefreshing(true);
+            showNotification('info', 'Rafraîchissement des sessions en cours...');
+            try {
+                await apiService.refreshRdsSessions();
+                await invalidate('rds_sessions');
+                showNotification('success', 'Sessions rafraîchies avec succès');
+            } catch (error) {
+                showNotification('error', `Erreur rafraîchissement: ${error.message}`);
+            } finally {
+                setIsRefreshing(false);
+            }
+        }, 2000), // Cooldown 2s - opération lourde
+        [invalidate, showNotification]
+    );
 
     const getUserInfo = useCallback((username) => {
         if (!users) return null;
@@ -106,51 +117,74 @@ const SessionsPage = () => {
         };
     }, [sessions]);
 
-    const handleLaunchShadow = async (session) => {
-        if (!window.electronAPI?.launchRdp) return showNotification('warning', 'Fonctionnalité disponible uniquement dans l\'application de bureau.');
-        if (!session || !session.isActive) return showNotification('warning', 'La session doit être active.');
+    // 🚀 Optimisation TSE: debounceAsyncLeading empêche lancements Shadow multiples
+    const handleLaunchShadow = useCallback(
+        debounceAsyncLeading(async (session) => {
+            if (!window.electronAPI?.launchRdp) {
+                return showNotification('warning', 'Fonctionnalité disponible uniquement dans l\'application de bureau.');
+            }
+            if (!session || !session.isActive) {
+                return showNotification('warning', 'La session doit être active.');
+            }
 
-        // Get admin credentials from config for shadow connection
-        const adminUsername = config.username || 'admin_anecoop';
-        const adminPassword = config.password;
-        const domain = config.domain || 'anecoopfr.local';
+            // Get admin credentials from config for shadow connection
+            const adminUsername = config.username || 'admin_anecoop';
+            const adminPassword = config.password;
+            const domain = config.domain || 'anecoopfr.local';
 
-        if (!adminPassword) {
-            return showNotification('error', 'Credentials administrateur manquants dans la configuration.');
-        }
+            if (!adminPassword) {
+                return showNotification('error', 'Credentials administrateur manquants dans la configuration.');
+            }
 
-        // Format username with domain if not already included
-        const fullUsername = adminUsername.includes('\\') ? adminUsername : `${domain}\\${adminUsername}`;
+            // Format username with domain if not already included
+            const fullUsername = adminUsername.includes('\\') ? adminUsername : `${domain}\\${adminUsername}`;
 
-        showNotification('info', `Lancement du Shadow pour ${session.username}...`);
-        try {
-            const result = await window.electronAPI.launchRdp({
-                server: session.server,
-                sessionId: session.sessionId,
-                username: fullUsername,
-                password: adminPassword
-            });
-            if (!result.success) throw new Error(result.error);
-            showNotification('success', 'Shadow lancé ! En attente de l\'acceptation de l\'utilisateur...');
-        } catch (err) {
-            showNotification('error', `Erreur Shadow: ${err.message}`);
-        }
-    };
+            showNotification('info', `Lancement du Shadow pour ${session.username}...`);
+            try {
+                const result = await window.electronAPI.launchRdp({
+                    server: session.server,
+                    sessionId: session.sessionId,
+                    username: fullUsername,
+                    password: adminPassword
+                });
+                if (!result.success) throw new Error(result.error);
+                showNotification('success', 'Shadow lancé ! En attente de l\'acceptation de l\'utilisateur...');
+            } catch (err) {
+                showNotification('error', `Erreur Shadow: ${err.message}`);
+            }
+        }, 2000), // Cooldown 2s - opération très lourde (Shadow RDP)
+        [config, showNotification]
+    );
 
-    const handleLaunchConnect = async (session, userInfo) => {
-        if (!window.electronAPI?.launchRdp) return showNotification('warning', 'Fonctionnalité disponible uniquement dans l\'application de bureau.');
-        if (!session) return;
-        if (!userInfo?.password) {
-            showNotification('error', `Aucun mot de passe configuré pour ${userInfo?.username}. Connexion manuelle requise.`);
-            await window.electronAPI.launchRdp({ server: session.server });
-            return;
-        }
-        showNotification('info', `Connexion RDP automatique vers ${session.server}...`);
-        try {
-            const result = await window.electronAPI.launchRdp({ server: session.server, username: userInfo.username, password: userInfo.password });
-            if (!result.success) throw new Error(result.error);
-        } catch (err) { showNotification('error', `Erreur RDP: ${err.message}`); }
-    };
+    // 🚀 Optimisation TSE: debounceAsyncLeading empêche lancements RDP multiples
+    const handleLaunchConnect = useCallback(
+        debounceAsyncLeading(async (session, userInfo) => {
+            if (!window.electronAPI?.launchRdp) {
+                return showNotification('warning', 'Fonctionnalité disponible uniquement dans l\'application de bureau.');
+            }
+            if (!session) return;
+
+            if (!userInfo?.password) {
+                showNotification('error', `Aucun mot de passe configuré pour ${userInfo?.username}. Connexion manuelle requise.`);
+                await window.electronAPI.launchRdp({ server: session.server });
+                return;
+            }
+
+            showNotification('info', `Connexion RDP automatique vers ${session.server}...`);
+            try {
+                const result = await window.electronAPI.launchRdp({
+                    server: session.server,
+                    username: userInfo.username,
+                    password: userInfo.password
+                });
+                if (!result.success) throw new Error(result.error);
+                showNotification('success', 'Connexion RDP lancée');
+            } catch (err) {
+                showNotification('error', `Erreur RDP: ${err.message}`);
+            }
+        }, 1500), // Cooldown 1.5s - opération lourde (lancement RDP)
+        [showNotification]
+    );
     
     if (isCacheLoading) {
         return <LoadingScreen type="table" rows={10} columns={7} />;

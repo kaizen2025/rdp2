@@ -13,16 +13,24 @@ class AutoIndexingService {
     constructor() {
         this.watcher = null;
         this.isRunning = false;
+        this.isPaused = false;
         this.stats = {
             filesIndexed: 0,
             filesUpdated: 0,
             filesDeleted: 0,
             errors: 0,
-            lastScan: null
+            lastScan: null,
+            currentProgress: 0,
+            totalFiles: 0,
+            estimatedTimeRemaining: 0
         };
         this.config = null;
         this.scanInterval = null;
-        this.embeddingsCache = new Map(); // Cache embeddings pour éviter recalcul
+        this.embeddingsCache = new Map(); // Cache LIMITÉ pour éviter saturation mémoire
+        this.maxCacheSize = 100; // ⚠️ TSE: Cache MINIMAL (100 docs max au lieu de 1000)
+        this.currentScanController = null; // Pour annuler scan en cours
+        this.throttleDelay = 50; // ms entre chaque fichier (éviter saturation CPU)
+        this.chunkSize = 10; // Traiter fichiers par lots de 10
     }
 
     /**
@@ -110,36 +118,85 @@ class AutoIndexingService {
     }
 
     /**
-     * Scan et indexation complète
+     * 🚀 SCAN OPTIMISÉ POUR 1 TO - Méthodique et non-bloquant
      */
     async scanAndIndex() {
         const startTime = Date.now();
-        console.log('[AutoIndexing] 🔍 Début scan...');
+        console.log('[AutoIndexing] 🔍 Début scan optimisé pour gros volume...');
+
+        // Créer controller pour annulation
+        this.currentScanController = { cancelled: false };
 
         try {
-            const files = await this.scanDirectory(this.config.serverPath);
-            console.log(`[AutoIndexing] 📄 ${files.length} fichiers trouvés`);
+            // === ÉTAPE 1: Scan incrémental sans tout charger en mémoire ===
+            console.log('[AutoIndexing] 📊 Comptage fichiers (sans chargement mémoire)...');
+            const totalFiles = await this.countFilesOnly(this.config.serverPath);
+            this.stats.totalFiles = totalFiles;
 
+            console.log(`[AutoIndexing] 📄 ${totalFiles} fichiers à scanner`);
+
+            if (totalFiles === 0) {
+                console.log('[AutoIndexing] ⏭️  Aucun fichier à indexer');
+                return { success: true, indexed: 0, errors: 0 };
+            }
+
+            // === ÉTAPE 2: Scan par chunks pour éviter saturation mémoire ===
             let indexed = 0;
             let errors = 0;
+            let processedCount = 0;
 
-            for (const file of files) {
-                try {
-                    await this.indexFile(file);
-                    indexed++;
-
-                    if (indexed % 10 === 0) {
-                        console.log(`[AutoIndexing] Progression: ${indexed}/${files.length}`);
+            await this.scanDirectoryStreaming(
+                this.config.serverPath,
+                async (fileChunk) => {
+                    // Vérifier si scan annulé
+                    if (this.currentScanController.cancelled || this.isPaused) {
+                        console.log('[AutoIndexing] ⏸️  Scan interrompu');
+                        return false; // Stop scan
                     }
-                } catch (error) {
-                    console.error(`[AutoIndexing] Erreur indexation ${file.path}:`, error.message);
-                    errors++;
+
+                    // Traiter chunk par chunk
+                    for (const file of fileChunk) {
+                        try {
+                            await this.indexFile(file);
+                            indexed++;
+                        } catch (error) {
+                            console.error(`[AutoIndexing] Erreur ${file.name}:`, error.message);
+                            errors++;
+                        }
+
+                        processedCount++;
+
+                        // Mise à jour progression
+                        this.stats.currentProgress = Math.round((processedCount / totalFiles) * 100);
+
+                        // Estimation temps restant
+                        const elapsed = Date.now() - startTime;
+                        const avgTimePerFile = elapsed / processedCount;
+                        const remaining = (totalFiles - processedCount) * avgTimePerFile;
+                        this.stats.estimatedTimeRemaining = Math.round(remaining / 1000); // secondes
+
+                        // Log tous les 50 fichiers
+                        if (processedCount % 50 === 0) {
+                            console.log(`[AutoIndexing] Progression: ${processedCount}/${totalFiles} (${this.stats.currentProgress}%) - ETA: ${this.stats.estimatedTimeRemaining}s`);
+                        }
+
+                        // ⚡ THROTTLE: Pause entre fichiers pour ne pas saturer CPU
+                        await this.sleep(this.throttleDelay);
+                    }
+
+                    // 🧹 NETTOYAGE MÉMOIRE: Forcer GC tous les 100 fichiers
+                    if (processedCount % 100 === 0) {
+                        this.cleanupMemory();
+                    }
+
+                    return true; // Continue scan
                 }
-            }
+            );
 
             this.stats.filesIndexed += indexed;
             this.stats.errors += errors;
             this.stats.lastScan = new Date().toISOString();
+            this.stats.currentProgress = 100;
 
             const duration = ((Date.now() - startTime) / 1000).toFixed(2);
             console.log(`[AutoIndexing] ✅ Scan terminé: ${indexed} indexés, ${errors} erreurs (${duration}s)`);
@@ -148,7 +205,8 @@ class AutoIndexingService {
                 success: true,
                 indexed,
                 errors,
-                duration
+                duration,
+                totalFiles
             };
 
         } catch (error) {
@@ -157,7 +215,135 @@ class AutoIndexingService {
                 success: false,
                 error: error.message
             };
+        } finally {
+            this.currentScanController = null;
         }
+    }
+
+    /**
+     * Compte fichiers sans les charger en mémoire
+     */
+    async countFilesOnly(dirPath, count = 0) {
+        try {
+            const entries = await fs.readdir(dirPath, { withFileTypes: true });
+
+            for (const entry of entries) {
+                const fullPath = path.join(dirPath, entry.name);
+
+                if (entry.isDirectory()) {
+                    if (this.shouldExcludeFolder(entry.name)) continue;
+                    count = await this.countFilesOnly(fullPath, count);
+                } else {
+                    if (this.isAllowedFile(entry.name)) {
+                        count++;
+                    }
+                }
+            }
+
+            return count;
+        } catch (error) {
+            return count;
+        }
+    }
+
+    /**
+     * Scan streaming par chunks (évite charger tous les fichiers en mémoire)
+     */
+    async scanDirectoryStreaming(dirPath, chunkCallback, currentChunk = []) {
+        try {
+            const entries = await fs.readdir(dirPath, { withFileTypes: true });
+
+            for (const entry of entries) {
+                const fullPath = path.join(dirPath, entry.name);
+
+                if (entry.isDirectory()) {
+                    if (this.shouldExcludeFolder(entry.name)) continue;
+                    await this.scanDirectoryStreaming(fullPath, chunkCallback, currentChunk);
+                } else {
+                    if (this.isAllowedFile(entry.name)) {
+                        const stats = await fs.stat(fullPath);
+                        currentChunk.push({
+                            path: fullPath,
+                            name: entry.name,
+                            size: stats.size,
+                            modified: stats.mtime
+                        });
+
+                        // Traiter chunk quand atteint chunkSize
+                        if (currentChunk.length >= this.chunkSize) {
+                            const shouldContinue = await chunkCallback([...currentChunk]);
+                            currentChunk.length = 0; // Vider chunk
+
+                            if (!shouldContinue) {
+                                return; // Stop scan
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Traiter chunk restant
+            if (currentChunk.length > 0) {
+                await chunkCallback([...currentChunk]);
+                currentChunk.length = 0;
+            }
+
+        } catch (error) {
+            console.error(`[AutoIndexing] Erreur scan streaming ${dirPath}:`, error.message);
+        }
+    }
+
+    /**
+     * Nettoyage mémoire agressif pour TSE
+     */
+    cleanupMemory() {
+        // Limiter cache embeddings
+        if (this.embeddingsCache.size > this.maxCacheSize) {
+            const keysToDelete = Array.from(this.embeddingsCache.keys())
+                .slice(0, this.embeddingsCache.size - this.maxCacheSize);
+
+            keysToDelete.forEach(key => this.embeddingsCache.delete(key));
+            console.log(`[AutoIndexing] 🧹 Cache nettoyé: ${keysToDelete.length} entrées supprimées`);
+        }
+
+        // Forcer garbage collection si disponible
+        if (global.gc) {
+            global.gc();
+            console.log('[AutoIndexing] 🗑️  GC forcé');
+        }
+    }
+
+    /**
+     * Pause le scan en cours
+     */
+    pause() {
+        this.isPaused = true;
+        console.log('[AutoIndexing] ⏸️  Scan mis en pause');
+    }
+
+    /**
+     * Reprend le scan
+     */
+    resume() {
+        this.isPaused = false;
+        console.log('[AutoIndexing] ▶️  Scan repris');
+    }
+
+    /**
+     * Annule le scan en cours
+     */
+    cancelScan() {
+        if (this.currentScanController) {
+            this.currentScanController.cancelled = true;
+            console.log('[AutoIndexing] ❌ Scan annulé');
+        }
+    }
+
+    /**
+     * Helper: sleep non-bloquant
+     */
+    sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     /**
