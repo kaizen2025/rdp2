@@ -103,6 +103,8 @@ class ApiService {
     }
     deleteComputer = async (id) => this.request(`/computers/${id}`, { method: 'DELETE' })
     addComputerMaintenance = async (id, data) => this.request(`/computers/${id}/maintenance`, { method: 'POST', body: JSON.stringify(data) })
+    bulkDeleteComputers = async (ids) => this.request('/computers/bulk-delete', { method: 'POST', body: JSON.stringify({ ids }) })
+    bulkUpdateComputers = async (ids, updates) => this.request('/computers/bulk-update', { method: 'POST', body: JSON.stringify({ ids, updates }) })
 
     // PRÊTS (LOANS)
     getLoans = async () => this.request('/loans')
@@ -268,6 +270,9 @@ class ApiService {
         // Téléchargement direct
         window.open(`${this.baseURL}/ai/documents/${documentId}/download`, '_blank');
     }
+
+    // Natural Language Search
+    naturalLanguageSearch = async (query) => this.request('/search', { method: 'POST', body: JSON.stringify({ query }) })
 }
 
 // Création d'une instance unique (singleton) pour toute l'application

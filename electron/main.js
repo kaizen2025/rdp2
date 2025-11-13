@@ -1,8 +1,9 @@
 // electron/main.js - VERSION FINALE AVEC DÉMARRAGE SERVEUR ROBUSTE
 
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Notification } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
+const notificationScheduler = require('../backend/services/notificationScheduler');
 const log = require('electron-log');
 const { exec } = require('child_process');
 const fs = require('fs');
@@ -265,9 +266,25 @@ function checkForUpdates(isManual) {
     });
 }
 
+const { shell } = require('electron');
+
 function setupIpcHandlers() {
     ipcMain.handle('get-app-version', () => app.getVersion());
     ipcMain.handle('check-for-updates', () => { checkForUpdates(true); return { success: true }; });
+
+    ipcMain.on('show-notification', (event, { title, body }) => {
+        const notification = new Notification({ title, body });
+        notification.show();
+    });
+
+    ipcMain.handle('open-file', (event, filePath) => {
+        shell.openPath(filePath);
+    });
+
+    ipcMain.handle('open-folder', (event, filePath) => {
+        shell.showItemInFolder(filePath);
+    });
+
     ipcMain.handle('launch-rdp', async (event, params) => {
         const { server, sessionId, username, password } = params;
         if (!server) return { success: false, error: 'Serveur non spécifié' };
@@ -358,6 +375,7 @@ app.whenReady().then(() => {
     initializeAdBridge();  // ✅ Initialize AD IPC bridge
     setupIpcHandlers();
     createWindow();
+    notificationScheduler.start(mainWindow);
     app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 

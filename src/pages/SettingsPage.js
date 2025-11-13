@@ -140,6 +140,7 @@ const SettingsPage = ({ open, onClose }) => {
                             <Grid container spacing={2}>
                                 <Grid item xs={12}><TextField label="Fichier Excel Utilisateurs" name="excelFilePath" value={editedConfig.excelFilePath || ''} onChange={handleFieldChange} fullWidth InputProps={{ endAdornment: (<InputAdornment position="end"><IconButton onClick={() => handleBrowse('excelFilePath')} disabled={!isElectron}><FolderOpenIcon /></IconButton></InputAdornment>) }} /></Grid>
                                 <Grid item xs={12}><TextField label="Base de données SQLite" name="databasePath" value={editedConfig.databasePath || ''} onChange={handleFieldChange} fullWidth InputProps={{ endAdornment: (<InputAdornment position="end"><IconButton onClick={() => handleBrowse('databasePath')} disabled={!isElectron}><FolderOpenIcon /></IconButton></InputAdornment>) }} /></Grid>
+                                <Grid item xs={12}><TextField label="Dossier des documents de procédures" name="documentSyncPath" value={editedConfig.documentSyncPath || ''} onChange={handleFieldChange} fullWidth InputProps={{ endAdornment: (<InputAdornment position="end"><IconButton onClick={() => handleBrowse('documentSyncPath', false)} disabled={!isElectron}><FolderOpenIcon /></IconButton></InputAdornment>) }} /></Grid>
                             </Grid>
                         </Paper>
                         <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>

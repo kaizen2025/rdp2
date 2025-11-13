@@ -5,7 +5,8 @@ import {
     Box, Paper, Typography, Button, IconButton, FormControl, InputLabel,
     Select, MenuItem, Chip, Tooltip, Grid, Menu, Card, Divider, Dialog,
     DialogTitle, DialogContent, DialogActions, Autocomplete, TextField,
-    ToggleButtonGroup, ToggleButton, List, ListItem, ListItemText, ListItemIcon
+    ToggleButtonGroup, ToggleButton, List, ListItem, ListItemText, ListItemIcon,
+    Toolbar, Checkbox
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { addDays } from 'date-fns';
@@ -33,6 +34,7 @@ import PageHeader from '../components/common/PageHeader';
 import SearchInput from '../components/common/SearchInput';
 import EmptyState from '../components/common/EmptyState';
 import LoadingScreen from '../components/common/LoadingScreen';
+import BulkActionsToolbar from '../components/BulkActionsToolbar';
 
 
 const STATUS_CONFIG = {
@@ -44,12 +46,17 @@ const STATUS_CONFIG = {
 };
 
 // --- VUE CARTE (COMPACTÉE) ---
-const ComputerCard = ({ computer, onEdit, onDelete, onHistory, onMaintenance, onLoan }) => {
+const ComputerCard = ({ computer, onEdit, onDelete, onHistory, onMaintenance, onLoan, onSelect, isSelected }) => {
     const [anchorEl, setAnchorEl] = useState(null);
     const statusConfig = STATUS_CONFIG[computer.status] || {};
     return (
-        <Card elevation={2} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Box sx={{ p: 1.5 }}>
+        <Card elevation={2} sx={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+            <Checkbox
+                checked={isSelected}
+                onClick={(event) => onSelect(event, computer.id)}
+                sx={{ position: 'absolute', top: 4, left: 4, zIndex: 1 }}
+            />
+            <Box sx={{ p: 1.5, mt: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                     <Typography variant="subtitle1" fontWeight="600" noWrap>{computer.name}</Typography>
                     <IconButton size="small" onClick={(e) => setAnchorEl(e.currentTarget)}><MoreVertIcon /></IconButton>
@@ -78,21 +85,44 @@ const ComputerCard = ({ computer, onEdit, onDelete, onHistory, onMaintenance, on
 };
 
 // --- VUE LISTE COMPACTE ---
-const ComputerListItem = ({ computer, onEdit, onLoan }) => {
+const ComputerListItem = ({ computer, onEdit, onLoan, onSelect, isSelected }) => {
     const statusConfig = STATUS_CONFIG[computer.status] || {};
+    const labelId = `computer-list-item-${computer.id}`;
+
     return (
-        <ListItem divider secondaryAction={
-            computer.status === 'available' && (
-                <Button size="small" variant="contained" startIcon={<AssignmentIcon />} onClick={() => onLoan(computer)}>Prêter</Button>
-            )
-        }>
-            <ListItemIcon><LaptopIcon color={computer.status === 'available' ? 'success' : 'action'} /></ListItemIcon>
+        <ListItem
+            hover
+            onClick={(event) => onSelect(event, computer.id)}
+            role="checkbox"
+            aria-checked={isSelected}
+            tabIndex={-1}
+            key={computer.id}
+            selected={isSelected}
+            divider
+            secondaryAction={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {computer.status === 'available' && (
+                        <Button size="small" variant="outlined" startIcon={<AssignmentIcon />} onClick={(e) => { e.stopPropagation(); onLoan(computer); }}>Prêter</Button>
+                    )}
+                    <Tooltip title="Modifier">
+                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); onEdit(computer); }}><EditIcon /></IconButton>
+                    </Tooltip>
+                </Box>
+            }
+        >
+            <ListItemIcon>
+                <Checkbox
+                    color="primary"
+                    checked={isSelected}
+                    inputProps={{ 'aria-labelledby': labelId }}
+                />
+            </ListItemIcon>
             <ListItemText
+                id={labelId}
                 primary={<Typography variant="body2" fontWeight={500}>{computer.name}</Typography>}
                 secondary={`${computer.brand} ${computer.model} - S/N: ${computer.serialNumber}`}
             />
             <Chip label={statusConfig.label} color={statusConfig.color} size="small" sx={{ mr: 2 }} />
-            <Tooltip title="Modifier"><IconButton size="small" onClick={() => onEdit(computer)}><EditIcon /></IconButton></Tooltip>
         </ListItem>
     );
 };
@@ -109,8 +139,53 @@ const ComputersPage = () => {
     const [locationFilter, setLocationFilter] = useState('all');
     const [brandFilter, setBrandFilter] = useState('all');
     const [dialog, setDialog] = useState({ type: null, data: null });
+    const [selected, setSelected] = useState([]);
+    const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
+    const [bulkEditData, setBulkEditData] = useState({ status: '', location: '' });
 
-    // ... (toute la logique de gestion des données et des dialogues reste identique)
+    const handleBulkDelete = async () => {
+        if (window.confirm(`Voulez-vous vraiment supprimer ${selected.length} ordinateurs ?`)) {
+            try {
+                await apiService.bulkDeleteComputers(selected);
+                showNotification('success', `${selected.length} ordinateurs supprimés.`);
+                setSelected([]);
+                invalidate('computers');
+            } catch (error) {
+                showNotification('error', `Erreur lors de la suppression : ${error.message}`);
+            }
+        }
+    };
+
+    const handleOpenBulkEditDialog = () => {
+        setBulkEditDialogOpen(true);
+    };
+
+    const handleCloseBulkEditDialog = () => {
+        setBulkEditDialogOpen(false);
+        setBulkEditData({ status: '', location: '' });
+    };
+
+    const handleConfirmBulkEdit = async () => {
+        const updates = {};
+        if (bulkEditData.status) updates.status = bulkEditData.status;
+        if (bulkEditData.location) updates.location = bulkEditData.location;
+
+        if (Object.keys(updates).length === 0) {
+            showNotification('info', 'Aucune modification à appliquer.');
+            return;
+        }
+
+        try {
+            await apiService.bulkUpdateComputers(selected, updates);
+            showNotification('success', `${selected.length} ordinateurs mis à jour.`);
+            setSelected([]);
+            invalidate('computers');
+            handleCloseBulkEditDialog();
+        } catch (error) {
+            showNotification('error', `Erreur lors de la mise à jour : ${error.message}`);
+        }
+    };
+
     const { computers, users, itStaff, loans } = useMemo(() => ({
         computers: cache.computers || [],
         users: Object.values(cache.excel_users || {}).flat(),
@@ -171,6 +246,36 @@ const ComputersPage = () => {
 
     const clearFilters = () => { setSearchTerm(''); setStatusFilter('all'); setLocationFilter('all'); setBrandFilter('all'); };
     const hasActiveFilters = searchTerm || statusFilter !== 'all' || locationFilter !== 'all' || brandFilter !== 'all';
+
+    const handleSelectAll = (event) => {
+        if (event.target.checked) {
+            const newSelecteds = filteredComputers.map((c) => c.id);
+            setSelected(newSelecteds);
+            return;
+        }
+        setSelected([]);
+    };
+
+    const handleSelect = (event, id) => {
+        const selectedIndex = selected.indexOf(id);
+        let newSelected = [];
+
+        if (selectedIndex === -1) {
+            newSelected = newSelected.concat(selected, id);
+        } else if (selectedIndex === 0) {
+            newSelected = newSelected.concat(selected.slice(1));
+        } else if (selectedIndex === selected.length - 1) {
+            newSelected = newSelected.concat(selected.slice(0, -1));
+        } else if (selectedIndex > 0) {
+            newSelected = newSelected.concat(
+                selected.slice(0, selectedIndex),
+                selected.slice(selectedIndex + 1),
+            );
+        }
+        setSelected(newSelected);
+    };
+
+    const isSelected = (id) => selected.indexOf(id) !== -1;
 
     const stats = useMemo(() => ({
         total: computers.length,
@@ -246,23 +351,61 @@ const ComputersPage = () => {
                 </Grid>
             </Paper>
 
-            {isLoading ? <LoadingScreen type="cards" /> : filteredComputers.length === 0 ? (
-                <EmptyState type="search" />
-            ) : (
-                <Box>
-                    {view === 'grid' && (
-                        <Grid container spacing={2}>
-                            {filteredComputers.map(computer => (
-                                <Grid item key={computer.id} xs={12} sm={6} md={4} lg={3} xl={2}>
-                                    <ComputerCard computer={computer} onEdit={(c) => setDialog({ type: 'computer', data: c })} onDelete={handleDeleteComputer} onHistory={(c) => setDialog({ type: 'history', data: c })} onMaintenance={(c) => setDialog({ type: 'maintenance', data: c })} onLoan={(c) => setDialog({ type: 'loan', data: c })} />
+            {isLoading ? <LoadingScreen type="cards" /> : (
+                <Paper elevation={2}>
+                    <BulkActionsToolbar
+                        numSelected={selected.length}
+                        onBulkDelete={handleBulkDelete}
+                        onBulkEdit={handleOpenBulkEditDialog}
+                    />
+                    {filteredComputers.length === 0 ? (
+                        <EmptyState type="search" />
+                    ) : (
+                        <Box>
+                            {view === 'grid' && (
+                                <Grid container spacing={2} sx={{ p: 2 }}>
+                                    {filteredComputers.map(computer => (
+                                        <Grid item key={computer.id} xs={12} sm={6} md={4} lg={3} xl={2}>
+                                            <ComputerCard
+                                                computer={computer}
+                                                onEdit={(c) => setDialog({ type: 'computer', data: c })}
+                                                onDelete={handleDeleteComputer}
+                                                onHistory={(c) => setDialog({ type: 'history', data: c })}
+                                                onMaintenance={(c) => setDialog({ type: 'maintenance', data: c })}
+                                                onLoan={(c) => setDialog({ type: 'loan', data: c })}
+                                                onSelect={handleSelect}
+                                                isSelected={isSelected(computer.id)}
+                                            />
+                                        </Grid>
+                                    ))}
                                 </Grid>
-                            ))}
-                        </Grid>
+                            )}
+                            {view === 'list' && (
+                                <List disablePadding>
+                                    <ListItem>
+                                        <ListItemIcon>
+                                            <Checkbox
+                                                indeterminate={selected.length > 0 && selected.length < filteredComputers.length}
+                                                checked={filteredComputers.length > 0 && selected.length === filteredComputers.length}
+                                                onChange={handleSelectAll}
+                                            />
+                                        </ListItemIcon>
+                                    </ListItem>
+                                    {filteredComputers.map(computer => (
+                                        <ComputerListItem
+                                            key={computer.id}
+                                            computer={computer}
+                                            onEdit={(c) => setDialog({ type: 'computer', data: c })}
+                                            onLoan={(c) => setDialog({ type: 'loan', data: c })}
+                                            onSelect={handleSelect}
+                                            isSelected={isSelected(computer.id)}
+                                        />
+                                    ))}
+                                </List>
+                            )}
+                        </Box>
                     )}
-                    {view === 'list' && (
-                        <Paper elevation={2}><List disablePadding>{filteredComputers.map(computer => <ComputerListItem key={computer.id} computer={computer} onEdit={(c) => setDialog({ type: 'computer', data: c })} onLoan={(c) => setDialog({ type: 'loan', data: c })} />)}</List></Paper>
-                    )}
-                </Box>
+                </Paper>
             )}
 
             {/* Dialogues */}
@@ -271,6 +414,43 @@ const ComputersPage = () => {
             <MaintenanceDialog open={dialog.type === 'maintenance'} onClose={() => setDialog({ type: null })} computer={dialog.data} onSave={handleSaveMaintenance} />
             <LoanDialog open={dialog.type === 'loan'} onClose={() => setDialog({ type: null })} computer={dialog.data} users={users} itStaff={itStaff} computers={computers} loans={loans} onSave={handleCreateLoan} />
             <Dialog open={dialog.type === 'accessories'} onClose={() => setDialog({ type: null })} maxWidth="lg" fullWidth><AccessoriesManagement /></Dialog>
+
+            {/* Bulk Edit Dialog */}
+            <Dialog open={bulkEditDialogOpen} onClose={handleCloseBulkEditDialog}>
+                <DialogTitle>Modifier en masse</DialogTitle>
+                <DialogContent>
+                    <FormControl fullWidth margin="normal">
+                        <InputLabel>Nouveau Statut</InputLabel>
+                        <Select
+                            value={bulkEditData.status}
+                            label="Nouveau Statut"
+                            onChange={(e) => setBulkEditData(prev => ({ ...prev, status: e.target.value }))}
+                        >
+                            <MenuItem value=""><em>Non modifié</em></MenuItem>
+                            {Object.entries(STATUS_CONFIG).map(([key, { label }]) => (
+                                <MenuItem key={key} value={key}>{label}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    <FormControl fullWidth margin="normal">
+                        <InputLabel>Nouvelle Localisation</InputLabel>
+                        <Select
+                            value={bulkEditData.location}
+                            label="Nouvelle Localisation"
+                            onChange={(e) => setBulkEditData(prev => ({ ...prev, location: e.target.value }))}
+                        >
+                            <MenuItem value=""><em>Non modifié</em></MenuItem>
+                            {locations.map(location => (
+                                <MenuItem key={location} value={location}>{location}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseBulkEditDialog}>Annuler</Button>
+                    <Button onClick={handleConfirmBulkEdit} variant="contained">Confirmer</Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };

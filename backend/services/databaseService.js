@@ -25,6 +25,7 @@ const schema = `
     CREATE TABLE IF NOT EXISTS rds_sessions (id TEXT PRIMARY KEY, server TEXT NOT NULL, sessionId TEXT NOT NULL, username TEXT, sessionName TEXT, state TEXT, idleTime TEXT, logonTime TEXT, isActive INTEGER, lastUpdate TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, displayName TEXT NOT NULL, email TEXT, department TEXT, server TEXT, password TEXT, officePassword TEXT, adEnabled INTEGER DEFAULT 1, notes TEXT, createdAt TEXT, createdBy TEXT, lastModified TEXT, modifiedBy TEXT, lastSyncFromExcel TEXT); CREATE INDEX IF NOT EXISTS idx_users_username ON users(username); CREATE INDEX IF NOT EXISTS idx_users_server ON users(server);
     CREATE TABLE IF NOT EXISTS key_value_store (key TEXT PRIMARY KEY, value TEXT);
+    CREATE TABLE IF NOT EXISTS ai_document_manifest (filePath TEXT PRIMARY KEY, hash TEXT NOT NULL, lastModified TEXT NOT NULL);
 `;
 
 function runMigrationIfNecessary() {
@@ -237,4 +238,13 @@ function getConnection() { connect(); return db; }
 function isInOfflineMode() { return isOfflineMode; }
 function getDatabasePath() { return isOfflineMode ? LOCAL_DB_PATH : configService.appConfig.databasePath; }
 
-module.exports = { connect, connectWithRetry, close, run, get, all, prepare, transaction, exec, getConnection, isInOfflineMode, getDatabasePath };
+// AI-related database functions
+const getAIDocumentByFilePath = (filePath) => {
+    return get('SELECT id FROM ai_documents WHERE filepath = ?', [filePath]);
+};
+
+
+module.exports = {
+    connect, connectWithRetry, close, run, get, all, prepare, transaction, exec, getConnection, isInOfflineMode, getDatabasePath,
+    getAIDocumentByFilePath
+};

@@ -1,6 +1,7 @@
 {
   "databasePath": "C:\\ProgramData\\RDS_Viewer_Group\\rds_viewer_data.sqlite",
   "excelFilePath": "\\\\CHEMIN_RESEAU\\vers\\votre\\fichier_utilisateurs.xlsx",
+  "documentSyncPath": "\\\\CHEMIN_RESEAU\\vers\\vos\\documents_de_procedures",
   "updateUrl": "http://VOTRE_SERVEUR_DE_MAJ/update/",
   "excelColumnMapping": {
     "Identifiant": "username",

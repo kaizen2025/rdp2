@@ -26,6 +26,7 @@ const { findAllPorts, savePorts, isPortAvailable } = require('../backend/utils/p
 const authRoutes = require('../backend/routes/auth');
 const notificationRoutes = require('../backend/routes/notifications');
 const notificationScheduler = require('../backend/services/notificationScheduler');
+const documentSyncService = require('../backend/services/ai/documentSyncService');
 
 
 // ... (le début du fichier jusqu'à startServer reste identique)
@@ -151,6 +152,15 @@ function startBackgroundTasks() {
 
     // ✅ NOUVEAU - Démarrer le planificateur de notifications automatiques
     notificationScheduler.start();
+
+    // ✅ NOUVEAU - Démarrer le service de synchronisation des documents
+    const syncPath = configService.appConfig.documentSyncPath;
+    if (syncPath) {
+        documentSyncService.start(syncPath);
+        console.log(`[DocSync] Service de synchronisation démarré pour le dossier : ${syncPath}`);
+    } else {
+        console.warn('[DocSync] Aucun chemin de synchronisation des documents configuré. Le service ne démarrera pas.');
+    }
 
     console.log('✅ Tâches de fond planifiées.');
 }

@@ -1,168 +1,108 @@
-/**
- * Planificateur automatique pour les notifications de prêts
- * Vérifie périodiquement les prêts et génère des notifications
- */
-
+// backend/services/notificationScheduler.js
+const { ipcMain } = require('electron');
+const dataService = require('./dataService');
+const rdsService = require('./rdsService');
 const notificationService = require('./notificationService');
-const Database = require('better-sqlite3');
-const path = require('path');
-const fs = require('fs');
 const configService = require('./configService');
 
-class NotificationScheduler {
-    constructor() {
-        this.interval = null;
-        this.checkFrequency = 3600000; // 1 heure en millisecondes
-        this.isRunning = false;
-        this.db = null;
-    }
+let schedulerInterval = null;
+let mainWindow = null;
 
-    /**
-     * Obtenir la connexion à la base de données
-     * Utilise le chemin configuré dans config.json (base de PRODUCTION)
-     */
-    getDb() {
-        if (!this.db) {
-            // Utiliser le chemin de config.json (base de PRODUCTION)
-            let dbPath;
+const checkOverdueLoans = async () => {
+    const loans = await dataService.getLoans();
+    const overdueLoans = loans.filter(loan => loan.status === 'overdue' || loan.status === 'critical');
 
-            if (configService.appConfig && configService.appConfig.databasePath) {
-                dbPath = configService.appConfig.databasePath;
-            } else {
-                // Fallback sur base locale si config non chargée
-                dbPath = path.join(__dirname, '../../data/rds_viewer_data.sqlite');
-                console.warn(`[NotificationScheduler] ⚠️  Config non chargée, utilisation base locale`);
-            }
-
-            const dbDir = path.dirname(dbPath);
-
-            if (!fs.existsSync(dbDir)) {
-                fs.mkdirSync(dbDir, { recursive: true });
-            }
-
-            this.db = new Database(dbPath);
-            this.db.pragma('journal_mode = WAL');
-        }
-        return this.db;
-    }
-
-    /**
-     * Démarrer le planificateur automatique
-     */
-    start() {
-        if (this.isRunning) {
-            console.log('[NotificationScheduler] Déjà démarré');
-            return;
-        }
-
-        console.log('[NotificationScheduler] Démarrage du planificateur de notifications...');
-
-        // Vérification immédiate au démarrage
-        this.checkLoans();
-
-        // Planifier les vérifications périodiques
-        this.interval = setInterval(() => {
-            this.checkLoans();
-        }, this.checkFrequency);
-
-        this.isRunning = true;
-        console.log(`[NotificationScheduler] Planificateur actif - vérification toutes les ${this.checkFrequency / 60000} minutes`);
-    }
-
-    /**
-     * Arrêter le planificateur
-     */
-    stop() {
-        if (this.interval) {
-            clearInterval(this.interval);
-            this.interval = null;
-            this.isRunning = false;
-            console.log('[NotificationScheduler] Planificateur arrêté');
-        }
-    }
-
-    /**
-     * Vérifier tous les prêts et générer les notifications nécessaires
-     */
-    async checkLoans() {
-        try {
-            console.log('[NotificationScheduler] Vérification des prêts en cours...');
-
-            // Récupérer tous les prêts actifs
-            const db = this.getDb();
-            const loans = db.prepare(`
-                SELECT * FROM loans
-                WHERE status NOT IN ('returned', 'cancelled')
-            `).all();
-
-            if (loans.length === 0) {
-                console.log('[NotificationScheduler] Aucun prêt actif à vérifier');
-                return;
-            }
-
-            // Récupérer les paramètres
-            const settingsRow = db.prepare('SELECT value FROM key_value_store WHERE key = ?').get('loan_settings');
-            // ✅ FIX: Merge avec defaultSettings pour garantir toutes les propriétés
-            const defaultSettings = this.getDefaultSettings();
-            const settings = settingsRow ? { ...defaultSettings, ...JSON.parse(settingsRow.value) } : defaultSettings;
-
-            if (!settings.autoNotifications) {
-                console.log('[NotificationScheduler] Notifications automatiques désactivées');
-                return;
-            }
-
-            // Vérifier les prêts et créer les notifications
-            const newNotifications = await notificationService.checkAllLoansForNotifications(loans, settings);
-
-            if (newNotifications && newNotifications.length > 0) {
-                console.log(`[NotificationScheduler] ✅ ${newNotifications.length} nouvelle(s) notification(s) créée(s)`);
-            } else {
-                console.log('[NotificationScheduler] Aucune nouvelle notification à créer');
-            }
-
-        } catch (error) {
-            console.error('[NotificationScheduler] Erreur lors de la vérification des prêts:', error);
-        }
-    }
-
-    /**
-     * Paramètres par défaut si non trouvés
-     */
-    getDefaultSettings() {
-        return {
-            autoNotifications: true,
-            reminderDaysBefore: [3, 1], // Rappels 3 jours et 1 jour avant
-            overdueReminderDays: [1, 3, 7] // Alertes après 1, 3 et 7 jours de retard
+    for (const loan of overdueLoans) {
+        const notification = {
+            title: 'Prêt en retard',
+            body: `Le prêt de ${loan.computerName} à ${loan.userDisplayName} est en retard.`,
+            type: 'warning',
         };
-    }
-
-    /**
-     * Changer la fréquence de vérification
-     */
-    setFrequency(minutes) {
-        this.checkFrequency = minutes * 60000;
-
-        if (this.isRunning) {
-            this.stop();
-            this.start();
+        // Avoid sending the same notification repeatedly
+        const existingNotif = await notificationService.findNotificationByContent(notification.body);
+        if (!existingNotif) {
+            await notificationService.createNotification(notification);
+            if (mainWindow) {
+                mainWindow.webContents.send('show-notification', notification);
+            }
         }
-
-        console.log(`[NotificationScheduler] Fréquence mise à jour: ${minutes} minutes`);
     }
+};
 
-    /**
-     * Obtenir le statut du planificateur
-     */
-    getStatus() {
-        return {
-            isRunning: this.isRunning,
-            checkFrequency: this.checkFrequency,
-            checkFrequencyMinutes: this.checkFrequency / 60000
-        };
+const checkServerStatus = async () => {
+    const servers = configService.appConfig?.rds_servers || [];
+    if (servers.length === 0) return;
+
+    for (const server of servers) {
+        const status = await rdsService.pingServer(server);
+        if (!status.success) {
+            const notification = {
+                title: 'Serveur hors ligne',
+                body: `Le serveur RDS "${server}" est hors ligne.`,
+                type: 'error',
+            };
+            const existingNotif = await notificationService.findNotificationByContent(notification.body);
+            if (!existingNotif) {
+                await notificationService.createNotification(notification);
+                if (mainWindow) {
+                    mainWindow.webContents.send('show-notification', notification);
+                }
+            }
+        } else if (status.cpu && status.cpu.usage > 90) {
+            const notification = {
+                title: 'Alerte CPU',
+                body: `L'utilisation du CPU sur le serveur "${server}" est supérieure à 90%.`,
+                type: 'warning',
+            };
+            const existingNotif = await notificationService.findNotificationByContent(notification.body);
+            if (!existingNotif) {
+                await notificationService.createNotification(notification);
+                if (mainWindow) {
+                    mainWindow.webContents.send('show-notification', notification);
+                }
+            }
+        } else if (status.storage && status.storage.usage > 90) {
+            const notification = {
+                title: 'Alerte Stockage',
+                body: `L'utilisation du stockage sur le serveur "${server}" est supérieure à 90%.`,
+                type: 'warning',
+            };
+            const existingNotif = await notificationService.findNotificationByContent(notification.body);
+            if (!existingNotif) {
+                await notificationService.createNotification(notification);
+                if (mainWindow) {
+                    mainWindow.webContents.send('show-notification', notification);
+                }
+            }
+        }
     }
-}
+};
 
-// Singleton
-const notificationScheduler = new NotificationScheduler();
+const runChecks = async () => {
+    console.log('Running scheduled checks...');
+    await checkOverdueLoans();
+    await checkServerStatus();
+};
 
-module.exports = notificationScheduler;
+const start = (win) => {
+    mainWindow = win;
+    if (schedulerInterval) {
+        clearInterval(schedulerInterval);
+    }
+    // Run checks every 5 minutes
+    schedulerInterval = setInterval(runChecks, 5 * 60 * 1000);
+    // Also run checks on startup
+    runChecks();
+};
+
+const stop = () => {
+    if (schedulerInterval) {
+        clearInterval(schedulerInterval);
+        schedulerInterval = null;
+    }
+};
+
+module.exports = {
+    start,
+    stop,
+};

@@ -76,6 +76,46 @@ const MessageItem = memo(({ message, isFirstInGroup, currentUser, onEdit, onDele
     const allTechnicians = config?.it_technicians || [];
     const getReactionAuthors = (users) => users.map(uid => allTechnicians.find(t => t.id === uid)?.name || uid).join(', ');
 
+    const handleOpenFile = (filePath) => {
+        if (window.electronAPI) {
+            window.electronAPI.openFile(filePath);
+        }
+    };
+
+    const handleOpenFolder = (filePath) => {
+        if (window.electronAPI) {
+            window.electronAPI.openFolder(filePath);
+        }
+    };
+
+    const renderMessageContent = () => {
+        try {
+            const structuredResponse = JSON.parse(message.text);
+            if (structuredResponse.mainResponse && structuredResponse.source) {
+                return (
+                    <Box>
+                        <Typography variant="body2">{structuredResponse.mainResponse}</Typography>
+                        <Paper variant="outlined" sx={{ p: 2, mt: 1 }}>
+                            <Typography variant="caption">Source: {structuredResponse.source.document}</Typography>
+                            <Typography variant="body2" sx={{ fontStyle: 'italic', mt: 1 }}>"{structuredResponse.source.excerpt}"</Typography>
+                            <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                                <Button size="small" onClick={() => handleOpenFile(structuredResponse.source.filePath)}>Ouvrir le fichier</Button>
+                                <Button size="small" onClick={() => handleOpenFolder(structuredResponse.source.filePath)}>Ouvrir le dossier</Button>
+                            </Stack>
+                        </Paper>
+                    </Box>
+                );
+            }
+        } catch (error) {
+            // Not a JSON response, render as plain text
+        }
+        return (
+            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', mt: isFirstInGroup ? 0 : -0.5 }}>
+                {message.text}{message.edited && <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>(modifié)</Typography>}
+            </Typography>
+        );
+    };
+
     return (
         <Box
             onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}
@@ -97,9 +137,7 @@ const MessageItem = memo(({ message, isFirstInGroup, currentUser, onEdit, onDele
             )}
             <Box sx={{ flex: 1 }}>
                 {isFirstInGroup && <Stack direction="row" alignItems="baseline" spacing={1}><Typography variant="subtitle2" component="span" sx={{ fontWeight: 'bold' }}>{message.authorName}</Typography><Typography variant="caption" color="text.secondary">{new Date(message.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</Typography></Stack>}
-                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', mt: isFirstInGroup ? 0 : -0.5 }}>
-                    {message.text}{message.edited && <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>(modifié)</Typography>}
-                </Typography>
+                {renderMessageContent()}
                 {message.file_info && <Chip icon={<DescriptionIcon />} label={message.file_info.name} size="small" variant="outlined" sx={{ mt: 1 }} />}
                 {message.reactions && Object.keys(message.reactions).length > 0 && <Stack direction="row" spacing={0.5} sx={{ mt: 0.5 }}>{Object.entries(message.reactions).filter(([key]) => key !== 'edited').map(([emoji, users]) => users.length > 0 && <Tooltip key={emoji} title={getReactionAuthors(users)}><Chip label={`${emoji} ${users.length}`} size="small" variant={users.includes(currentUser?.id) ? 'filled' : 'outlined'} onClick={() => onReact(message.id, emoji)} sx={{ cursor: 'pointer' }} /></Tooltip>)}</Stack>}
                 {isHovered && <Paper sx={{ position: 'absolute', top: -16, right: 8, display: 'flex', gap: 0.2, borderRadius: 2 }}><Tooltip title="Réagir"><IconButton size="small" onClick={(e) => setReactionAnchor(e.currentTarget)}><AddReactionIcon sx={{fontSize: 18}} /></IconButton></Tooltip>{isOwn && <Tooltip title="Plus d'options"><IconButton size="small" onClick={(e) => setMenuAnchor(e.currentTarget)}><MoreVertIcon sx={{fontSize: 18}} /></IconButton></Tooltip>}</Paper>}
@@ -120,16 +158,22 @@ const DateDivider = memo(({ date }) => {
     return <Divider sx={{ my: 2 }}><Chip label={formatDate()} size="small" /></Divider>;
 });
 
-const ChatDialog = ({ open, onClose, onlineTechnicians = [] }) => {
+const ChatDialog = ({ open, onClose, onlineTechnicians = [], initialMessage = '' }) => {
     const { currentTechnician, showNotification, events, config } = useApp();
     const { markChannelAsRead } = useUnreadMessages(); // ✅ NOUVEAU hook
     const [currentChannel, setCurrentChannel] = useState('general');
     const [channels, setChannels] = useState([]);
     const [technicians, setTechnicians] = useState([]);
     const [messages, setMessages] = useState([]);
-    const [newMessage, setNewMessage] = useState('');
+    const [newMessage, setNewMessage] = useState(initialMessage);
     const [editingMessage, setEditingMessage] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        if (initialMessage) {
+            setNewMessage(initialMessage);
+        }
+    }, [initialMessage]);
     const [isSending, setIsSending] = useState(false);
     const [addChannelOpen, setAddChannelOpen] = useState(false);
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
