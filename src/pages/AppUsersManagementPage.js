@@ -322,12 +322,12 @@ const AppUsersManagementPage = () => {
                     <Table>
                         <TableHead>
                             <TableRow>
-                                <TableCell><strong>Utilisateur</strong></TableCell>
-                                <TableCell><strong>Email</strong></TableCell>
-                                <TableCell><strong>Poste</strong></TableCell>
-                                <TableCell><strong>Statut</strong></TableCell>
-                                <TableCell><strong>Permissions</strong></TableCell>
-                                <TableCell align="right"><strong>Actions</strong></TableCell>
+                                <TableCell sx={{ minWidth: 200 }}><strong>Utilisateur</strong></TableCell>
+                                <TableCell sx={{ minWidth: 220 }}><strong>Email</strong></TableCell>
+                                <TableCell sx={{ minWidth: 150 }}><strong>Poste</strong></TableCell>
+                                <TableCell sx={{ minWidth: 100 }}><strong>Statut</strong></TableCell>
+                                <TableCell sx={{ minWidth: 300 }}><strong>Permissions</strong></TableCell>
+                                <TableCell align="right" sx={{ minWidth: 120 }}><strong>Actions</strong></TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>

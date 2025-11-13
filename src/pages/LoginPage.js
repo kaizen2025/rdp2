@@ -228,6 +228,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                                                 >
                                                     <CardContent sx={{ textAlign: 'center', py: 3, px: 2 }}>
                                                         <Avatar
+                                                            src={user.profile_picture_url || undefined}
                                                             sx={{
                                                                 width: 72,
                                                                 height: 72,
@@ -241,7 +242,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                                                                 borderColor: 'white'
                                                             }}
                                                         >
-                                                            {user.display_name.substring(0, 2).toUpperCase()}
+                                                            {!user.profile_picture_url && user.display_name.substring(0, 2).toUpperCase()}
                                                         </Avatar>
                                                         <Typography
                                                             variant="h6"
