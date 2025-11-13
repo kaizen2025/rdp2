@@ -17,6 +17,7 @@ import PageHeader from '../components/common/PageHeader';
 import SearchInput from '../components/common/SearchInput';
 import EmptyState from '../components/common/EmptyState';
 import LoadingScreen from '../components/common/LoadingScreen';
+import { debounceAsyncLeading } from '../utils/debounce';
 
 const AdGroupBadge = memo(({ groupName, isMember, onToggle, isLoading }) => {
     const isVpn = groupName === 'VPN';
@@ -53,17 +54,24 @@ const UserRow = memo(({ user, isOdd, onEdit, onDelete, onConnectWithCredentials,
     const [isUpdatingInternet, setIsUpdatingInternet] = useState(false);
 
     // ✅ HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURN
-    const toggleGroup = useCallback(async (group, isMember, setLoading) => {
-        if (!user || !user.username) return;
-        setLoading(true);
-        try {
-            const action = isMember ? apiService.removeUserFromGroup : apiService.addUserToGroup;
-            await action(user.username, group);
-            showNotification('success', `${user.username} ${isMember ? 'retiré de' : 'ajouté à'} ${group}`);
-            onMembershipChange();
-        } catch (error) { showNotification('error', `Erreur: ${error.message}`); }
-        finally { setLoading(false); }
-    }, [user, onMembershipChange, showNotification]);
+    // 🚀 Optimisation TSE: debounceAsyncLeading empêche clics multiples rapides
+    const toggleGroup = useCallback(
+        debounceAsyncLeading(async (group, isMember, setLoading) => {
+            if (!user || !user.username) return;
+            setLoading(true);
+            try {
+                const action = isMember ? apiService.removeUserFromGroup : apiService.addUserToGroup;
+                await action(user.username, group);
+                showNotification('success', `${user.username} ${isMember ? 'retiré de' : 'ajouté à'} ${group}`);
+                onMembershipChange();
+            } catch (error) {
+                showNotification('error', `Erreur: ${error.message}`);
+            } finally {
+                setLoading(false);
+            }
+        }, 800), // Cooldown 800ms pour éviter saturation TSE
+        [user, onMembershipChange, showNotification]
+    );
 
     // Protection: if user is undefined, return null AFTER all hooks
     if (!user || !user.username) {
@@ -199,13 +207,27 @@ const UsersManagementPage = () => {
         return new Set((cache['ad_groups:Sortants_responsables'] || []).map(m => m?.SamAccountName).filter(Boolean));
     }, [cache]);
 
-    const handleRefresh = useCallback(async () => {
-        setIsRefreshing(true);
-        showNotification('info', 'Rafraîchissement des données en cours...');
-        await apiService.refreshExcelUsers();
-        await Promise.all([invalidate('excel_users'), invalidate('ad_groups:VPN'), invalidate('ad_groups:Sortants_responsables')]);
-        setIsRefreshing(false);
-    }, [invalidate, showNotification]);
+    // 🚀 Optimisation TSE: debounceAsyncLeading empêche double refresh
+    const handleRefresh = useCallback(
+        debounceAsyncLeading(async () => {
+            setIsRefreshing(true);
+            showNotification('info', 'Rafraîchissement des données en cours...');
+            try {
+                await apiService.refreshExcelUsers();
+                await Promise.all([
+                    invalidate('excel_users'),
+                    invalidate('ad_groups:VPN'),
+                    invalidate('ad_groups:Sortants_responsables')
+                ]);
+                showNotification('success', 'Données rafraîchies avec succès');
+            } catch (error) {
+                showNotification('error', `Erreur rafraîchissement: ${error.message}`);
+            } finally {
+                setIsRefreshing(false);
+            }
+        }, 2000), // Cooldown 2s - opération lourde
+        [invalidate, showNotification]
+    );
 
     const { servers, departments } = useMemo(() => {
         const safeUsers = Array.isArray(users) ? users : [];
@@ -286,24 +308,48 @@ const UsersManagementPage = () => {
         } catch (error) { showNotification('error', `Erreur: ${error.message}`); }
     };
 
-    const handleDeleteUser = useCallback(async (user) => {
-        if (!window.confirm(`Supprimer ${user.displayName} du fichier Excel ?`)) return;
-        try {
-            await apiService.deleteUserFromExcel(user.username);
-            showNotification('success', 'Utilisateur supprimé.');
-            await invalidate('excel_users');
-        } catch (error) { showNotification('error', `Erreur: ${error.message}`); }
-    }, [invalidate, showNotification]);
+    // 🚀 Optimisation TSE: debounceAsyncLeading empêche suppressions multiples accidentelles
+    const handleDeleteUser = useCallback(
+        debounceAsyncLeading(async (user) => {
+            if (!window.confirm(`Supprimer ${user.displayName} du fichier Excel ?`)) return;
+            try {
+                await apiService.deleteUserFromExcel(user.username);
+                showNotification('success', 'Utilisateur supprimé.');
+                await invalidate('excel_users');
+            } catch (error) {
+                showNotification('error', `Erreur: ${error.message}`);
+            }
+        }, 1000), // Cooldown 1s
+        [invalidate, showNotification]
+    );
 
-    const handleConnectUserWithCredentials = useCallback(async (user) => {
-        if (!window.electronAPI?.launchRdp) return showNotification('warning', 'Fonctionnalité disponible uniquement dans l\'application de bureau.');
-        if (!user.password) return showNotification('error', 'Aucun mot de passe configuré.');
-        try {
-            showNotification('info', `Connexion automatique vers ${user.server}...`);
-            const result = await window.electronAPI.launchRdp({ server: user.server, username: user.username, password: user.password });
-            if (!result.success) showNotification('error', `Erreur: ${result.error}`);
-        } catch (error) { showNotification('error', `Erreur: ${error.message}`); }
-    }, [showNotification]);
+    // 🚀 Optimisation TSE: debounceAsyncLeading empêche lancements RDP multiples
+    const handleConnectUserWithCredentials = useCallback(
+        debounceAsyncLeading(async (user) => {
+            if (!window.electronAPI?.launchRdp) {
+                return showNotification('warning', 'Fonctionnalité disponible uniquement dans l\'application de bureau.');
+            }
+            if (!user.password) {
+                return showNotification('error', 'Aucun mot de passe configuré.');
+            }
+            try {
+                showNotification('info', `Connexion automatique vers ${user.server}...`);
+                const result = await window.electronAPI.launchRdp({
+                    server: user.server,
+                    username: user.username,
+                    password: user.password
+                });
+                if (!result.success) {
+                    showNotification('error', `Erreur: ${result.error}`);
+                } else {
+                    showNotification('success', 'Connexion RDP lancée');
+                }
+            } catch (error) {
+                showNotification('error', `Erreur: ${error.message}`);
+            }
+        }, 1500), // Cooldown 1.5s - opération lourde (lancement RDP)
+        [showNotification]
+    );
 
     const handleSelectUser = (username) => {
         setSelectedUsernames(prev => {

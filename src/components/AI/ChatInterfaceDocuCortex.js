@@ -95,22 +95,28 @@ const ChatInterfaceDocuCortex = ({ sessionId, onMessageSent }) => {
                     // Nouvelle conversation, afficher message de bienvenue
                     const welcomeMessage = {
                         type: 'assistant',
-                        content: `Bonjour ! 👋 Je suis **DocuCortex**, votre assistant GED intelligent.
+                        content: `Bonjour ! 👋 Je suis **DocuCortex**, l'assistant IA du groupe **Anecoop France**.
 
-Je peux vous aider à :
-- 🔍 Rechercher des documents dans votre base documentaire
-- 📄 Résumer et analyser des fichiers
-- 💡 Suggérer des documents pertinents
-- 📊 Comparer plusieurs documents
+🎭 **Chef d'Orchestre Ultra-Intelligent à votre service :**
+- 💬 Répondre à **toutes vos questions** (météo, calculs, informations générales)
+- 🔍 Rechercher dans votre **GED** avec intelligence sémantique avancée
+- 🖼️ Analyser **images, factures et tableaux Excel scannés** avec OCR
+- 📄 Résumer, comparer et **organiser vos documents** professionnels
+- 📂 **Ouvrir fichiers et dossiers réseau** en 1 clic depuis le chat
+
+✨ **Powered by Google Gemini 2.0 Flash**
+🚀 Vision Multimodale • RAG • Embeddings • Actions Intelligentes
+
+Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du temps !
 
 **Comment puis-je vous aider aujourd'hui ?**`,
                         isWelcome: true,
                         timestamp: new Date(),
                         suggestions: [
-                            'Quels types de documents sont disponibles ?',
-                            'Montre-moi les documents les plus récents',
-                            'Trouve-moi des offres de prix',
-                            'Résume les documents modifiés cette semaine'
+                            'Quelle est la météo aujourd\'hui ?',
+                            'Chercher des offres de prix dans la GED',
+                            'Uploader et analyser un document scanné',
+                            'Voir les fichiers modifiés cette semaine'
                         ]
                     };
                     setMessages([welcomeMessage]);
@@ -125,7 +131,17 @@ Je peux vous aider à :
 
     const sendMessage = async (messageText = null) => {
         const textToSend = messageText || inputMessage;
-        if (!textToSend.trim() || isLoading) return;
+        if (!textToSend.trim()) {
+            console.log('[DocuCortex] Message vide, ignoré');
+            return;
+        }
+
+        if (isLoading) {
+            console.log('[DocuCortex] Déjà en cours de traitement, ignoré');
+            return;
+        }
+
+        console.log('[DocuCortex] Envoi message:', textToSend);
 
         const userMessage = {
             type: 'user',
@@ -141,14 +157,19 @@ Je peux vous aider à :
         try {
             const data = await apiService.sendAIMessage(sessionId, textToSend);
 
+            console.log('[DocuCortex] Réponse reçue:', data);
+
             if (data.success) {
+                // Générer suggestions intelligentes basées sur le contexte
+                const smartSuggestions = generateSmartSuggestions(textToSend, data);
+
                 const assistantMessage = {
                     type: 'assistant',
                     content: data.response,
                     confidence: data.confidence,
                     sources: data.sources || [],
                     attachments: data.attachments || [],
-                    suggestions: data.suggestions || [],
+                    suggestions: data.suggestions || smartSuggestions,
                     metadata: data.metadata || {},
                     timestamp: new Date()
                 };
@@ -161,24 +182,84 @@ Je peux vous aider à :
             } else {
                 const errorMessage = {
                     type: 'assistant',
-                    content: 'Désolé, une erreur s\'est produite. Veuillez réessayer.',
+                    content: `❌ ${data.error || 'Désolé, une erreur s\'est produite. Veuillez réessayer.'}`,
                     isError: true,
-                    timestamp: new Date()
+                    timestamp: new Date(),
+                    suggestions: [
+                        'Réessayer ma question',
+                        'Reformuler autrement',
+                        'Voir les documents disponibles',
+                        'Contacter le support'
+                    ]
                 };
                 setMessages(prev => [...prev, errorMessage]);
             }
         } catch (error) {
-            console.error('Erreur envoi message:', error);
+            console.error('[DocuCortex] Erreur envoi message:', error);
             const errorMessage = {
                 type: 'assistant',
-                content: 'Erreur de connexion au serveur.',
+                content: `⚠️ Erreur de connexion au serveur.\n\nDétails: ${error.message}`,
                 isError: true,
-                timestamp: new Date()
+                timestamp: new Date(),
+                suggestions: [
+                    'Réessayer',
+                    'Vérifier la connexion',
+                    'Recharger la page'
+                ]
             };
             setMessages(prev => [...prev, errorMessage]);
         } finally {
+            console.log('[DocuCortex] Fin traitement, isLoading = false');
             setIsLoading(false);
         }
+    };
+
+    // ✅ NOUVEAU - Génération de suggestions intelligentes contextuelles
+    const generateSmartSuggestions = (userQuery, response) => {
+        const lowerQuery = userQuery.toLowerCase();
+        const suggestions = [];
+
+        // Analyse du type de question
+        if (lowerQuery.includes('cherche') || lowerQuery.includes('trouve') || lowerQuery.includes('search')) {
+            suggestions.push(
+                'Affine ma recherche avec des critères',
+                'Voir tous les résultats disponibles',
+                'Rechercher dans une autre catégorie',
+                'Filtrer par date récente'
+            );
+        } else if (lowerQuery.includes('résume') || lowerQuery.includes('analyse') || lowerQuery.includes('explique')) {
+            suggestions.push(
+                'Donne-moi plus de détails',
+                'Compare avec d\'autres documents',
+                'Extrais les points clés',
+                'Génère un rapport complet'
+            );
+        } else if (lowerQuery.includes('météo') || lowerQuery.includes('weather') || lowerQuery.includes('calcul')) {
+            suggestions.push(
+                'Chercher des documents GED',
+                'Uploader un nouveau document',
+                'Voir les documents récents',
+                'Poser une question sur mes fichiers'
+            );
+        } else if (response.sources && response.sources.length > 0) {
+            // Si des sources sont trouvées
+            suggestions.push(
+                'Ouvrir le premier document',
+                'Comparer ces documents',
+                'Rechercher dans ces fichiers',
+                'Exporter ces résultats'
+            );
+        } else {
+            // Suggestions génériques intelligentes
+            suggestions.push(
+                'Chercher dans mes documents',
+                'Uploader un fichier à analyser',
+                'Voir les documents modifiés récemment',
+                'Quelle est la procédure pour...'
+            );
+        }
+
+        return suggestions.slice(0, 4);
     };
 
     const handleKeyPress = (e) => {
@@ -325,22 +406,37 @@ Je peux vous aider à :
             setMessages([]);
             setShowWelcome(true);
             setInputMessage('');
+            setIsLoading(false); // ✅ Forcer déblocage
 
             // Message de bienvenue pour nouvelle conversation
             const welcomeMessage = {
                 type: 'assistant',
-                content: `Bonjour ! 👋 Je suis **DocuCortex**, votre assistant GED intelligent.\n\nJe peux vous aider à :\n- 🔍 Rechercher des documents dans votre base documentaire\n- 📄 Résumer et analyser des fichiers\n- 💡 Suggérer des documents pertinents\n- 📊 Comparer plusieurs documents\n\n**Comment puis-je vous aider aujourd'hui ?**`,
+                content: `Bonjour ! 👋 Je suis **DocuCortex**, l'assistant IA du groupe **Anecoop France**.
+
+🎭 **Chef d'Orchestre Ultra-Intelligent à votre service :**
+- 💬 Répondre à **toutes vos questions** (météo, calculs, informations générales)
+- 🔍 Rechercher dans votre **GED** avec intelligence sémantique avancée
+- 🖼️ Analyser **images, factures et tableaux Excel scannés** avec OCR
+- 📄 Résumer, comparer et **organiser vos documents** professionnels
+- 📂 **Ouvrir fichiers et dossiers réseau** en 1 clic depuis le chat
+
+✨ **Powered by Google Gemini 2.0 Flash**
+🚀 Vision Multimodale • RAG • Embeddings • Actions Intelligentes
+
+Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du temps !
+
+**Comment puis-je vous aider aujourd'hui ?**`,
                 isWelcome: true,
                 timestamp: new Date(),
                 suggestions: [
-                    'Quels types de documents sont disponibles ?',
-                    'Montre-moi les documents les plus récents',
-                    'Trouve-moi des offres de prix',
-                    'Résume les documents modifiés cette semaine'
+                    'Quelle est la météo aujourd\'hui ?',
+                    'Chercher des offres de prix dans la GED',
+                    'Uploader et analyser un document scanné',
+                    'Voir les fichiers modifiés cette semaine'
                 ]
             };
             setMessages([welcomeMessage]);
-            setNotification({ open: true, message: 'Nouvelle conversation démarrée', severity: 'info' });
+            setNotification({ open: true, message: '✨ Nouvelle conversation démarrée', severity: 'success' });
         }
     };
 
@@ -349,7 +445,9 @@ Je peux vous aider à :
         if (window.confirm('Êtes-vous sûr de vouloir supprimer tout l\'historique de conversation ?')) {
             setMessages([]);
             setShowWelcome(true);
-            setNotification({ open: true, message: 'Historique effacé', severity: 'info' });
+            setInputMessage('');
+            setIsLoading(false); // ✅ Forcer déblocage
+            setNotification({ open: true, message: '🗑️ Historique effacé', severity: 'success' });
         }
     };
 
@@ -468,6 +566,30 @@ Je peux vous aider à :
 
             {/* Input */}
             <Paper sx={{ p: 2, borderTop: '1px solid #e0e0e0' }} elevation={3}>
+                {isLoading && (
+                    <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CircularProgress size={16} />
+                        <Typography variant="caption" color="text.secondary">
+                            DocuCortex réfléchit...
+                        </Typography>
+                        <Button
+                            size="small"
+                            variant="text"
+                            onClick={() => {
+                                console.log('[DocuCortex] Déblocage manuel forcé');
+                                setIsLoading(false);
+                                setNotification({
+                                    open: true,
+                                    message: 'Champ de saisie débloqué',
+                                    severity: 'info'
+                                });
+                            }}
+                            sx={{ ml: 'auto', fontSize: '0.7rem', textTransform: 'none' }}
+                        >
+                            Forcer le déblocage
+                        </Button>
+                    </Box>
+                )}
                 <Box sx={{ display: 'flex', gap: 1 }}>
                     <TextField
                         fullWidth
@@ -476,27 +598,35 @@ Je peux vous aider à :
                         value={inputMessage}
                         onChange={(e) => setInputMessage(e.target.value)}
                         onKeyPress={handleKeyPress}
-                        placeholder="Posez votre question à DocuCortex..."
+                        placeholder={isLoading ? "DocuCortex réfléchit..." : "Posez votre question à DocuCortex..."}
                         variant="outlined"
                         disabled={isLoading}
                         size="small"
+                        sx={{
+                            '& .MuiOutlinedInput-root': {
+                                bgcolor: isLoading ? 'rgba(0,0,0,0.02)' : 'white',
+                                transition: 'background-color 0.3s ease'
+                            }
+                        }}
                     />
                     <IconButton
                         color="primary"
                         onClick={() => sendMessage()}
                         disabled={!inputMessage.trim() || isLoading}
                         sx={{
-                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            background: isLoading ? '#ccc' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                             color: 'white',
+                            transition: 'all 0.3s ease',
                             '&:hover': {
-                                background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)'
+                                background: isLoading ? '#ccc' : 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
+                                transform: isLoading ? 'none' : 'scale(1.05)'
                             },
                             '&:disabled': {
                                 background: '#ccc'
                             }
                         }}
                     >
-                        <SendIcon />
+                        {isLoading ? <CircularProgress size={24} sx={{ color: 'white' }} /> : <SendIcon />}
                     </IconButton>
                 </Box>
             </Paper>
@@ -723,25 +853,66 @@ const MessageBubble = ({ message, onSuggestionClick, onDownload, onPreview, onOp
                         )}
                     </Paper>
 
-                    {/* Suggestions */}
+                    {/* ✨ Suggestions Ultra-Intelligentes */}
                     {!isUser && message.suggestions && message.suggestions.length > 0 && (
-                        <Box sx={{ mt: 1 }}>
-                            <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-                                <SuggestionIcon sx={{ fontSize: 14, verticalAlign: 'middle', mr: 0.5 }} />
-                                Questions suggérées:
+                        <Box sx={{
+                            mt: 2,
+                            p: 2,
+                            bgcolor: 'rgba(102, 126, 234, 0.05)',
+                            borderRadius: 2,
+                            border: '1px solid rgba(102, 126, 234, 0.2)'
+                        }}>
+                            <Typography
+                                variant="caption"
+                                sx={{
+                                    mb: 1.5,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 0.5,
+                                    fontWeight: 600,
+                                    color: '#667eea',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.5px'
+                                }}
+                            >
+                                <SuggestionIcon sx={{ fontSize: 16 }} />
+                                Suggestions Intelligentes
                             </Typography>
-                            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                            <Box sx={{
+                                display: 'grid',
+                                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+                                gap: 1
+                            }}>
                                 {message.suggestions.map((suggestion, idx) => (
-                                    <Chip
+                                    <Button
                                         key={idx}
-                                        label={suggestion}
+                                        variant="outlined"
                                         size="small"
                                         onClick={() => onSuggestionClick(suggestion)}
+                                        startIcon={<SuggestionIcon sx={{ fontSize: 14 }} />}
                                         sx={{
-                                            cursor: 'pointer',
-                                            '&:hover': { bgcolor: '#667eea', color: 'white' }
+                                            justifyContent: 'flex-start',
+                                            textAlign: 'left',
+                                            textTransform: 'none',
+                                            fontSize: '0.813rem',
+                                            fontWeight: 500,
+                                            py: 1,
+                                            px: 1.5,
+                                            borderColor: 'rgba(102, 126, 234, 0.3)',
+                                            color: '#667eea',
+                                            background: 'white',
+                                            transition: 'all 0.2s ease',
+                                            '&:hover': {
+                                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                                color: 'white',
+                                                borderColor: '#667eea',
+                                                transform: 'translateY(-2px)',
+                                                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+                                            }
                                         }}
-                                    />
+                                    >
+                                        {suggestion}
+                                    </Button>
                                 ))}
                             </Box>
                         </Box>
