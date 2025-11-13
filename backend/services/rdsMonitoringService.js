@@ -230,7 +230,7 @@ class RDSMonitoringService extends EventEmitter {
      * Vérifier tous les serveurs configurés
      */
     async checkAllServers() {
-        const config = require('../config/config.json');
+        const config = require('../../config/config.json');
         const servers = config.rds_servers || [];
 
         console.log(`[RDSMonitoring] Check de ${servers.length} serveurs...`);
