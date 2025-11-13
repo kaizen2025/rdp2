@@ -5,6 +5,12 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
 const fs = require('fs');
+const rdsMonitoringService = require('./backend/services/rdsMonitoringService');
+const notificationScheduler = require('./backend/services/notificationScheduler');
+
+// ✅ NOUVEAU - Routes d'authentification
+const authRoutes = require('./backend/routes/auth');
+const notificationRoutes = require('./backend/routes/notifications');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -28,12 +34,18 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
+// ✅ NOUVEAU - Routes d'authentification et gestion utilisateurs
+app.use('/api/auth', authRoutes);
+
+// ✅ NOUVEAU - Routes de notifications
+app.use('/api/notifications', notificationRoutes);
+
 // Routes API
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     message: 'DocuCortex IA API - Serveur opérationnel',
-    version: '3.0.31',
+    version: '3.0.32',
     timestamp: new Date().toISOString()
   });
 });
@@ -158,6 +170,119 @@ app.get('/api/documents', (req, res) => {
   }
 });
 
+// ========================================
+// 🖥️ ROUTES RDS MONITORING
+// ========================================
+
+// Obtenir stats d'un serveur spécifique
+app.get('/api/rds/monitoring/:serverName', async (req, res) => {
+  try {
+    const { serverName } = req.params;
+    const config = require('./config/config.json');
+
+    const result = await rdsMonitoringService.getServerStats(
+      serverName,
+      config.domain,
+      config.credential_target
+    );
+
+    if (result.success) {
+      res.json({ success: true, ...result });
+    } else {
+      res.status(500).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Obtenir toutes les stats en cache
+app.get('/api/rds/monitoring/stats/all', (req, res) => {
+  try {
+    const stats = rdsMonitoringService.getAllCachedStats();
+    res.json({ success: true, servers: stats, count: stats.length });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Obtenir les alertes actives
+app.get('/api/rds/monitoring/alerts/active', (req, res) => {
+  try {
+    const alerts = rdsMonitoringService.getActiveAlerts();
+    res.json({ success: true, alerts, count: alerts.length });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Obtenir configuration monitoring
+app.get('/api/rds/monitoring/config', (req, res) => {
+  try {
+    const config = rdsMonitoringService.getConfig();
+    res.json({ success: true, config });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Mettre à jour les seuils d'alerte
+app.post('/api/rds/monitoring/config/thresholds', (req, res) => {
+  try {
+    const { diskSpaceGB, cpuPercent, memoryPercent } = req.body;
+
+    const thresholds = {};
+    if (diskSpaceGB !== undefined) thresholds.diskSpaceGB = parseFloat(diskSpaceGB);
+    if (cpuPercent !== undefined) thresholds.cpuPercent = parseFloat(cpuPercent);
+    if (memoryPercent !== undefined) thresholds.memoryPercent = parseFloat(memoryPercent);
+
+    rdsMonitoringService.updateThresholds(thresholds);
+
+    res.json({
+      success: true,
+      message: 'Seuils mis à jour',
+      thresholds: rdsMonitoringService.getConfig().thresholds
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Démarrer/Arrêter monitoring
+app.post('/api/rds/monitoring/control/:action', (req, res) => {
+  try {
+    const { action } = req.params;
+
+    if (action === 'start') {
+      rdsMonitoringService.start();
+      res.json({ success: true, message: 'Monitoring démarré', isRunning: true });
+    } else if (action === 'stop') {
+      rdsMonitoringService.stop();
+      res.json({ success: true, message: 'Monitoring arrêté', isRunning: false });
+    } else {
+      res.status(400).json({ success: false, error: 'Action invalide (start/stop)' });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Forcer un check immédiat
+app.post('/api/rds/monitoring/check', async (req, res) => {
+  try {
+    await rdsMonitoringService.checkAllServers();
+    const stats = rdsMonitoringService.getAllCachedStats();
+    res.json({
+      success: true,
+      message: 'Check effectué',
+      servers: stats,
+      count: stats.length
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Servir les fichiers statiques React en production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, 'build')));
@@ -182,6 +307,31 @@ app.listen(PORT, () => {
   console.log(`📡 API Health: http://localhost:${PORT}/api/health`);
   console.log(`📝 Analyse: http://localhost:${PORT}/api/analyze`);
   console.log(`💾 Documents: http://localhost:${PORT}/api/documents`);
+  console.log(`🖥️  RDS Monitoring: http://localhost:${PORT}/api/rds/monitoring/stats/all`);
+
+  // Démarrer le monitoring RDS automatique
+  console.log('🔄 Démarrage du monitoring RDS...');
+  rdsMonitoringService.start();
+
+  // Démarrer le planificateur de notifications
+  console.log('🔔 Démarrage du planificateur de notifications...');
+  notificationScheduler.start();
+
+  // Logger les alertes dans la console
+  rdsMonitoringService.on('alert', (alert) => {
+    console.log(`\n🚨 ALERTE RDS - ${alert.serverName}`);
+    alert.alerts.forEach(a => {
+      const emoji = a.severity === 'critical' ? '🔴' : '⚠️';
+      console.log(`  ${emoji} ${a.type.toUpperCase()}: ${a.message}`);
+    });
+  });
+
+  rdsMonitoringService.on('monitoring_cycle_complete', (summary) => {
+    console.log(`✅ Monitoring cycle: ${summary.successCount}/${summary.serversChecked} serveurs OK`);
+    if (summary.alerts.length > 0) {
+      console.log(`   🚨 ${summary.alerts.length} alerte(s) active(s)`);
+    }
+  });
 });
 
 module.exports = app;

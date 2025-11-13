@@ -24,7 +24,8 @@ import {
     DialogContent,
     DialogActions,
     Alert,
-    Snackbar
+    Snackbar,
+    Drawer
 } from '@mui/material';
 import {
     Send as SendIcon,
@@ -39,11 +40,17 @@ import {
     AddCircle as NewConversationIcon,
     History as HistoryIcon,
     FolderOpen as FolderOpenIcon,
-    OpenInNew as OpenIcon
+    OpenInNew as OpenIcon,
+    PictureAsPdf as PdfIcon,
+    Description as DocIcon,
+    TableChart as ExcelIcon,
+    Slideshow as PptIcon,
+    Image as ImageIcon
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import apiService from '../../services/apiService';
 import DocumentPreviewModal from './DocumentPreviewModal'; // ✅ AJOUT
+import ConversationHistory from './ConversationHistory'; // ✅ NOUVEAU
 
 const ChatInterfaceDocuCortex = ({ sessionId, onMessageSent }) => {
     const [messages, setMessages] = useState([]);
@@ -55,8 +62,12 @@ const ChatInterfaceDocuCortex = ({ sessionId, onMessageSent }) => {
     const [uploadFile, setUploadFile] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
+    const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false); // ✅ NOUVEAU
+    const [allConversations, setAllConversations] = useState([]); // ✅ NOUVEAU
+    const [isDragging, setIsDragging] = useState(false); // ✅ NOUVEAU - Drag & Drop
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
+    const dropZoneRef = useRef(null); // ✅ NOUVEAU
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -66,6 +77,122 @@ const ChatInterfaceDocuCortex = ({ sessionId, onMessageSent }) => {
         scrollToBottom();
     }, [messages]);
 
+    // ✅ NOUVEAU - Drag & Drop handlers
+    const handleDragEnter = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    }, []);
+
+    const handleDragLeave = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // Only set to false if leaving the drop zone entirely
+        if (e.currentTarget === e.target) {
+            setIsDragging(false);
+        }
+    }, []);
+
+    const handleDragOver = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+    }, []);
+
+    const handleDrop = useCallback(async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+
+        const files = e.dataTransfer.files;
+        if (files && files.length > 0) {
+            const file = files[0];
+
+            // Vérifier le type de fichier
+            const allowedTypes = [
+                'application/pdf',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'text/plain',
+                'application/vnd.ms-excel',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'application/vnd.ms-powerpoint',
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                'image/jpeg',
+                'image/jpg',
+                'image/png'
+            ];
+
+            if (!allowedTypes.includes(file.type)) {
+                setNotification({
+                    open: true,
+                    message: 'Type de fichier non supporté. Formats acceptés: PDF, DOC, DOCX, TXT, XLS, XLSX, PPT, PPTX, JPG, PNG',
+                    severity: 'warning'
+                });
+                return;
+            }
+
+            // Vérifier la taille (max 20MB)
+            if (file.size > 20 * 1024 * 1024) {
+                setNotification({
+                    open: true,
+                    message: 'Fichier trop volumineux. Taille maximale: 20 MB',
+                    severity: 'warning'
+                });
+                return;
+            }
+
+            // ✅ NOUVEAU - Générer prévisualisation si c'est une image
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const fileWithPreview = Object.assign(file, { previewUrl: e.target.result });
+                    setUploadFile(fileWithPreview);
+                    setUploadDialogOpen(true);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                setUploadFile(file);
+                setUploadDialogOpen(true);
+            }
+
+            setNotification({
+                open: true,
+                message: `Fichier "${file.name}" prêt à être uploadé`,
+                severity: 'info'
+            });
+        }
+    }, []);
+
+    // Attach drag & drop events to drop zone
+    useEffect(() => {
+        const dropZone = dropZoneRef.current;
+        if (!dropZone) return;
+
+        dropZone.addEventListener('dragenter', handleDragEnter);
+        dropZone.addEventListener('dragleave', handleDragLeave);
+        dropZone.addEventListener('dragover', handleDragOver);
+        dropZone.addEventListener('drop', handleDrop);
+
+        return () => {
+            dropZone.removeEventListener('dragenter', handleDragEnter);
+            dropZone.removeEventListener('dragleave', handleDragLeave);
+            dropZone.removeEventListener('dragover', handleDragOver);
+            dropZone.removeEventListener('drop', handleDrop);
+        };
+    }, [handleDragEnter, handleDragLeave, handleDragOver, handleDrop]);
+
+    // ✅ NOUVEAU - Charger toutes les conversations pour l'historique
+    const loadAllConversations = useCallback(async () => {
+        try {
+            const data = await apiService.getAIConversationHistory(sessionId);
+            if (data.success && data.conversations) {
+                setAllConversations(data.conversations);
+            }
+        } catch (error) {
+            console.error('Erreur chargement historique:', error);
+        }
+    }, [sessionId]);
+
     // Message de bienvenue automatique
     useEffect(() => {
         const loadHistoryAndWelcome = async () => {
@@ -73,6 +200,8 @@ const ChatInterfaceDocuCortex = ({ sessionId, onMessageSent }) => {
                 const data = await apiService.getAIConversationHistory(sessionId);
 
                 if (data.success && data.conversations && data.conversations.length > 0) {
+                    setAllConversations(data.conversations); // ✅ NOUVEAU
+
                     // Historique existe, charger
                     const formattedMessages = data.conversations.reverse().map(conv => ([
                         {
@@ -97,17 +226,14 @@ const ChatInterfaceDocuCortex = ({ sessionId, onMessageSent }) => {
                         type: 'assistant',
                         content: `Bonjour ! 👋 Je suis **DocuCortex**, l'assistant IA du groupe **Anecoop France**.
 
-🎭 **Chef d'Orchestre Ultra-Intelligent à votre service :**
+🎭 **Votre Assistant Intelligent pour :**
 - 💬 Répondre à **toutes vos questions** (météo, calculs, informations générales)
 - 🔍 Rechercher dans votre **GED** avec intelligence sémantique avancée
-- 🖼️ Analyser **images, factures et tableaux Excel scannés** avec OCR
+- 🖼️ Analyser **images, factures et tableaux Excel scannés** avec OCR avancé
 - 📄 Résumer, comparer et **organiser vos documents** professionnels
 - 📂 **Ouvrir fichiers et dossiers réseau** en 1 clic depuis le chat
 
-✨ **Powered by Google Gemini 2.0 Flash**
-🚀 Vision Multimodale • RAG • Embeddings • Actions Intelligentes
-
-Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du temps !
+Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du temps ! 🚀
 
 **Comment puis-je vous aider aujourd'hui ?**`,
                         isWelcome: true,
@@ -128,6 +254,68 @@ Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du 
 
         loadHistoryAndWelcome();
     }, [sessionId]);
+
+    // ✅ NOUVEAU - Handlers pour l'historique
+    const handleSelectConversation = (conversation) => {
+        // Charger la conversation sélectionnée
+        const formattedMessages = [
+            {
+                type: 'user',
+                content: conversation.user_message,
+                timestamp: new Date(conversation.created_at)
+            },
+            {
+                type: 'assistant',
+                content: conversation.ai_response,
+                confidence: conversation.confidence_score,
+                sources: conversation.sources ? JSON.parse(conversation.sources) : [],
+                timestamp: new Date(conversation.created_at)
+            }
+        ];
+        setMessages(formattedMessages);
+        setHistoryDrawerOpen(false);
+        setNotification({ open: true, message: 'Conversation chargée', severity: 'success' });
+    };
+
+    const handleTogglePinned = async (conversationId, isPinned) => {
+        try {
+            // ✅ Appel API pour mettre à jour is_pinned dans la base
+            const result = await apiService.updateConversationPinned(conversationId, isPinned);
+
+            if (result.success) {
+                // Mise à jour locale après succès
+                setAllConversations(prev => prev.map(conv =>
+                    conv.id === conversationId ? { ...conv, is_pinned: isPinned } : conv
+                ));
+
+                setNotification({
+                    open: true,
+                    message: isPinned ? 'Conversation épinglée' : 'Conversation désépinglée',
+                    severity: 'success'
+                });
+            }
+        } catch (error) {
+            console.error('Erreur toggle pinned:', error);
+            setNotification({ open: true, message: 'Erreur lors de l\'épinglage', severity: 'error' });
+        }
+    };
+
+    const handleDeleteConversation = async (conversationId) => {
+        try {
+            // ✅ Appel API pour supprimer la conversation
+            const result = await apiService.deleteConversation(conversationId);
+
+            if (result.success) {
+                // Suppression locale après succès
+                setAllConversations(prev => prev.filter(conv => conv.id !== conversationId));
+
+                setNotification({ open: true, message: 'Conversation supprimée', severity: 'success' });
+            }
+        } catch (error) {
+            console.error('Erreur suppression conversation:', error);
+            setNotification({ open: true, message: 'Erreur lors de la suppression', severity: 'error' });
+        }
+    };
 
     const sendMessage = async (messageText = null) => {
         const textToSend = messageText || inputMessage;
@@ -346,6 +534,20 @@ Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du 
         }
     };
 
+    // ✅ NOUVEAU - Obtenir l'icône selon le type de fichier
+    const getFileIcon = (file) => {
+        if (!file) return <AttachIcon />;
+
+        const type = file.type;
+        if (type.startsWith('image/')) return <ImageIcon sx={{ fontSize: 48, color: '#4caf50' }} />;
+        if (type === 'application/pdf') return <PdfIcon sx={{ fontSize: 48, color: '#f44336' }} />;
+        if (type.includes('word')) return <DocIcon sx={{ fontSize: 48, color: '#2196f3' }} />;
+        if (type.includes('sheet') || type.includes('excel')) return <ExcelIcon sx={{ fontSize: 48, color: '#4caf50' }} />;
+        if (type.includes('presentation') || type.includes('powerpoint')) return <PptIcon sx={{ fontSize: 48, color: '#ff9800' }} />;
+
+        return <AttachIcon sx={{ fontSize: 48, color: '#9e9e9e' }} />;
+    };
+
     // ✅ NOUVEAU - Gestion upload de documents
     const handleUploadClick = () => {
         setUploadDialogOpen(true);
@@ -355,6 +557,18 @@ Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du 
         const file = event.target.files[0];
         if (file) {
             setUploadFile(file);
+
+            // ✅ NOUVEAU - Prévisualisation d'image
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    setUploadFile(prev => ({
+                        ...file,
+                        previewUrl: e.target.result
+                    }));
+                };
+                reader.readAsDataURL(file);
+            }
         }
     };
 
@@ -413,17 +627,14 @@ Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du 
                 type: 'assistant',
                 content: `Bonjour ! 👋 Je suis **DocuCortex**, l'assistant IA du groupe **Anecoop France**.
 
-🎭 **Chef d'Orchestre Ultra-Intelligent à votre service :**
+🎭 **Votre Assistant Intelligent pour :**
 - 💬 Répondre à **toutes vos questions** (météo, calculs, informations générales)
 - 🔍 Rechercher dans votre **GED** avec intelligence sémantique avancée
-- 🖼️ Analyser **images, factures et tableaux Excel scannés** avec OCR
+- 🖼️ Analyser **images, factures et tableaux Excel scannés** avec OCR avancé
 - 📄 Résumer, comparer et **organiser vos documents** professionnels
 - 📂 **Ouvrir fichiers et dossiers réseau** en 1 clic depuis le chat
 
-✨ **Powered by Google Gemini 2.0 Flash**
-🚀 Vision Multimodale • RAG • Embeddings • Actions Intelligentes
-
-Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du temps !
+Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du temps ! 🚀
 
 **Comment puis-je vous aider aujourd'hui ?**`,
                 isWelcome: true,
@@ -475,6 +686,20 @@ Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du 
 
                     {/* ✅ NOUVEAU - Toolbar Actions */}
                     <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Tooltip title="Historique des conversations">
+                            <IconButton
+                                size="small"
+                                onClick={() => setHistoryDrawerOpen(true)}
+                                sx={{
+                                    color: 'white',
+                                    bgcolor: 'rgba(255,255,255,0.2)',
+                                    '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' }
+                                }}
+                            >
+                                <HistoryIcon />
+                            </IconButton>
+                        </Tooltip>
+
                         <Tooltip title="Uploader un document">
                             <Button
                                 variant="contained"
@@ -525,7 +750,16 @@ Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du 
             </Box>
 
             {/* Messages */}
-            <Box sx={{ flex: 1, overflowY: 'auto', p: 2, backgroundColor: '#f5f7fa' }}>
+            <Box
+                ref={dropZoneRef}
+                sx={{
+                    flex: 1,
+                    overflowY: 'auto',
+                    p: 2,
+                    backgroundColor: '#f5f7fa',
+                    position: 'relative'
+                }}
+            >
                 {messages.map((msg, idx) => (
                     <MessageBubble
                         key={idx}
@@ -537,6 +771,46 @@ Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du 
                         onOpenFolder={handleOpenFolder}
                     />
                 ))}
+
+                {/* ✅ NOUVEAU - Overlay Drag & Drop */}
+                {isDragging && (
+                    <Box
+                        sx={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            border: '3px dashed #667eea',
+                            borderRadius: 2,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 1000,
+                            pointerEvents: 'none'
+                        }}
+                    >
+                        <Box sx={{
+                            textAlign: 'center',
+                            bgcolor: 'white',
+                            p: 4,
+                            borderRadius: 2,
+                            boxShadow: 3
+                        }}>
+                            <UploadIcon sx={{ fontSize: 64, color: '#667eea', mb: 2 }} />
+                            <Typography variant="h6" color="primary" fontWeight="bold">
+                                Déposez votre fichier ici
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                PDF, DOC, DOCX, TXT, XLS, XLSX, PPT, PPTX, JPG, PNG
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                                Taille max: 20 MB
+                            </Typography>
+                        </Box>
+                    </Box>
+                )}
 
                 {/* ✅ AJOUT - Modal de prévisualisation */}
                 <DocumentPreviewModal
@@ -668,14 +942,52 @@ Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du 
                     </Button>
 
                     {uploadFile && (
-                        <Alert severity="info" sx={{ mt: 1 }}>
-                            <Typography variant="body2">
-                                <strong>Fichier sélectionné:</strong> {uploadFile.name}
-                            </Typography>
-                            <Typography variant="caption" display="block">
-                                Taille: {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
-                            </Typography>
-                        </Alert>
+                        <Box>
+                            {/* ✅ NOUVEAU - Aperçu avec icône de type */}
+                            <Box sx={{
+                                mt: 2,
+                                p: 2,
+                                border: '2px solid #e0e0e0',
+                                borderRadius: 2,
+                                bgcolor: '#fafafa',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: 2
+                            }}>
+                                {getFileIcon(uploadFile)}
+                                <Alert severity="info" sx={{ width: '100%' }}>
+                                    <Typography variant="body2">
+                                        <strong>Fichier sélectionné:</strong> {uploadFile.name}
+                                    </Typography>
+                                    <Typography variant="caption" display="block">
+                                        Taille: {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
+                                    </Typography>
+                                </Alert>
+
+                                {/* ✅ NOUVEAU - Prévisualisation image */}
+                                {uploadFile.previewUrl && (
+                                    <Box sx={{
+                                        textAlign: 'center',
+                                        width: '100%'
+                                    }}>
+                                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                                            Aperçu de l'image:
+                                        </Typography>
+                                        <img
+                                            src={uploadFile.previewUrl}
+                                            alt="Preview"
+                                            style={{
+                                                maxWidth: '100%',
+                                                maxHeight: '300px',
+                                                borderRadius: '8px',
+                                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                                            }}
+                                        />
+                                    </Box>
+                                )}
+                            </Box>
+                        </Box>
                     )}
 
                     <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
@@ -721,6 +1033,27 @@ Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du 
                     {notification.message}
                 </Alert>
             </Snackbar>
+
+            {/* ✅ NOUVEAU - Drawer Historique Intelligent */}
+            <Drawer
+                anchor="right"
+                open={historyDrawerOpen}
+                onClose={() => setHistoryDrawerOpen(false)}
+                sx={{
+                    '& .MuiDrawer-paper': {
+                        width: { xs: '100%', sm: 400, md: 500 },
+                        boxShadow: 3
+                    }
+                }}
+            >
+                <ConversationHistory
+                    conversations={allConversations}
+                    onSelectConversation={handleSelectConversation}
+                    currentSessionId={sessionId}
+                    onDeleteConversation={handleDeleteConversation}
+                    onTogglePinned={handleTogglePinned}
+                />
+            </Drawer>
         </Box>
     );
 };

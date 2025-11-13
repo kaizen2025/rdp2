@@ -170,16 +170,21 @@ const LoansCalendar = () => {
                                 <Typography variant="body2" sx={{ fontWeight: isTodayDate ? 'bold' : 'normal', color: dayInfo.isCurrentMonth ? 'text.primary' : 'text.disabled' }}>{dayInfo.day}</Typography>
                                 <Box sx={{ mt: 0.5, width: '100%' }}> {/* ✅ FIX: Constrain width */}
                                     {dayLoans.slice(0, 2).map((loan) => (
-                                        <Tooltip key={loan.id} title={`${loan.computerName} - ${loan.userDisplayName}`}>
+                                        <Tooltip key={loan.id} title={`Détails: ${loan.computerName} prêté à ${loan.userDisplayName || loan.userName}`}>
                                             <Box sx={{
-                                                fontSize: '0.7rem',
+                                                fontSize: '0.65rem',
                                                 bgcolor: STATUS_COLORS[loan.status]?.bg || '#grey',
                                                 color: STATUS_COLORS[loan.status]?.text || 'white',
-                                                borderRadius: 1, px: 0.5, py: 0.25, mb: 0.5,
-                                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                                width: '100%' /* ✅ FIX: Ensure box respects container width */
+                                                borderRadius: 1, px: 0.5, py: 0.3, mb: 0.5,
+                                                overflow: 'hidden',
+                                                width: '100%'
                                             }}>
-                                                <Typography variant="caption" noWrap sx={{ fontWeight: 500, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis' }}>{loan.computerName}</Typography> {/* ✅ FIX: Add noWrap and explicit overflow */}
+                                                <Typography variant="caption" noWrap sx={{ fontWeight: 600, display: 'block', fontSize: '0.65rem', lineHeight: 1.2 }}>
+                                                    {loan.computerName}
+                                                </Typography>
+                                                <Typography variant="caption" noWrap sx={{ display: 'block', fontSize: '0.6rem', opacity: 0.9, lineHeight: 1.2 }}>
+                                                    👤 {loan.userDisplayName || loan.userName}
+                                                </Typography>
                                             </Box>
                                         </Tooltip>
                                     ))}

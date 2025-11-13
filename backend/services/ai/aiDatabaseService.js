@@ -59,13 +59,13 @@ class AIDatabaseService {
                 return;
             }
 
-            // Récupérer les colonnes actuelles
+            // Récupérer les colonnes actuelles de ai_documents
             const columns = dbService.all('PRAGMA table_info(ai_documents)');
             const columnNames = columns.map(col => col.name);
 
             console.log(`🔍 Vérification du schéma (${columnNames.length} colonnes existantes)`);
 
-            // Liste des colonnes à ajouter si manquantes
+            // Liste des colonnes à ajouter si manquantes pour ai_documents
             const requiredColumns = [
                 { name: 'filepath', type: 'TEXT', default: 'NULL' },
                 { name: 'relative_path', type: 'TEXT', default: 'NULL' },
@@ -88,6 +88,16 @@ class AIDatabaseService {
                     dbService.run(sql);
                     migrationsApplied++;
                 }
+            }
+
+            // ✅ NOUVEAU - Migration pour ai_conversations (is_pinned)
+            const convColumns = dbService.all('PRAGMA table_info(ai_conversations)');
+            const convColumnNames = convColumns.map(col => col.name);
+
+            if (!convColumnNames.includes('is_pinned')) {
+                console.log(`📝 Migration: Ajout de la colonne 'is_pinned' à ai_conversations`);
+                dbService.run(`ALTER TABLE ai_conversations ADD COLUMN is_pinned INTEGER DEFAULT 0`);
+                migrationsApplied++;
             }
 
             if (migrationsApplied > 0) {
@@ -342,12 +352,36 @@ class AIDatabaseService {
     }
 
     /**
+     * Met à jour le statut épinglé d'une conversation
+     */
+    updateConversationPinned(conversationId, isPinned) {
+        this.initialize();
+        const result = dbService.run(
+            'UPDATE ai_conversations SET is_pinned = ? WHERE id = ?',
+            [isPinned ? 1 : 0, conversationId]
+        );
+        return result.changes > 0;
+    }
+
+    /**
+     * Supprime une conversation par ID
+     */
+    deleteConversation(conversationId) {
+        this.initialize();
+        const result = dbService.run(
+            'DELETE FROM ai_conversations WHERE id = ?',
+            [conversationId]
+        );
+        return result.changes > 0;
+    }
+
+    /**
      * Supprime les anciennes conversations
      */
     deleteOldConversations(daysOld = 30) {
         this.initialize();
         const result = dbService.run(
-            `DELETE FROM ai_conversations 
+            `DELETE FROM ai_conversations
              WHERE created_at < datetime('now', '-' || ? || ' days')`,
             [daysOld]
         );

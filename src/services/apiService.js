@@ -102,8 +102,8 @@ class ApiService {
     // NOTIFICATIONS
     getNotifications = async () => this.request('/notifications')
     getUnreadNotifications = async () => this.request('/notifications/unread')
-    markNotificationAsRead = async (id) => this.request(`/notifications/${id}/mark-read`, { method: 'POST' })
-    markAllNotificationsAsRead = async () => this.request('/notifications/mark-all-read', { method: 'POST' })
+    markNotificationAsRead = async (id) => this.request(`/notifications/${id}/read`, { method: 'PUT' })
+    markAllNotificationsAsRead = async () => this.request('/notifications/read-all', { method: 'PUT' })
 
     // ACTIVE DIRECTORY
     searchAdUsers = async (term) => this.request(`/ad/users/search/${encodeURIComponent(term)}`)
@@ -159,7 +159,31 @@ class ApiService {
     sendGeminiMessage = async (sessionId, message, fileText, userId = null) => this.request('/ai/chat/enhanced', { method: 'POST', body: JSON.stringify({ sessionId, message, fileText, userId, aiProvider: 'gemini' }) })
     getAIConversationHistory = async (sessionId, limit = 50) => this.request(`/ai/conversations/${sessionId}?limit=${limit}`)
     getAllAIConversations = async (limit = 50) => this.request(`/ai/conversations?limit=${limit}`)
-    
+
+    // ✅ NOUVEAU - Gestion historique conversations
+    updateConversationPinned = async (conversationId, isPinned) => this.request(`/ai/conversations/${conversationId}/pin`, { method: 'PUT', body: JSON.stringify({ isPinned }) })
+    deleteConversation = async (conversationId) => this.request(`/ai/conversations/${conversationId}`, { method: 'DELETE' })
+
+    // ==================== AUTHENTIFICATION ET UTILISATEURS ====================
+
+    // Authentification
+    login = async (username, password) => this.request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) })
+    changePassword = async (userId, oldPassword, newPassword) => this.request('/auth/change-password', { method: 'POST', body: JSON.stringify({ userId, oldPassword, newPassword }) })
+    checkPermissions = async (userId, tabName) => this.request(`/auth/check-permissions/${userId}/${tabName}`)
+
+    // Gestion utilisateurs
+    getAllAppUsers = async () => this.request('/auth/users')
+    getAppUser = async (userId) => this.request(`/auth/users/${userId}`)
+    createAppUser = async (userData) => this.request('/auth/users', { method: 'POST', body: JSON.stringify(userData) })
+    updateAppUser = async (userId, userData) => this.request(`/auth/users/${userId}`, { method: 'PUT', body: JSON.stringify(userData) })
+    deleteAppUser = async (userId) => this.request(`/auth/users/${userId}`, { method: 'DELETE' })
+    updateUserPermissions = async (userId, permissions) => this.request(`/auth/users/${userId}/permissions`, { method: 'PUT', body: JSON.stringify(permissions) })
+    resetUserPassword = async (userId, newPassword) => this.request(`/auth/users/${userId}/reset-password`, { method: 'POST', body: JSON.stringify({ newPassword }) })
+
+    // Statistiques connexions
+    getLoginStats = async () => this.request('/auth/stats/login')
+    getUserLoginHistory = async (userId, limit = 50) => this.request(`/auth/users/${userId}/login-history?limit=${limit}`)
+
     // Settings & Statistics
     getAISettings = async () => this.request('/ai/settings')
     updateAISetting = async (key, value) => this.request(`/ai/settings/${key}`, { method: 'PUT', body: JSON.stringify({ value }) })

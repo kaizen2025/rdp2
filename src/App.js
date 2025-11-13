@@ -53,8 +53,29 @@ function AppContent() {
             }
 
             // Étape 2: Vérifier l'authentification locale et charger les données complètes
+            // ✅ NOUVEAU - Support pour les deux systèmes d'authentification
+            const storedUserId = localStorage.getItem('currentUserId');
             const storedTechnicianId = localStorage.getItem('currentTechnicianId');
-            if (storedTechnicianId) {
+
+            if (storedUserId) {
+                // ✅ NOUVEAU SYSTÈME - app_users
+                try {
+                    const response = await apiService.getAppUser(parseInt(storedUserId));
+                    if (response.success && response.user && response.user.is_active === 1) {
+                        // L'utilisateur app_users a déjà ses permissions en base
+                        // permissionService les convertira automatiquement
+                        setCurrentTechnician(response.user);
+                        setIsAuthenticated(true);
+                    } else {
+                        // Utilisateur non trouvé ou désactivé, déconnecter
+                        localStorage.removeItem('currentUserId');
+                    }
+                } catch (error) {
+                    console.error('Erreur chargement utilisateur app_users:', error);
+                    localStorage.removeItem('currentUserId');
+                }
+            } else if (storedTechnicianId) {
+                // ✅ ANCIEN SYSTÈME - IT technicians
                 try {
                     // ✅ FIX: Charger la configuration complète pour obtenir le technicien avec rôle et permissions
                     const config = await apiService.getConfig();
@@ -102,6 +123,9 @@ function AppContent() {
 
     const handleLogout = () => {
         apiService.logout();
+        // ✅ Nettoyer les deux systèmes d'authentification
+        localStorage.removeItem('currentUserId');
+        localStorage.removeItem('currentTechnicianId');
         setIsAuthenticated(false);
         setCurrentTechnician(null); // ✅ Nettoyer le contexte
     };

@@ -40,13 +40,39 @@ const HistoryTab = ({ refreshKey }) => {
     const [subTab, setSubTab] = useState(0);
     return (
         <Box>
-            <Paper elevation={2} sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                <Tabs value={subTab} onChange={(e, v) => setSubTab(v)} centered>
+            <Paper
+                elevation={1}
+                sx={{
+                    mb: 2,
+                    borderRadius: 2,
+                    overflow: 'hidden',
+                    background: 'linear-gradient(to right, rgba(102, 126, 234, 0.03), rgba(118, 75, 162, 0.03))'
+                }}
+            >
+                <Tabs
+                    value={subTab}
+                    onChange={(e, v) => setSubTab(v)}
+                    centered
+                    sx={{
+                        '& .MuiTab-root': {
+                            minHeight: 56,
+                            fontWeight: 500,
+                            '&.Mui-selected': {
+                                color: '#764ba2',
+                                fontWeight: 600
+                            }
+                        },
+                        '& .MuiTabs-indicator': {
+                            height: 3,
+                            background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)'
+                        }
+                    }}
+                >
                     <Tab icon={<PersonSearchIcon />} iconPosition="start" label="Par Utilisateur" />
                     <Tab icon={<ComputerIcon />} iconPosition="start" label="Par Matériel" />
                 </Tabs>
             </Paper>
-            <Box sx={{ pt: 2 }}>
+            <Box>
                 {subTab === 0 && <UserLoanHistoryPage key={refreshKey} />}
                 {subTab === 1 && <ComputerLoanHistoryPage key={refreshKey} />}
             </Box>
@@ -71,29 +97,110 @@ const ComputerLoansPage = () => {
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={fr}>
             <Box sx={{ p: 2 }}>
-                <Paper elevation={3} sx={{ p: 2, mb: 2 }}>
+                {/* Header moderne avec gradient Anecoop */}
+                <Paper
+                    elevation={4}
+                    sx={{
+                        p: 3,
+                        mb: 3,
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        color: 'white',
+                        borderRadius: 2,
+                        boxShadow: '0 4px 20px rgba(102, 126, 234, 0.4)'
+                    }}
+                >
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="h5">Gestion des Prêts et du Matériel</Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <AssignmentIcon sx={{ fontSize: 40, opacity: 0.9 }} />
+                            <Box>
+                                <Typography variant="h4" fontWeight="bold" sx={{ mb: 0.5 }}>
+                                    Gestion des Prêts et du Matériel
+                                </Typography>
+                                <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                                    Suivi complet des ordinateurs et des prêts
+                                </Typography>
+                            </Box>
+                        </Box>
                         <Box sx={{ display: 'flex', gap: 1 }}>
-                            <Tooltip title="Statistiques"><IconButton onClick={() => setStatisticsDialogOpen(true)}><BarChartIcon /></IconButton></Tooltip>
-                            <Tooltip title="Actualiser les données"><IconButton onClick={handleForceRefresh}><RefreshIcon /></IconButton></Tooltip>
+                            <Tooltip title="Statistiques">
+                                <IconButton
+                                    onClick={() => setStatisticsDialogOpen(true)}
+                                    sx={{
+                                        color: 'white',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                                        '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.25)' }
+                                    }}
+                                >
+                                    <BarChartIcon />
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Actualiser les données">
+                                <IconButton
+                                    onClick={handleForceRefresh}
+                                    sx={{
+                                        color: 'white',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                                        '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.25)' }
+                                    }}
+                                >
+                                    <RefreshIcon />
+                                </IconButton>
+                            </Tooltip>
                         </Box>
                     </Box>
                 </Paper>
-                <Paper elevation={3}>
-                    <Tabs value={currentTab} onChange={(e, v) => setCurrentTab(v)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
-                        <Tab icon={<AssignmentIcon />} iconPosition="start" label="Suivi des Prêts" />
-                        <Tab icon={<InventoryIcon />} iconPosition="start" label="Inventaire Matériel" />
-                        <Tab icon={<CalendarMonthIcon />} iconPosition="start" label="Calendrier" />
-                        <Tab icon={<HistoryIcon />} iconPosition="start" label="Historique" />
-                    </Tabs>
-                    <Suspense fallback={<LoadingFallback />}>
-                        {currentTab === 0 && <LoanList key={refreshKey} preFilter={location.state?.preFilter} />}
-                        {currentTab === 1 && <ComputersPage key={refreshKey} />}
-                        {currentTab === 2 && <LoansCalendar key={refreshKey} />}
-                        {currentTab === 3 && <HistoryTab key={refreshKey} />}
-                    </Suspense>
+
+                {/* Tabs avec style moderne */}
+                <Paper
+                    elevation={3}
+                    sx={{
+                        borderRadius: 2,
+                        overflow: 'hidden'
+                    }}
+                >
+                    <Box sx={{
+                        borderBottom: 1,
+                        borderColor: 'divider',
+                        background: 'linear-gradient(to right, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05))'
+                    }}>
+                        <Tabs
+                            value={currentTab}
+                            onChange={(e, v) => setCurrentTab(v)}
+                            variant="scrollable"
+                            scrollButtons="auto"
+                            allowScrollButtonsMobile
+                            sx={{
+                                '& .MuiTab-root': {
+                                    minHeight: 64,
+                                    fontSize: '0.95rem',
+                                    fontWeight: 500,
+                                    '&.Mui-selected': {
+                                        color: '#764ba2',
+                                        fontWeight: 700
+                                    }
+                                },
+                                '& .MuiTabs-indicator': {
+                                    height: 3,
+                                    background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)'
+                                }
+                            }}
+                        >
+                            <Tab icon={<AssignmentIcon />} iconPosition="start" label="Suivi des Prêts" />
+                            <Tab icon={<InventoryIcon />} iconPosition="start" label="Inventaire Matériel" />
+                            <Tab icon={<CalendarMonthIcon />} iconPosition="start" label="Calendrier" />
+                            <Tab icon={<HistoryIcon />} iconPosition="start" label="Historique" />
+                        </Tabs>
+                    </Box>
+                    <Box sx={{ p: 2 }}>
+                        <Suspense fallback={<LoadingFallback />}>
+                            {currentTab === 0 && <LoanList key={refreshKey} preFilter={location.state?.preFilter} />}
+                            {currentTab === 1 && <ComputersPage key={refreshKey} />}
+                            {currentTab === 2 && <LoansCalendar key={refreshKey} />}
+                            {currentTab === 3 && <HistoryTab refreshKey={refreshKey} />}
+                        </Suspense>
+                    </Box>
                 </Paper>
+
                 <Suspense fallback={<div />}>
                     {statisticsDialogOpen && <LoanStatisticsDialog open={statisticsDialogOpen} onClose={() => setStatisticsDialogOpen(false)} />}
                 </Suspense>
