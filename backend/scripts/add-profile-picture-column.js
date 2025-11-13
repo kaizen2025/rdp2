@@ -34,6 +34,15 @@ async function addProfilePictureColumn() {
         db = new Database(dbPath);
         db.pragma('journal_mode = WAL');
 
+        // Vérifier si la table app_users existe
+        const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='app_users'").all();
+
+        if (tables.length === 0) {
+            console.log('⚠️  La table app_users n\'existe pas encore.');
+            console.log('   Veuillez d\'abord exécuter: node migrate-production-safe.js');
+            return;
+        }
+
         // Vérifier si la colonne existe déjà
         const tableInfo = db.prepare("PRAGMA table_info(app_users)").all();
         const hasProfilePicture = tableInfo.some(col => col.name === 'profile_picture_url');
