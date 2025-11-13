@@ -44,7 +44,7 @@ const STATUS_CONFIG = {
 };
 
 // --- VUE CARTE (COMPACTÉE) ---
-const ComputerCard = ({ computer, onEdit, onDelete, onHistory, onMaintenance, onLoan, onQuickLoan }) => {
+const ComputerCard = ({ computer, onEdit, onDelete, onHistory, onMaintenance, onLoan }) => {
     const [anchorEl, setAnchorEl] = useState(null);
     const statusConfig = STATUS_CONFIG[computer.status] || {};
     return (
@@ -67,10 +67,7 @@ const ComputerCard = ({ computer, onEdit, onDelete, onHistory, onMaintenance, on
                     <Tooltip title="Maintenance"><IconButton size="small" onClick={() => onMaintenance(computer)}><BuildIcon fontSize="small" /></IconButton></Tooltip>
                 </Box>
                 {computer.status === 'available' && (
-                    <Box sx={{ display: 'flex', gap: 0.5 }}>
-                        <Button size="small" variant="outlined" startIcon={<BoltIcon />} onClick={() => onQuickLoan(computer)}>Rapide</Button>
-                        <Button size="small" variant="contained" startIcon={<AssignmentIcon />} onClick={() => onLoan(computer)}>Complet</Button>
-                    </Box>
+                    <Button size="small" variant="contained" startIcon={<AssignmentIcon />} onClick={() => onLoan(computer)}>Prêter</Button>
                 )}
             </Box>
             <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
@@ -81,15 +78,12 @@ const ComputerCard = ({ computer, onEdit, onDelete, onHistory, onMaintenance, on
 };
 
 // --- VUE LISTE COMPACTE ---
-const ComputerListItem = ({ computer, onEdit, onLoan, onQuickLoan }) => {
+const ComputerListItem = ({ computer, onEdit, onLoan }) => {
     const statusConfig = STATUS_CONFIG[computer.status] || {};
     return (
         <ListItem divider secondaryAction={
             computer.status === 'available' && (
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button size="small" variant="outlined" onClick={() => onQuickLoan(computer)}>Prêt Rapide</Button>
-                    <Button size="small" variant="contained" onClick={() => onLoan(computer)}>Prêt Complet</Button>
-                </Box>
+                <Button size="small" variant="contained" startIcon={<AssignmentIcon />} onClick={() => onLoan(computer)}>Prêter</Button>
             )
         }>
             <ListItemIcon><LaptopIcon color={computer.status === 'available' ? 'success' : 'action'} /></ListItemIcon>
@@ -103,70 +97,13 @@ const ComputerListItem = ({ computer, onEdit, onLoan, onQuickLoan }) => {
     );
 };
 
-// ... (QuickLoanDialog reste identique)
-const QuickLoanDialog = ({ open, onClose, computer, users, onSave }) => {
-    const { currentTechnician } = useApp();
-    const [selectedUser, setSelectedUser] = useState(null);
-    const [returnDate, setReturnDate] = useState(addDays(new Date(), 7));
-
-    const handleSave = () => {
-        if (!selectedUser) {
-            alert("Veuillez sélectionner un utilisateur.");
-            return;
-        }
-        const loanData = {
-            computerId: computer.id,
-            computerName: computer.name,
-            userName: selectedUser.username,
-            userDisplayName: selectedUser.displayName,
-            itStaff: currentTechnician?.name || 'N/A',
-            loanDate: new Date().toISOString(),
-            expectedReturnDate: returnDate.toISOString(),
-            status: 'active',
-            notes: 'Prêt rapide',
-            accessories: [],
-        };
-        onSave(loanData);
-        onClose();
-    };
-
-    return (
-        <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-            <DialogTitle>Prêt Rapide - {computer?.name}</DialogTitle>
-            <DialogContent>
-                <Grid container spacing={2} sx={{ pt: 1 }}>
-                    <Grid item xs={12}>
-                        <Autocomplete
-                            options={users}
-                            getOptionLabel={(option) => `${option.displayName} (${option.username})`}
-                            onChange={(e, newValue) => setSelectedUser(newValue)}
-                            renderInput={(params) => <TextField {...params} label="Utilisateur" required autoFocus />}
-                        />
-                    </Grid>
-                    <Grid item xs={12}>
-                        <DatePicker
-                            label="Date de retour"
-                            value={returnDate}
-                            onChange={setReturnDate}
-                            minDate={new Date()}
-                            renderInput={(params) => <TextField {...params} fullWidth />}
-                        />
-                    </Grid>
-                </Grid>
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose}>Annuler</Button>
-                <Button onClick={handleSave} variant="contained" disabled={!selectedUser}>Créer le prêt</Button>
-            </DialogActions>
-        </Dialog>
-    );
-};
+// QuickLoanDialog supprimé - Utiliser LoanDialog pour tous les prêts
 
 const ComputersPage = () => {
     const { showNotification } = useApp();
     const { cache, invalidate, isLoading } = useCache();
     
-    const [view, setView] = useState('grid'); // 'grid', 'list', 'table'
+    const [view, setView] = useState('list'); // 'grid', 'list' - Vue liste par défaut
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [locationFilter, setLocationFilter] = useState('all');
@@ -284,23 +221,22 @@ const ComputersPage = () => {
                         <Grid container spacing={2}>
                             {filteredComputers.map(computer => (
                                 <Grid item key={computer.id} xs={12} sm={6} md={4} lg={3} xl={2}>
-                                    <ComputerCard computer={computer} onEdit={(c) => setDialog({ type: 'computer', data: c })} onDelete={handleDeleteComputer} onHistory={(c) => setDialog({ type: 'history', data: c })} onMaintenance={(c) => setDialog({ type: 'maintenance', data: c })} onLoan={(c) => setDialog({ type: 'loan', data: c })} onQuickLoan={(c) => setDialog({ type: 'quickLoan', data: c })} />
+                                    <ComputerCard computer={computer} onEdit={(c) => setDialog({ type: 'computer', data: c })} onDelete={handleDeleteComputer} onHistory={(c) => setDialog({ type: 'history', data: c })} onMaintenance={(c) => setDialog({ type: 'maintenance', data: c })} onLoan={(c) => setDialog({ type: 'loan', data: c })} />
                                 </Grid>
                             ))}
                         </Grid>
                     )}
                     {view === 'list' && (
-                        <Paper elevation={2}><List disablePadding>{filteredComputers.map(computer => <ComputerListItem key={computer.id} computer={computer} onEdit={(c) => setDialog({ type: 'computer', data: c })} onLoan={(c) => setDialog({ type: 'loan', data: c })} onQuickLoan={(c) => setDialog({ type: 'quickLoan', data: c })} />)}</List></Paper>
+                        <Paper elevation={2}><List disablePadding>{filteredComputers.map(computer => <ComputerListItem key={computer.id} computer={computer} onEdit={(c) => setDialog({ type: 'computer', data: c })} onLoan={(c) => setDialog({ type: 'loan', data: c })} />)}</List></Paper>
                     )}
                 </Box>
             )}
 
-            {/* ... (tous les dialogues restent identiques) */}
+            {/* Dialogues */}
             <ComputerDialog open={dialog.type === 'computer'} onClose={() => setDialog({ type: null })} computer={dialog.data} onSave={handleSaveComputer} />
             <ComputerHistoryDialog open={dialog.type === 'history'} onClose={() => setDialog({ type: null })} computer={dialog.data} />
             <MaintenanceDialog open={dialog.type === 'maintenance'} onClose={() => setDialog({ type: null })} computer={dialog.data} onSave={handleSaveMaintenance} />
             <LoanDialog open={dialog.type === 'loan'} onClose={() => setDialog({ type: null })} computer={dialog.data} users={users} itStaff={itStaff} computers={computers} loans={loans} onSave={handleCreateLoan} />
-            <QuickLoanDialog open={dialog.type === 'quickLoan'} onClose={() => setDialog({ type: null })} computer={dialog.data} users={users} onSave={handleCreateLoan} />
             <Dialog open={dialog.type === 'accessories'} onClose={() => setDialog({ type: null })} maxWidth="lg" fullWidth><AccessoriesManagement /></Dialog>
         </Box>
     );
