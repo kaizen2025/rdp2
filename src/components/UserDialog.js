@@ -15,8 +15,6 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 
 const UserDialog = ({ open, onClose, user, onSave, servers = [] }) => {
     const { cache } = useCache();
-    const allUsers = useMemo(() => Object.values(cache.excel_users || {}).flat(), [cache.excel_users]);
-    const departments = useMemo(() => [...new Set(allUsers.map(u => u.department).filter(Boolean))].sort(), [allUsers]);
 
     const [formData, setFormData] = useState({
         identifiant: '', motdepasse: '', office: '', nomcomplet: '',
@@ -25,6 +23,20 @@ const UserDialog = ({ open, onClose, user, onSave, servers = [] }) => {
     const [showPassword, setShowPassword] = useState(false);
     const [showOfficePassword, setShowOfficePassword] = useState(false);
     const [errors, setErrors] = useState({});
+
+    // ✅ OPTIMISATION: Différer le calcul lourd avec requestAnimationFrame
+    const [departments, setDepartments] = useState([]);
+
+    useEffect(() => {
+        if (open) {
+            // Différer le calcul des départements après le rendu initial
+            requestAnimationFrame(() => {
+                const allUsers = Object.values(cache.excel_users || {}).flat();
+                const depts = [...new Set(allUsers.map(u => u.department).filter(Boolean))].sort();
+                setDepartments(depts);
+            });
+        }
+    }, [open, cache.excel_users]);
 
     useEffect(() => {
         if (open) {

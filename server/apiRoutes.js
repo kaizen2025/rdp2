@@ -89,54 +89,71 @@ module.exports = (broadcast) => {
     router.get('/computers', asyncHandler(async (req, res) => res.json(await dataService.getComputers())));
     router.post('/computers', asyncHandler(async (req, res) => {
         const result = await dataService.saveComputer(req.body, getCurrentTechnician(req));
-        broadcast({ type: 'data_updated', payload: { entity: 'computers' } });
+        // ✅ OPTIMISATION: Broadcast avec données partielles
+        broadcast({ type: 'data_updated', payload: { entity: 'computers', operation: 'create', data: result.computer } });
         res.status(201).json(result);
     }));
     router.put('/computers/:id', asyncHandler(async (req, res) => {
         const result = await dataService.saveComputer({ ...req.body, id: req.params.id }, getCurrentTechnician(req));
-        broadcast({ type: 'data_updated', payload: { entity: 'computers' } });
+        // ✅ OPTIMISATION: Broadcast avec données partielles
+        broadcast({ type: 'data_updated', payload: { entity: 'computers', operation: 'update', data: result.computer } });
         res.json(result);
     }));
     router.delete('/computers/:id', asyncHandler(async (req, res) => {
         const result = await dataService.deleteComputer(req.params.id, getCurrentTechnician(req));
-        broadcast({ type: 'data_updated', payload: { entity: 'computers' } });
+        // ✅ OPTIMISATION: Broadcast avec données partielles
+        broadcast({ type: 'data_updated', payload: { entity: 'computers', operation: 'delete', data: { id: parseInt(req.params.id) } } });
         res.json(result);
     }));
     router.post('/computers/:id/maintenance', asyncHandler(async (req, res) => {
         const result = await dataService.addComputerMaintenance(req.params.id, req.body, getCurrentTechnician(req));
-        broadcast({ type: 'data_updated', payload: { entity: 'computers' } });
+        // ✅ OPTIMISATION: Broadcast avec données partielles (mise à jour ordinateur)
+        broadcast({ type: 'data_updated', payload: { entity: 'computers', operation: 'update', data: result.computer } });
         res.json(result);
     }));
 
     router.get('/loans', asyncHandler(async (req, res) => res.json(await dataService.getLoans())));
     router.post('/loans', asyncHandler(async (req, res) => {
         const result = await dataService.createLoan(req.body, getCurrentTechnician(req));
-        broadcast({ type: 'data_updated', payload: { entity: 'loans' } });
-        broadcast({ type: 'data_updated', payload: { entity: 'computers' } });
+        // ✅ OPTIMISATION: Broadcast avec données partielles
+        broadcast({ type: 'data_updated', payload: { entity: 'loans', operation: 'create', data: result.loan } });
+        if (result.computer) {
+            broadcast({ type: 'data_updated', payload: { entity: 'computers', operation: 'update', data: result.computer } });
+        }
         res.status(201).json(result);
     }));
     // ✅ NOUVELLE ROUTE: Modification d'un prêt existant
     router.put('/loans/:id', asyncHandler(async (req, res) => {
         const result = await dataService.updateLoan(req.params.id, req.body, getCurrentTechnician(req));
-        broadcast({ type: 'data_updated', payload: { entity: 'loans' } });
-        broadcast({ type: 'data_updated', payload: { entity: 'computers' } });
+        // ✅ OPTIMISATION: Broadcast avec données partielles
+        broadcast({ type: 'data_updated', payload: { entity: 'loans', operation: 'update', data: result.loan } });
+        if (result.computer) {
+            broadcast({ type: 'data_updated', payload: { entity: 'computers', operation: 'update', data: result.computer } });
+        }
         res.json(result);
     }));
     router.post('/loans/:id/return', asyncHandler(async (req, res) => {
         const result = await dataService.returnLoan(req.params.id, getCurrentTechnician(req), req.body.returnNotes, req.body.accessoryInfo);
-        broadcast({ type: 'data_updated', payload: { entity: 'loans' } });
-        broadcast({ type: 'data_updated', payload: { entity: 'computers' } });
+        // ✅ OPTIMISATION: Broadcast avec données partielles
+        broadcast({ type: 'data_updated', payload: { entity: 'loans', operation: 'update', data: result.loan } });
+        if (result.computer) {
+            broadcast({ type: 'data_updated', payload: { entity: 'computers', operation: 'update', data: result.computer } });
+        }
         res.json(result);
     }));
     router.post('/loans/:id/extend', asyncHandler(async (req, res) => {
         const result = await dataService.extendLoan(req.params.id, req.body.newReturnDate, req.body.reason, getCurrentTechnician(req));
-        broadcast({ type: 'data_updated', payload: { entity: 'loans' } });
+        // ✅ OPTIMISATION: Broadcast avec données partielles
+        broadcast({ type: 'data_updated', payload: { entity: 'loans', operation: 'update', data: result.loan } });
         res.json(result);
     }));
     router.post('/loans/:id/cancel', asyncHandler(async (req, res) => {
         const result = await dataService.cancelLoan(req.params.id, req.body.reason, getCurrentTechnician(req));
-        broadcast({ type: 'data_updated', payload: { entity: 'loans' } });
-        broadcast({ type: 'data_updated', payload: { entity: 'computers' } });
+        // ✅ OPTIMISATION: Broadcast avec données partielles
+        broadcast({ type: 'data_updated', payload: { entity: 'loans', operation: 'update', data: result.loan } });
+        if (result.computer) {
+            broadcast({ type: 'data_updated', payload: { entity: 'computers', operation: 'update', data: result.computer } });
+        }
         res.json(result);
     }));
     router.get('/loans/history', asyncHandler(async (req, res) => res.json(await dataService.getLoanHistory(req.query))));
