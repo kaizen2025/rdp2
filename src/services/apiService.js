@@ -73,6 +73,11 @@ class ApiService {
     }
     logout = () => { this.setCurrentTechnician(null); return Promise.resolve(); }
     getConnectedTechnicians = async () => this.request('/technicians/connected')
+    saveTechnicianPhoto = async (technicianId, photoFile) => {
+        const formData = new FormData();
+        formData.append('photo', photoFile);
+        return this.request(`/technicians/${technicianId}/photo`, { method: 'POST', body: formData });
+    }
 
     // CONFIGURATION
     getConfig = async () => this.request('/config')
@@ -90,6 +95,11 @@ class ApiService {
     saveComputer = async (computerData) => {
         const { id, ...data } = computerData;
         return id ? this.request(`/computers/${id}`, { method: 'PUT', body: JSON.stringify(data) }) : this.request('/computers', { method: 'POST', body: JSON.stringify(data) });
+    }
+    saveComputerPhoto = async (computerId, photoFile) => {
+        const formData = new FormData();
+        formData.append('photo', photoFile);
+        return this.request(`/computers/${computerId}/photo`, { method: 'POST', body: formData });
     }
     deleteComputer = async (id) => this.request(`/computers/${id}`, { method: 'DELETE' })
     addComputerMaintenance = async (id, data) => this.request(`/computers/${id}/maintenance`, { method: 'POST', body: JSON.stringify(data) })
@@ -178,7 +188,6 @@ class ApiService {
     // ==================== AUTHENTIFICATION ET UTILISATEURS ====================
 
     // Authentification
-    login = async (username, password) => this.request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) })
     changePassword = async (userId, oldPassword, newPassword) => this.request('/auth/change-password', { method: 'POST', body: JSON.stringify({ userId, oldPassword, newPassword }) })
     checkPermissions = async (userId, tabName) => this.request(`/auth/check-permissions/${userId}/${tabName}`)
 

@@ -16,6 +16,15 @@ async function getComputers() {
     const rows = db.all('SELECT * FROM computers ORDER BY name ASC');
     return rows.map(c => ({ ...c, specifications: parseJSON(c.specifications, {}), warranty: parseJSON(c.warranty, {}), maintenanceHistory: parseJSON(c.maintenanceHistory, []) }));
 }
+
+async function saveComputerPhoto(computerId, photoData) {
+    try {
+        db.run('UPDATE computers SET photo = ? WHERE id = ?', [photoData, computerId]);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
 async function saveComputer(computerData, technician) {
     const now = new Date().toISOString();
     const isUpdate = !!computerData.id;
@@ -177,7 +186,7 @@ async function updateLoanSettings(settings, technician) {
 }
 
 module.exports = {
-    getComputers, saveComputer, deleteComputer, addComputerMaintenance,
+    getComputers, saveComputer, deleteComputer, addComputerMaintenance, saveComputerPhoto,
     getLoans, createLoan, updateLoan, returnLoan, extendLoan, cancelLoan,
     getLoanHistory, getLoanStatistics,
     getLoanSettings, updateLoanSettings,

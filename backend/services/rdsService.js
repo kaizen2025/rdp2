@@ -150,34 +150,78 @@ async function getStoredRdsSessions() {
 }
 
 async function pingServer(server) {
+    const getSystemDetails = () => new Promise((resolve, reject) => {
+        const command = `powershell.exe -Command "Get-CimInstance -ClassName Win32_OperatingSystem -ComputerName ${server} | Select-Object FreePhysicalMemory, TotalVisibleMemorySize, FreeSpaceInPagingFiles; Get-CimInstance -ClassName Win32_LogicalDisk -ComputerName ${server} -Filter 'DriveType=3' | Select-Object Size, FreeSpace"`;
+
+        exec(command, (error, stdout) => {
+            if (error) {
+                return reject(error);
+            }
+
+            const sections = stdout.trim().split(/\r\n\s*Size\s+FreeSpace/);
+            const osInfoLines = sections[0].trim().split('\r\n').slice(2);
+            const diskInfoLines = sections.length > 1 ? sections[1].trim().split('\r\n') : [];
+
+            const osInfo = osInfoLines[0].trim().split(/\s+/);
+
+            let totalDiskSize = 0;
+            let totalDiskFreeSpace = 0;
+            diskInfoLines.forEach(line => {
+                const parts = line.trim().split(/\s+/);
+                if (parts.length === 2) {
+                    totalDiskSize += parseInt(parts[0], 10);
+                    totalDiskFreeSpace += parseInt(parts[1], 10);
+                }
+            });
+
+            const totalMemory = parseInt(osInfo[2], 10) * 1024;
+            const freeMemory = parseInt(osInfo[0], 10) * 1024;
+
+            resolve({
+                cpu: {
+                    usage: ((totalMemory - freeMemory) / totalMemory) * 100
+                },
+                storage: {
+                    total: totalDiskSize,
+                    free: totalDiskFreeSpace,
+                    usage: ((totalDiskSize - totalDiskFreeSpace) / totalDiskSize) * 100
+                }
+            });
+        });
+    });
+
     return new Promise((resolve) => {
         const socket = new net.Socket();
-        const timeout = 3000; // 3 secondes
+        socket.setTimeout(3000);
 
-        socket.setTimeout(timeout);
-
-        socket.on('connect', () => {
+        socket.on('connect', async () => {
             socket.destroy();
-            resolve({ success: true, output: `Le serveur ${server} est en ligne.` });
+            try {
+                const details = await getSystemDetails();
+                resolve({
+                    success: true,
+                    output: `Le serveur ${server} est en ligne.`,
+                    ...details
+                });
+            } catch (error) {
+                resolve({
+                    success: true,
+                    output: `Le serveur ${server} est en ligne, mais les détails système n'ont pu être récupérés.`,
+                    error: error.message
+                });
+            }
         });
 
         socket.on('timeout', () => {
             socket.destroy();
-            resolve({ success: false, output: `Timeout: ${server} ne répond pas sur le port RDP (3389).` });
+            resolve({ success: false, output: `Timeout: ${server} ne répond pas.` });
         });
 
         socket.on('error', (err) => {
             socket.destroy();
-            let message = `Erreur de connexion à ${server}: ${err.code}`;
-            if (err.code === 'ECONNREFUSED') {
-                message = `Le serveur ${server} a refusé la connexion (port 3389 fermé ou service RDP arrêté).`;
-            } else if (err.code === 'EHOSTUNREACH' || err.code === 'ENETUNREACH') {
-                message = `Le serveur ${server} est injoignable (vérifiez l'adresse IP, le réseau ou le pare-feu).`;
-            }
-            resolve({ success: false, output: message });
+            resolve({ success: false, output: `Erreur de connexion à ${server}: ${err.message}` });
         });
 
-        // Port RDP par défaut
         socket.connect(3389, server);
     });
 }

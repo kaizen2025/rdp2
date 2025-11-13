@@ -40,13 +40,24 @@ const ServerStatusWidget = memo(() => {
         const results = await Promise.all(serversToPing.map(async server => {
             try {
                 const res = await apiService.pingRdsServer(server);
-                return { server, online: res.success, message: res.output };
+                return {
+                    server,
+                    online: res.success,
+                    message: res.output,
+                    cpu: res.cpu,
+                    storage: res.storage
+                };
             } catch (err) {
                 return { server, online: false, message: err.message };
             }
         }));
         const newStatuses = results.reduce((acc, curr) => {
-            acc[curr.server] = { online: curr.online, message: curr.message };
+            acc[curr.server] = {
+                online: curr.online,
+                message: curr.message,
+                cpu: curr.cpu,
+                storage: curr.storage
+            };
             return acc;
         }, {});
         setStatuses(newStatuses);
@@ -55,9 +66,18 @@ const ServerStatusWidget = memo(() => {
 
     useEffect(() => {
         fetchStatuses();
-        const interval = setInterval(fetchStatuses, 60000); // Rafraîchit le ping toutes les minutes
+        const interval = setInterval(fetchStatuses, 60000); // Refresh every minute
         return () => clearInterval(interval);
     }, [fetchStatuses]);
+
+    const formatBytes = (bytes, decimals = 2) => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    };
 
     return (
         <Paper elevation={2} sx={{ p: 1.5, height: '100%', borderRadius: 2 }}>
@@ -71,16 +91,16 @@ const ServerStatusWidget = memo(() => {
                 <List dense disablePadding sx={{ maxHeight: 180, overflowY: 'auto' }}>
                     {serversToPing.map(server => {
                         const status = statuses[server];
-                        const online = status?.online;
-                        const message = status?.message || 'Vérification...';
                         return (
                             <ListItem key={server} disablePadding sx={{ mb: 0.3 }}>
-                                <Tooltip title={message} placement="right" arrow>
+                                <Tooltip title={
+                                    status?.online ? `CPU: ${status.cpu?.usage.toFixed(2)}% | Stockage: ${formatBytes(status.storage?.free)} libres sur ${formatBytes(status.storage?.total)}` : status?.message || 'Vérification...'
+                                } placement="right" arrow>
                                     <Chip
-                                        icon={online ? <CheckCircleIcon /> : <CancelIcon />}
+                                        icon={status?.online ? <CheckCircleIcon /> : <CancelIcon />}
                                         label={server}
-                                        color={online ? 'success' : 'error'}
-                                        variant={online ? 'filled' : 'outlined'}
+                                        color={status?.online ? 'success' : 'error'}
+                                        variant={status?.online ? 'filled' : 'outlined'}
                                         size="small"
                                         sx={{ width: '100%', justifyContent: 'flex-start', fontWeight: 500, fontSize: '0.75rem', height: 28 }}
                                     />
@@ -96,7 +116,7 @@ const ServerStatusWidget = memo(() => {
 
 const ConnectedTechniciansWidget = memo(() => {
     const { cache } = useCache();
-    const technicians = cache.technicians || [];
+    const technicians = useMemo(() => cache.technicians || [], [cache.technicians]);
 
     const calculateConnectionTime = (loginTime) => {
         if (!loginTime) return 'Récent';
@@ -116,15 +136,26 @@ const ConnectedTechniciansWidget = memo(() => {
                 {technicians.length > 0 ? technicians.map(tech => (
                     <ListItem key={tech.id} disableGutters sx={{ py: 0.3 }}>
                         <ListItemAvatar sx={{ minWidth: 32 }}>
-                            <Avatar sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: 'secondary.main' }}>{tech.avatar}</Avatar>
+                            <Avatar sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: 'secondary.main' }}>
+                                {tech.name.charAt(0)}
+                            </Avatar>
                         </ListItemAvatar>
                         <ListItemText
                             primary={<Typography variant="caption" fontWeight={500}>{tech.name}</Typography>}
-                            secondary={<Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}><AccessTimeIcon sx={{ fontSize: 12 }} /><Typography variant="caption" sx={{ fontSize: '0.65rem' }}>{calculateConnectionTime(tech.loginTime)}</Typography></Box>}
+                            secondary={
+                                <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                                    <AccessTimeIcon sx={{ fontSize: 12 }} />
+                                    <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
+                                        {calculateConnectionTime(tech.loginTime)}
+                                    </Typography>
+                                </Box>
+                            }
                         />
                     </ListItem>
                 )) : (
-                    <Typography variant="caption" color="text.secondary" sx={{ py: 2, textAlign: 'center', display: 'block' }}>Aucun technicien connecté</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ py: 2, textAlign: 'center', display: 'block' }}>
+                        Aucun technicien connecté
+                    </Typography>
                 )}
             </List>
         </Paper>

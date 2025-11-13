@@ -14,6 +14,10 @@ import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import Slide from '@mui/material/Slide';
+import Box from '@mui/material/Box';
+import Avatar from '@mui/material/Avatar';
+import IconButton from '@mui/material/IconButton';
+import PhotoCamera from '@mui/icons-material/PhotoCamera';
 
 const Transition = React.forwardRef(function Transition(props, ref) {
     return <Slide direction="up" ref={ref} {...props} />;
@@ -80,7 +84,8 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
         location: '',
         condition: 'Bon',
         assignedTo: '',
-        assetTag: ''
+        assetTag: '',
+        photo: null
     });
 
     const [errors, setErrors] = useState({});
@@ -113,7 +118,8 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
                 location: computer.location || '',
                 condition: computer.condition || 'Bon',
                 assignedTo: computer.assignedTo || '',
-                assetTag: computer.assetTag || ''
+                assetTag: computer.assetTag || '',
+                photo: computer.photo || null
             });
         } else {
             setFormData({
@@ -252,6 +258,27 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
                     <Grid item xs={12}>
                         <Typography variant="h6" gutterBottom>Informations de base</Typography>
                         <Divider sx={{ mb: 2 }} />
+                    </Grid>
+
+                    <Grid item xs={12}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Avatar
+                                src={formData.photo ? URL.createObjectURL(formData.photo) : (computer?.photo ? `data:image/jpeg;base64,${computer.photo}` : '')}
+                                sx={{ width: 80, height: 80 }}
+                            />
+                            <input
+                                accept="image/*"
+                                style={{ display: 'none' }}
+                                id="raised-button-file"
+                                type="file"
+                                onChange={(e) => setFormData(prev => ({ ...prev, photo: e.target.files[0] }))}
+                            />
+                            <label htmlFor="raised-button-file">
+                                <Button variant="contained" component="span" startIcon={<PhotoCamera />}>
+                                    Télécharger
+                                </Button>
+                            </label>
+                        </Box>
                     </Grid>
 
                     <Grid item xs={12} md={6}>

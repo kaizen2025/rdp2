@@ -27,6 +27,72 @@ const STATUS_COLORS = {
     critical: { bg: '#d32f2f', text: 'white', label: 'Critique' }
 };
 
+const getWeekDays = (currentDate) => {
+    const startOfWeek = new Date(currentDate);
+    const day = startOfWeek.getDay();
+    const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+    startOfWeek.setDate(diff);
+
+    const weekDays = [];
+    for (let i = 0; i < 7; i++) {
+        const weekDay = new Date(startOfWeek);
+        weekDay.setDate(startOfWeek.getDate() + i);
+        weekDays.push(weekDay);
+    }
+    return weekDays;
+};
+const WeekView = ({ currentDate, loans }) => {
+    const weekDays = useMemo(() => getWeekDays(currentDate), [currentDate]);
+
+    const getLoansForDay = (date) => {
+        return loans.filter(loan => {
+            const loanStart = new Date(loan.loanDate);
+            const loanEnd = new Date(loan.expectedReturnDate);
+            const checkDate = new Date(date);
+            checkDate.setHours(0, 0, 0, 0);
+            loanStart.setHours(0, 0, 0, 0);
+            loanEnd.setHours(0, 0, 0, 0);
+            return checkDate >= loanStart && checkDate <= loanEnd;
+        });
+    };
+
+    return (
+        <Paper elevation={3} sx={{ p: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, textAlign: 'center', mb: 1 }}>
+                {weekDays.map((day, index) => (
+                    <Box key={index} sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
+                        {DAYS_FR[day.getDay()]} {day.getDate()}
+                    </Box>
+                ))}
+            </Box>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1 }}>
+                {weekDays.map((day, index) => (
+                    <Box key={index} sx={{ minHeight: 300, border: '1px solid #eee', p: 1, borderRadius: 1 }}>
+                        {getLoansForDay(day).map(loan => (
+                            <Tooltip key={loan.id} title={`${loan.computerName} - ${loan.userDisplayName}`}>
+                                <Chip
+                                    label={loan.computerName}
+                                    size="small"
+                                    sx={{
+                                        mb: 0.5,
+                                        width: '100%',
+                                        justifyContent: 'flex-start',
+                                        '& .MuiChip-label': {
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                        },
+                                        backgroundColor: STATUS_COLORS[loan.status]?.bg,
+                                        color: STATUS_COLORS[loan.status]?.text,
+                                    }}
+                                />
+                            </Tooltip>
+                        ))}
+                    </Box>
+                ))}
+            </Box>
+        </Paper>
+    );
+};
 const LoansCalendar = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [view, setView] = useState('month');
@@ -153,48 +219,53 @@ const LoansCalendar = () => {
                     </Box>
                     <ButtonGroup size="small">
                         <Button variant={view === 'month' ? 'contained' : 'outlined'} startIcon={<CalendarMonth />} onClick={() => setView('month')}>Mois</Button>
-                        <Button variant={view === 'week' ? 'contained' : 'outlined'} startIcon={<ViewWeek />} onClick={() => setView('week')} disabled>Semaine</Button>
+                        <Button variant={view === 'week' ? 'contained' : 'outlined'} startIcon={<ViewWeek />} onClick={() => setView('week')}>Semaine</Button>
                     </ButtonGroup>
                 </Box>
             </Paper>
-            <Paper elevation={3} sx={{ p: 2, overflow: 'auto' }}> {/* ✅ FIX: Add overflow:auto to Paper */}
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, mb: 1, minWidth: 700 }}> {/* ✅ FIX: Add minWidth */}
-                    {DAYS_FR.map(day => (<Box key={day} sx={{ textAlign: 'center', fontWeight: 'bold', color: 'text.secondary', py: 1 }}>{day}</Box>))}
-                </Box>
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, minWidth: 700 }}> {/* ✅ FIX: Add minWidth */}
-                    {getDaysInMonth.map((dayInfo, index) => {
-                        const dayLoans = getLoansForDay(dayInfo.date);
-                        const isTodayDate = isToday(dayInfo.date);
-                        return (
-                            <Box key={index} onClick={() => handleDayClick(dayInfo)} sx={{ minHeight: 120, p: 1, border: 1, borderColor: isTodayDate ? 'primary.main' : 'divider', borderWidth: isTodayDate ? 2 : 1, borderRadius: 1, bgcolor: dayInfo.isCurrentMonth ? 'background.paper' : 'action.hover', cursor: dayLoans.length > 0 ? 'pointer' : 'default', '&:hover': dayLoans.length > 0 ? { bgcolor: 'action.hover', boxShadow: 1 } : {}, overflow: 'hidden' }}> {/* ✅ FIX: Add overflow:hidden to each cell */}
-                                <Typography variant="body2" sx={{ fontWeight: isTodayDate ? 'bold' : 'normal', color: dayInfo.isCurrentMonth ? 'text.primary' : 'text.disabled' }}>{dayInfo.day}</Typography>
-                                <Box sx={{ mt: 0.5, width: '100%' }}> {/* ✅ FIX: Constrain width */}
-                                    {dayLoans.slice(0, 2).map((loan) => (
-                                        <Tooltip key={loan.id} title={`Détails: ${loan.computerName} prêté à ${loan.userDisplayName || loan.userName}`}>
-                                            <Box sx={{
-                                                fontSize: '0.65rem',
-                                                bgcolor: STATUS_COLORS[loan.status]?.bg || '#grey',
-                                                color: STATUS_COLORS[loan.status]?.text || 'white',
-                                                borderRadius: 1, px: 0.5, py: 0.3, mb: 0.5,
-                                                overflow: 'hidden',
-                                                width: '100%'
-                                            }}>
-                                                <Typography variant="caption" noWrap sx={{ fontWeight: 600, display: 'block', fontSize: '0.65rem', lineHeight: 1.2 }}>
-                                                    {loan.computerName}
-                                                </Typography>
-                                                <Typography variant="caption" noWrap sx={{ display: 'block', fontSize: '0.6rem', opacity: 0.9, lineHeight: 1.2 }}>
-                                                    👤 {loan.userDisplayName || loan.userName}
-                                                </Typography>
-                                            </Box>
-                                        </Tooltip>
-                                    ))}
-                                    {dayLoans.length > 2 && (<Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', fontWeight: 'bold' }}>+{dayLoans.length - 2} autre(s)</Typography>)}
+
+            {view === 'month' && (
+                <Paper elevation={3} sx={{ p: 2, overflow: 'auto' }}>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, mb: 1, minWidth: 700 }}>
+                        {DAYS_FR.map(day => (<Box key={day} sx={{ textAlign: 'center', fontWeight: 'bold', color: 'text.secondary', py: 1 }}>{day}</Box>))}
+                    </Box>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, minWidth: 700 }}>
+                        {getDaysInMonth.map((dayInfo, index) => {
+                            const dayLoans = getLoansForDay(dayInfo.date);
+                            const isTodayDate = isToday(dayInfo.date);
+                            return (
+                                <Box key={index} onClick={() => handleDayClick(dayInfo)} sx={{ minHeight: 120, p: 1, border: 1, borderColor: isTodayDate ? 'primary.main' : 'divider', borderWidth: isTodayDate ? 2 : 1, borderRadius: 1, bgcolor: dayInfo.isCurrentMonth ? 'background.paper' : 'action.hover', cursor: dayLoans.length > 0 ? 'pointer' : 'default', '&:hover': dayLoans.length > 0 ? { bgcolor: 'action.hover', boxShadow: 1 } : {}, overflow: 'hidden' }}>
+                                    <Typography variant="body2" sx={{ fontWeight: isTodayDate ? 'bold' : 'normal', color: dayInfo.isCurrentMonth ? 'text.primary' : 'text.disabled' }}>{dayInfo.day}</Typography>
+                                    <Box sx={{ mt: 0.5, width: '100%' }}>
+                                        {dayLoans.slice(0, 2).map((loan) => (
+                                            <Tooltip key={loan.id} title={`Détails: ${loan.computerName} prêté à ${loan.userDisplayName || loan.userName}`}>
+                                                <Box sx={{
+                                                    fontSize: '0.65rem',
+                                                    bgcolor: STATUS_COLORS[loan.status]?.bg || '#grey',
+                                                    color: STATUS_COLORS[loan.status]?.text || 'white',
+                                                    borderRadius: 1, px: 0.5, py: 0.3, mb: 0.5,
+                                                    overflow: 'hidden',
+                                                    width: '100%'
+                                                }}>
+                                                    <Typography variant="caption" noWrap sx={{ fontWeight: 600, display: 'block', fontSize: '0.65rem', lineHeight: 1.2 }}>
+                                                        {loan.computerName}
+                                                    </Typography>
+                                                    <Typography variant="caption" noWrap sx={{ display: 'block', fontSize: '0.6rem', opacity: 0.9, lineHeight: 1.2 }}>
+                                                        👤 {loan.userDisplayName || loan.userName}
+                                                    </Typography>
+                                                </Box>
+                                            </Tooltip>
+                                        ))}
+                                        {dayLoans.length > 2 && (<Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', fontWeight: 'bold' }}>+{dayLoans.length - 2} autre(s)</Typography>)}
+                                    </Box>
                                 </Box>
-                            </Box>
-                        );
-                    })}
-                </Box>
-            </Paper>
+                            );
+                        })}
+                    </Box>
+                </Paper>
+            )}
+
+            {view === 'week' && <WeekView currentDate={currentDate} loans={loans} />}
             <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
                 <Typography variant="caption" sx={{ fontWeight: 'bold', mr: 1 }}>Légende:</Typography>
                 {Object.entries(STATUS_COLORS).map(([status, config]) => (<Chip key={status} label={config.label} size="small" sx={{ bgcolor: config.bg, color: config.text }} />))}

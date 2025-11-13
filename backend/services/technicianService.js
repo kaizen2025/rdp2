@@ -57,10 +57,20 @@ async function getConnectedTechnicians() {
     }
 }
 
+async function saveTechnicianPhoto(technicianId, photoData) {
+    try {
+        db.run('UPDATE technician_presence SET photo = ? WHERE id = ?', [photoData, technicianId]);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
 module.exports = {
     registerTechnicianLogin,
     logoutTechnician,
     getConnectedTechnicians,
     updateTechnicianPresence,
     updateAllTechniciansPresence, // Exporter la nouvelle fonction
+    saveTechnicianPhoto,
 };
