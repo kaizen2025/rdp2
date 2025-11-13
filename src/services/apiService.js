@@ -2,9 +2,20 @@
 
 class ApiService {
     constructor() {
-        this.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:3002/api';
+        // Détection automatique du mode
+        const isElectron = window.electronAPI !== undefined;
+
+        // En mode Electron : utiliser le port fixe configuré dans Electron (3002)
+        // En mode navigateur dev : utiliser le proxy (setupProxy.js lit .ports.json automatiquement)
+        if (isElectron) {
+            this.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:3002/api';
+        } else {
+            // Le proxy setupProxy.js gère automatiquement la redirection depuis .ports.json
+            this.baseURL = process.env.REACT_APP_API_URL || '/api';
+        }
+
         this.currentTechnicianId = localStorage.getItem('currentTechnicianId') || null;
-        console.log(`🔧 ApiService initialisé avec baseURL: ${this.baseURL} pour le technicien: ${this.currentTechnicianId || 'aucun'}`);
+        console.log(`🔧 ApiService initialisé avec baseURL: ${this.baseURL} (Electron: ${isElectron}) pour le technicien: ${this.currentTechnicianId || 'aucun'}`);
     }
 
     /**
