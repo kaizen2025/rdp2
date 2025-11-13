@@ -284,24 +284,72 @@ Todos los procesamientos se realizan localmente, tus datos permanecen privados.`
             return this.generateAnswerFromContext(userMessage, searchResults, config);
         }
 
-        // Sinon, reponse generique basee sur l'analyse
+        // Détecter si c'est une question générale (météo, heure, calcul, etc.)
+        const generalQuestionKeywords = [
+            'météo', 'meteo', 'temps', 'température', 'heure', 'date', 'calcul', 'combien',
+            'capitale', 'president', 'weather', 'time', 'calculate', 'what is'
+        ];
+
+        const isGeneralQuestion = generalQuestionKeywords.some(keyword =>
+            userMessage.toLowerCase().includes(keyword.toLowerCase())
+        );
+
+        if (isGeneralQuestion) {
+            const response = {
+                fr: `Je suis **DocuCortex**, un assistant spécialisé dans la recherche et l'analyse de documents GED.
+
+Je ne peux pas répondre aux questions générales comme la météo, l'heure, ou des calculs.
+
+**Mon expertise** :
+• 🔍 Recherche dans votre base documentaire
+• 📄 Analyse et résumé de documents (PDF, DOCX, Excel, etc.)
+• 📊 Extraction d'informations depuis vos fichiers
+• 💡 Suggestions de documents pertinents
+
+**Pour que je puisse vous aider** :
+✅ Posez-moi des questions sur vos documents indexés
+✅ Demandez-moi de chercher dans votre base GED
+✅ Uploadez des documents à analyser
+
+*Configuration: Pour les questions générales, veuillez configurer l'API Gemini dans les paramètres IA.*`,
+                es: `Soy **DocuCortex**, un asistente especializado en busqueda y analisis de documentos GED.
+
+No puedo responder preguntas generales como el clima, la hora o calculos.
+
+**Mi experiencia**:
+• 🔍 Busqueda en tu base documental
+• 📄 Analisis y resumen de documentos
+• 📊 Extraccion de informacion de tus archivos
+
+*Configuracion: Para preguntas generales, configure la API Gemini en la configuracion IA.*`
+            };
+
+            return {
+                text: response[config.language] || response.fr,
+                confidence: 0.6
+            };
+        }
+
+        // Pour les questions sur les documents
         const responses = {
-            fr: [
-                'Je comprends votre question, mais je n\'ai pas trouve d\'information pertinente dans les documents indexes.',
-                'Pour mieux vous aider, pourriez-vous uploader des documents relatifs a votre question?',
-                'Je peux vous aider si vous indexez d\'abord les documents pertinents.'
-            ],
-            es: [
-                'Entiendo tu pregunta, pero no encontre informacion relevante en los documentos indexados.',
-                'Para ayudarte mejor, podrias subir documentos relacionados con tu pregunta?'
-            ]
+            fr: `Je comprends votre question, mais je n'ai pas trouvé d'information pertinente dans les documents indexés.
+
+**Suggestions** :
+• 📤 Uploadez des documents relatifs à votre question
+• 🔍 Reformulez votre question avec plus de détails
+• 📚 Vérifiez que les documents sont bien indexés
+
+*Astuce: Je fonctionne mieux avec des questions précises sur le contenu de vos documents.*`,
+            es: `Entiendo tu pregunta, pero no encontre informacion relevante en los documentos indexados.
+
+**Sugerencias**:
+• 📤 Sube documentos relacionados con tu pregunta
+• 🔍 Reformula tu pregunta con mas detalles
+• 📚 Verifica que los documentos esten bien indexados`
         };
 
-        const options = responses[config.language] || responses.fr;
-        const text = options[Math.floor(Math.random() * options.length)];
-
         return {
-            text: text,
+            text: responses[config.language] || responses.fr,
             confidence: 0.4
         };
     }
