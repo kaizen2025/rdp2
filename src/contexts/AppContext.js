@@ -11,9 +11,43 @@ export const useApp = () => useContext(AppContext);
 // ✅ CORRECTION: Utiliser localhost explicitement pour éviter une URL invalide dans Electron
 const WS_URL = `ws://localhost:3003`;
 
+/**
+ * Adaptateur pour convertir l'objet app_users en format compatible avec l'ancien système
+ * Garantit la compatibilité avec tout le code existant (prêts, chat, historique, etc.)
+ */
+function adaptUserToTechnician(user) {
+    if (!user) return null;
+
+    // Si l'utilisateur vient de app_users (a display_name)
+    if (user.display_name) {
+        return {
+            ...user,
+            // Ajouter les propriétés de l'ancien système pour compatibilité
+            id: user.username,           // 'kevin_bivia' au lieu de 1
+            name: user.display_name,     // 'Kevin BIVIA'
+            avatar: user.display_name.split(' ').map(n => n[0]).join(''),  // 'KB'
+            role: user.is_admin ? 'admin' : 'technician',
+            // Garder aussi les nouvelles propriétés
+            _numericId: user.id,         // Garder l'ID numérique pour les nouvelles fonctions
+            _username: user.username,    // Garder le username
+        };
+    }
+
+    // Si c'est déjà un technicien de l'ancien système, retourner tel quel
+    return user;
+}
+
 export const AppProvider = ({ children }) => {
     const [config, setConfig] = useState(null);
-    const [currentTechnician, setCurrentTechnician] = useState(null); 
+    const [_internalTechnician, _setInternalTechnician] = useState(null);
+
+    // Wrapper qui adapte automatiquement la structure
+    const setCurrentTechnician = useCallback((user) => {
+        const adapted = adaptUserToTechnician(user);
+        _setInternalTechnician(adapted);
+    }, []);
+
+    const currentTechnician = _internalTechnician; 
     const [isInitializing, setIsInitializing] = useState(true);
     const [error, setError] = useState('');
     const [notifications, setNotifications] = useState([]);
