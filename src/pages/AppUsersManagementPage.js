@@ -38,9 +38,12 @@ import {
     Check as CheckIcon,
     Close as CloseIcon,
     AdminPanelSettings as AdminIcon,
-    Person as PersonIcon
+    Person as PersonIcon,
+    PeopleAlt as PeopleAltIcon,
+    Refresh as RefreshIcon
 } from '@mui/icons-material';
 import apiService from '../services/apiService';
+import PageHeader from '../components/common/PageHeader';
 
 const AppUsersManagementPage = () => {
     const [users, setUsers] = useState([]);
@@ -268,30 +271,52 @@ const AppUsersManagementPage = () => {
     };
 
     return (
-        <Box sx={{ p: 3 }}>
-            <Paper sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                    <Typography variant="h5" fontWeight="bold">
-                        👥 Gestion des Utilisateurs de l'Application
-                    </Typography>
-                    <Button
-                        variant="contained"
-                        startIcon={<AddIcon />}
-                        onClick={() => handleOpenDialog()}
-                        sx={{
-                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                            fontWeight: 600
-                        }}
-                    >
-                        Nouvel Utilisateur
-                    </Button>
-                </Box>
+        <Box sx={{ p: 2 }}>
+            <PageHeader
+                title="Gestion des Utilisateurs"
+                subtitle="Gérez les accès et permissions des utilisateurs de l'application"
+                icon={PeopleAltIcon}
+                actions={
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Tooltip title="Actualiser">
+                            <IconButton
+                                onClick={loadUsers}
+                                disabled={loading}
+                                sx={{
+                                    color: 'white',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.25)' }
+                                }}
+                            >
+                                <RefreshIcon />
+                            </IconButton>
+                        </Tooltip>
+                        <Button
+                            variant="contained"
+                            startIcon={<AddIcon />}
+                            onClick={() => handleOpenDialog()}
+                            sx={{
+                                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                color: 'white',
+                                fontWeight: 600,
+                                '&:hover': {
+                                    backgroundColor: 'rgba(255, 255, 255, 0.3)'
+                                }
+                            }}
+                        >
+                            Nouvel Utilisateur
+                        </Button>
+                    </Box>
+                }
+            />
 
-                {notification.open && (
-                    <Alert severity={notification.severity} sx={{ mb: 2 }} onClose={() => setNotification({ ...notification, open: false })}>
-                        {notification.message}
-                    </Alert>
-                )}
+            {notification.open && (
+                <Alert severity={notification.severity} sx={{ mb: 2 }} onClose={() => setNotification({ ...notification, open: false })}>
+                    {notification.message}
+                </Alert>
+            )}
+
+            <Paper elevation={3} sx={{ borderRadius: 2, overflow: 'hidden' }}>
 
                 <TableContainer>
                     <Table>
