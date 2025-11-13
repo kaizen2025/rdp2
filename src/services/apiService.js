@@ -2,7 +2,7 @@
 
 class ApiService {
     constructor() {
-        this.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:3002/api';
+        this.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
         this.currentTechnicianId = localStorage.getItem('currentTechnicianId') || null;
         console.log(`🔧 ApiService initialisé avec baseURL: ${this.baseURL} pour le technicien: ${this.currentTechnicianId || 'aucun'}`);
     }
