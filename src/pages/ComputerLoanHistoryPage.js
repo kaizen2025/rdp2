@@ -1,9 +1,9 @@
-// src/pages/ComputerLoanHistoryPage.js - CORRIGÉ
+// src/pages/ComputerLoanHistoryPage.js - VERSION AMÉLIORÉE AVEC STATS ET DURÉES
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     Box, Paper, Typography, Autocomplete, TextField, Table, TableBody,
-    TableCell, TableContainer, TableHead, TableRow, Chip, CircularProgress, Alert
+    TableCell, TableContainer, TableHead, TableRow, Chip, CircularProgress, Alert, Card, CardContent, Grid
 } from '@mui/material';
 import HistoryIcon from '@mui/icons-material/History';
 import ComputerIcon from '@mui/icons-material/Computer';
@@ -11,8 +11,12 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import CancelIcon from '@mui/icons-material/Cancel';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import WarningIcon from '@mui/icons-material/Warning';
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import { useApp } from '../contexts/AppContext';
 import apiService from '../services/apiService';
+import { parseISO, differenceInDays, isAfter } from 'date-fns';
 
 const eventConfig = {
     created: {
@@ -87,28 +91,6 @@ const ComputerLoanHistoryPage = () => {
 
                 setHistory(Array.isArray(computerHistory) ? computerHistory : []);
 
-                const loans = computerHistory.filter(e => e.eventType === 'created');
-                const returned = computerHistory.filter(e => e.eventType === 'returned');
-                const active = loans.length - returned.length;
-                
-                let totalDays = 0;
-                returned.forEach(event => {
-                    if (event.details?.actualReturnDate && event.details?.loanDate) {
-                        const days = Math.ceil(
-                            (new Date(event.details.actualReturnDate) - new Date(event.details.loanDate)) / 
-                            (1000 * 60 * 60 * 24)
-                        );
-                        totalDays += days;
-                    }
-                });
-
-                setStats({
-                    totalLoans: loans.length,
-                    returned: returned.length,
-                    active: active,
-                    averageDays: returned.length > 0 ? Math.round(totalDays / returned.length) : 0
-                });
-
             } catch (error) {
                 console.error('Erreur chargement historique:', error);
                 showNotification('error', 'Erreur lors du chargement de l\'historique');
@@ -116,9 +98,53 @@ const ComputerLoanHistoryPage = () => {
                 setHistoryLoading(false);
             }
         };
-        
+
         loadHistory();
     }, [selectedComputer, showNotification]);
+
+    // Calculer les statistiques avec useMemo
+    const statistics = useMemo(() => {
+        if (history.length === 0) return null;
+
+        // Regrouper les événements par prêt
+        const loanMap = new Map();
+        history.forEach(event => {
+            if (!loanMap.has(event.loanId)) {
+                loanMap.set(event.loanId, {
+                    loanDate: event.details?.loanDate,
+                    expectedReturnDate: event.details?.expectedReturnDate,
+                    actualReturnDate: event.details?.actualReturnDate,
+                    status: event.eventType === 'returned' ? 'returned' : 'active'
+                });
+            } else {
+                const loan = loanMap.get(event.loanId);
+                if (event.eventType === 'returned') {
+                    loan.status = 'returned';
+                    loan.actualReturnDate = event.details?.actualReturnDate;
+                }
+            }
+        });
+
+        const loans = Array.from(loanMap.values());
+        const completedLoans = loans.filter(loan => loan.actualReturnDate && loan.loanDate);
+        const activeLoans = loans.filter(loan => loan.status === 'active');
+
+        // Calculer les durées
+        const durations = completedLoans.map(loan => {
+            const start = parseISO(loan.loanDate);
+            const end = parseISO(loan.actualReturnDate);
+            return differenceInDays(end, start);
+        });
+
+        const totalDuration = durations.reduce((acc, days) => acc + days, 0);
+
+        return {
+            totalLoans: loans.length,
+            completedLoans: completedLoans.length,
+            activeLoans: activeLoans.length,
+            avgDuration: completedLoans.length > 0 ? Math.round(totalDuration / completedLoans.length) : 0
+        };
+    }, [history]);
 
     const formatDate = (dateStr) => {
         if (!dateStr) return '-';
@@ -127,6 +153,24 @@ const ComputerLoanHistoryPage = () => {
             month: 'short',
             year: 'numeric'
         });
+    };
+
+    const calculateDuration = (loanDate, actualReturnDate) => {
+        if (!loanDate) return '-';
+
+        const start = parseISO(loanDate);
+        const end = actualReturnDate ? parseISO(actualReturnDate) : new Date();
+        const days = differenceInDays(end, start);
+
+        if (days === 0) return '< 1 jour';
+        return `${days} ${days > 1 ? 'jours' : 'jour'}`;
+    };
+
+    const isLate = (expectedReturnDate, actualReturnDate) => {
+        if (!expectedReturnDate) return false;
+        const expectedDate = parseISO(expectedReturnDate);
+        const actualDate = actualReturnDate ? parseISO(actualReturnDate) : new Date();
+        return isAfter(actualDate, expectedDate);
     };
 
     const getComputerLabel = (computer) => {
@@ -191,13 +235,77 @@ const ComputerLoanHistoryPage = () => {
                             />
                         </Box>
 
-                        {stats && (
-                            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                                <Paper elevation={1} sx={{ p: 1.5, flex: '1 1 150px' }}><Typography variant="caption" color="text.secondary">Total prêts</Typography><Typography variant="h5">{stats.totalLoans}</Typography></Paper>
-                                <Paper elevation={1} sx={{ p: 1.5, flex: '1 1 150px' }}><Typography variant="caption" color="text.secondary">Retournés</Typography><Typography variant="h5">{stats.returned}</Typography></Paper>
-                                <Paper elevation={1} sx={{ p: 1.5, flex: '1 1 150px' }}><Typography variant="caption" color="text.secondary">En cours</Typography><Typography variant="h5">{stats.active}</Typography></Paper>
-                                <Paper elevation={1} sx={{ p: 1.5, flex: '1 1 150px' }}><Typography variant="caption" color="text.secondary">Durée moyenne</Typography><Typography variant="h5">{stats.averageDays}j</Typography></Paper>
-                            </Box>
+                        {statistics && (
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} sm={6} md={3}>
+                                    <Card sx={{
+                                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                        color: 'white',
+                                        boxShadow: 3
+                                    }}>
+                                        <CardContent>
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <Box>
+                                                    <Typography variant="caption" sx={{ opacity: 0.9 }}>Total Prêts</Typography>
+                                                    <Typography variant="h4" fontWeight="bold">{statistics.totalLoans}</Typography>
+                                                </Box>
+                                                <AssignmentIcon sx={{ fontSize: 48, opacity: 0.8 }} />
+                                            </Box>
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={3}>
+                                    <Card sx={{
+                                        background: 'linear-gradient(135deg, #56ab2f 0%, #a8e063 100%)',
+                                        color: 'white',
+                                        boxShadow: 3
+                                    }}>
+                                        <CardContent>
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <Box>
+                                                    <Typography variant="caption" sx={{ opacity: 0.9 }}>Terminés</Typography>
+                                                    <Typography variant="h4" fontWeight="bold">{statistics.completedLoans}</Typography>
+                                                </Box>
+                                                <CheckCircleIcon sx={{ fontSize: 48, opacity: 0.8 }} />
+                                            </Box>
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={3}>
+                                    <Card sx={{
+                                        background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                                        color: 'white',
+                                        boxShadow: 3
+                                    }}>
+                                        <CardContent>
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <Box>
+                                                    <Typography variant="caption" sx={{ opacity: 0.9 }}>En Cours</Typography>
+                                                    <Typography variant="h4" fontWeight="bold">{statistics.activeLoans}</Typography>
+                                                </Box>
+                                                <EventAvailableIcon sx={{ fontSize: 48, opacity: 0.8 }} />
+                                            </Box>
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={3}>
+                                    <Card sx={{
+                                        background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+                                        color: 'white',
+                                        boxShadow: 3
+                                    }}>
+                                        <CardContent>
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <Box>
+                                                    <Typography variant="caption" sx={{ opacity: 0.9 }}>Durée Moyenne</Typography>
+                                                    <Typography variant="h4" fontWeight="bold">{statistics.avgDuration}j</Typography>
+                                                </Box>
+                                                <AccessTimeIcon sx={{ fontSize: 48, opacity: 0.8 }} />
+                                            </Box>
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+                            </Grid>
                         )}
                     </Box>
 
@@ -213,18 +321,58 @@ const ComputerLoanHistoryPage = () => {
                     ) : (
                         <TableContainer>
                             <Table size="small">
-                                <TableHead><TableRow><TableCell>Type</TableCell><TableCell>Utilisateur</TableCell><TableCell>Date événement</TableCell><TableCell>Date prêt</TableCell><TableCell>Retour prévu</TableCell><TableCell>Retour effectif</TableCell><TableCell>Par</TableCell></TableRow></TableHead>
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell>Type</TableCell>
+                                        <TableCell>Utilisateur</TableCell>
+                                        <TableCell>Date événement</TableCell>
+                                        <TableCell>Date prêt</TableCell>
+                                        <TableCell>Retour prévu</TableCell>
+                                        <TableCell>Retour effectif</TableCell>
+                                        <TableCell>Durée</TableCell>
+                                        <TableCell>Par</TableCell>
+                                    </TableRow>
+                                </TableHead>
                                 <TableBody>
                                     {history.map((event) => {
                                         const config = eventConfig[event.eventType] || {};
+                                        const late = isLate(event.details?.expectedReturnDate, event.details?.actualReturnDate);
+                                        const duration = calculateDuration(event.details?.loanDate, event.details?.actualReturnDate);
+
                                         return (
-                                            <TableRow key={event.id}>
-                                                <TableCell><Chip icon={config.icon} label={config.label || event.eventType} color={config.color || 'default'} size="small" /></TableCell>
-                                                <TableCell><Typography variant="body2">{event.userDisplayName || event.details?.userName || '-'}</Typography><Typography variant="caption" color="text.secondary">{event.userName || event.details?.username || ''}</Typography></TableCell>
+                                            <TableRow
+                                                key={event.id}
+                                                sx={{
+                                                    backgroundColor: late && event.eventType !== 'returned' ? 'error.light' : 'inherit',
+                                                    '& td': { color: late && event.eventType !== 'returned' ? 'error.contrastText' : 'inherit' }
+                                                }}
+                                            >
+                                                <TableCell>
+                                                    <Chip
+                                                        icon={config.icon}
+                                                        label={config.label || event.eventType}
+                                                        color={config.color || 'default'}
+                                                        size="small"
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Typography variant="body2">{event.userDisplayName || event.details?.userName || '-'}</Typography>
+                                                    <Typography variant="caption" color="text.secondary">{event.userName || event.details?.username || ''}</Typography>
+                                                </TableCell>
                                                 <TableCell>{formatDate(event.date)}</TableCell>
                                                 <TableCell>{formatDate(event.details?.loanDate)}</TableCell>
                                                 <TableCell>{formatDate(event.details?.expectedReturnDate)}</TableCell>
                                                 <TableCell>{formatDate(event.details?.actualReturnDate)}</TableCell>
+                                                <TableCell>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                        {late && event.eventType !== 'returned' && (
+                                                            <WarningIcon fontSize="small" color="error" />
+                                                        )}
+                                                        <Typography variant="body2" fontWeight={late ? 'bold' : 'normal'}>
+                                                            {duration}
+                                                        </Typography>
+                                                    </Box>
+                                                </TableCell>
                                                 <TableCell><Typography variant="caption">{event.by || '-'}</Typography></TableCell>
                                             </TableRow>
                                         );
