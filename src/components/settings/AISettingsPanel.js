@@ -237,23 +237,72 @@ const AISettingsPanel = () => {
                         />
                     </Grid>
 
-                    <Grid item xs={12} md={8}>
+                    <Grid item xs={12} md={4}>
                         <TextField
                             fullWidth
-                            label="Modèle Gemini"
-                            value={aiConfig.providers.gemini.model}
+                            label="📝 Modèle Texte"
+                            value={aiConfig.providers.gemini.models?.text || aiConfig.providers.gemini.model || 'gemini-2.0-flash-exp'}
                             onChange={(e) => setAiConfig({
                                 ...aiConfig,
                                 providers: {
                                     ...aiConfig.providers,
                                     gemini: {
                                         ...aiConfig.providers.gemini,
-                                        model: e.target.value
+                                        models: {
+                                            ...aiConfig.providers.gemini.models,
+                                            text: e.target.value
+                                        }
                                     }
                                 }
                             })}
                             disabled={!aiConfig.providers.gemini.enabled}
-                            helperText="gemini-1.5-flash (rapide) ou gemini-1.5-pro (puissant)"
+                            helperText="Questions générales"
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} md={4}>
+                        <TextField
+                            fullWidth
+                            label="🖼️ Modèle Vision"
+                            value={aiConfig.providers.gemini.models?.vision || 'gemini-2.0-flash-exp'}
+                            onChange={(e) => setAiConfig({
+                                ...aiConfig,
+                                providers: {
+                                    ...aiConfig.providers,
+                                    gemini: {
+                                        ...aiConfig.providers.gemini,
+                                        models: {
+                                            ...aiConfig.providers.gemini.models,
+                                            vision: e.target.value
+                                        }
+                                    }
+                                }
+                            })}
+                            disabled={!aiConfig.providers.gemini.enabled}
+                            helperText="Images, Excel scanné"
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} md={4}>
+                        <TextField
+                            fullWidth
+                            label="🔍 Modèle Embedding"
+                            value={aiConfig.providers.gemini.models?.embedding || 'text-embedding-004'}
+                            onChange={(e) => setAiConfig({
+                                ...aiConfig,
+                                providers: {
+                                    ...aiConfig.providers,
+                                    gemini: {
+                                        ...aiConfig.providers.gemini,
+                                        models: {
+                                            ...aiConfig.providers.gemini.models,
+                                            embedding: e.target.value
+                                        }
+                                    }
+                                }
+                            })}
+                            disabled={!aiConfig.providers.gemini.enabled}
+                            helperText="Recherche sémantique"
                         />
                     </Grid>
 
@@ -278,6 +327,117 @@ const AISettingsPanel = () => {
                             </Alert>
                         </Grid>
                     )}
+
+                    {/* 🎭 Options Chef d'Orchestre */}
+                    <Grid item xs={12}>
+                        <Divider sx={{ my: 2 }} />
+                        <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600 }}>
+                            🎭 Options Chef d'Orchestre
+                        </Typography>
+                        <Alert severity="info" sx={{ mb: 2 }}>
+                            L'orchestrateur détecte automatiquement le type de requête et choisit le meilleur modèle (texte, vision, ou recherche documentaire).
+                        </Alert>
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={aiConfig.providers.gemini.orchestrator?.enabled !== false}
+                                    onChange={(e) => setAiConfig({
+                                        ...aiConfig,
+                                        providers: {
+                                            ...aiConfig.providers,
+                                            gemini: {
+                                                ...aiConfig.providers.gemini,
+                                                orchestrator: {
+                                                    ...aiConfig.providers.gemini.orchestrator,
+                                                    enabled: e.target.checked
+                                                }
+                                            }
+                                        }
+                                    })}
+                                    disabled={!aiConfig.providers.gemini.enabled}
+                                />
+                            }
+                            label="Activer l'orchestrateur intelligent"
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={aiConfig.providers.gemini.orchestrator?.useOCRForImages !== false}
+                                    onChange={(e) => setAiConfig({
+                                        ...aiConfig,
+                                        providers: {
+                                            ...aiConfig.providers,
+                                            gemini: {
+                                                ...aiConfig.providers.gemini,
+                                                orchestrator: {
+                                                    ...aiConfig.providers.gemini.orchestrator,
+                                                    useOCRForImages: e.target.checked
+                                                }
+                                            }
+                                        }
+                                    })}
+                                    disabled={!aiConfig.providers.gemini.enabled}
+                                />
+                            }
+                            label="🖼️ OCR automatique pour images"
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={aiConfig.providers.gemini.orchestrator?.useEmbeddingForSearch !== false}
+                                    onChange={(e) => setAiConfig({
+                                        ...aiConfig,
+                                        providers: {
+                                            ...aiConfig.providers,
+                                            gemini: {
+                                                ...aiConfig.providers.gemini,
+                                                orchestrator: {
+                                                    ...aiConfig.providers.gemini.orchestrator,
+                                                    useEmbeddingForSearch: e.target.checked
+                                                }
+                                            }
+                                        }
+                                    })}
+                                    disabled={!aiConfig.providers.gemini.enabled}
+                                />
+                            }
+                            label="🔍 Embeddings pour recherche"
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={aiConfig.providers.gemini.orchestrator?.enableDocumentActions !== false}
+                                    onChange={(e) => setAiConfig({
+                                        ...aiConfig,
+                                        providers: {
+                                            ...aiConfig.providers,
+                                            gemini: {
+                                                ...aiConfig.providers.gemini,
+                                                orchestrator: {
+                                                    ...aiConfig.providers.gemini.orchestrator,
+                                                    enableDocumentActions: e.target.checked
+                                                }
+                                            }
+                                        }
+                                    })}
+                                    disabled={!aiConfig.providers.gemini.enabled}
+                                />
+                            }
+                            label="📂 Actions documents (ouvrir/afficher)"
+                        />
+                    </Grid>
                 </Grid>
             </Paper>
 

@@ -37,7 +37,9 @@ import {
     CloudUpload as UploadIcon,
     Delete as DeleteIcon,
     AddCircle as NewConversationIcon,
-    History as HistoryIcon
+    History as HistoryIcon,
+    FolderOpen as FolderOpenIcon,
+    OpenInNew as OpenIcon
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import apiService from '../../services/apiService';
@@ -216,6 +218,53 @@ Je peux vous aider à :
         setPreviewModal({ open: false, documentId: null, filename: '', networkPath: '' });
     };
 
+    // ✅ NOUVEAU - Ouvrir document dans l'explorateur
+    const handleOpenDocument = async (attachment) => {
+        try {
+            const filepath = attachment.filepath || attachment.networkPath;
+            if (!filepath) {
+                setNotification({ open: true, message: 'Chemin du document non disponible', severity: 'warning' });
+                return;
+            }
+
+            // Demander à Electron d'ouvrir le fichier
+            if (window.electron && window.electron.shell) {
+                await window.electron.shell.openPath(filepath);
+                setNotification({ open: true, message: `Ouverture de ${attachment.filename}...`, severity: 'success' });
+            } else {
+                setNotification({ open: true, message: 'Fonction non disponible (mode web)', severity: 'info' });
+            }
+        } catch (error) {
+            console.error('Erreur ouverture document:', error);
+            setNotification({ open: true, message: 'Erreur lors de l\'ouverture du document', severity: 'error' });
+        }
+    };
+
+    // ✅ NOUVEAU - Ouvrir répertoire du document
+    const handleOpenFolder = async (attachment) => {
+        try {
+            const filepath = attachment.filepath || attachment.networkPath;
+            if (!filepath) {
+                setNotification({ open: true, message: 'Chemin du document non disponible', severity: 'warning' });
+                return;
+            }
+
+            // Extraire le répertoire parent
+            const folderPath = filepath.substring(0, filepath.lastIndexOf('\\') || filepath.lastIndexOf('/'));
+
+            // Demander à Electron d'ouvrir le dossier
+            if (window.electron && window.electron.shell) {
+                await window.electron.shell.openPath(folderPath);
+                setNotification({ open: true, message: `Ouverture du répertoire...`, severity: 'success' });
+            } else {
+                setNotification({ open: true, message: 'Fonction non disponible (mode web)', severity: 'info' });
+            }
+        } catch (error) {
+            console.error('Erreur ouverture répertoire:', error);
+            setNotification({ open: true, message: 'Erreur lors de l\'ouverture du répertoire', severity: 'error' });
+        }
+    };
+
     // ✅ NOUVEAU - Gestion upload de documents
     const handleUploadClick = () => {
         setUploadDialogOpen(true);
@@ -386,6 +435,8 @@ Je peux vous aider à :
                         onSuggestionClick={handleSuggestionClick}
                         onDownload={handleDownload}
                         onPreview={handlePreview}
+                        onOpenDocument={handleOpenDocument}
+                        onOpenFolder={handleOpenFolder}
                     />
                 ))}
 
@@ -547,7 +598,7 @@ Je peux vous aider à :
 /**
  * Composant MessageBubble avec support markdown, citations et suggestions
  */
-const MessageBubble = ({ message, onSuggestionClick, onDownload, onPreview }) => {
+const MessageBubble = ({ message, onSuggestionClick, onDownload, onPreview, onOpenDocument, onOpenFolder }) => {
     const isUser = message.type === 'user';
 
     return (
@@ -644,6 +695,28 @@ const MessageBubble = ({ message, onSuggestionClick, onDownload, onPreview }) =>
                                                 <DownloadIcon fontSize="small" />
                                             </IconButton>
                                         </Tooltip>
+                                        {(att.filepath || att.networkPath) && (
+                                            <>
+                                                <Tooltip title="Ouvrir le document">
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => onOpenDocument(att)}
+                                                        sx={{ bgcolor: '#e3f2fd' }}
+                                                    >
+                                                        <OpenIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                                <Tooltip title="Voir le répertoire">
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => onOpenFolder(att)}
+                                                        sx={{ bgcolor: '#fff3e0' }}
+                                                    >
+                                                        <FolderOpenIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </>
+                                        )}
                                     </Box>
                                 ))}
                             </Box>
