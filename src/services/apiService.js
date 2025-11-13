@@ -259,6 +259,32 @@ class ApiService {
         // Téléchargement direct
         window.open(`${this.baseURL}/ai/documents/${documentId}/download`, '_blank');
     }
+
+    // ==================== GESTION PHOTOS BLOB ====================
+
+    // ✅ Photos de profil techniciens (app_users)
+    uploadUserProfilePicture = async (userId, imageBase64) => this.request(`/auth/users/${userId}/picture`, {
+        method: 'POST',
+        body: JSON.stringify({ imageBase64 })
+    })
+    getUserProfilePicture = async (userId) => this.request(`/auth/users/${userId}/picture`)
+    deleteUserProfilePicture = async (userId) => this.request(`/auth/users/${userId}/picture`, { method: 'DELETE' })
+
+    // ✅ Photos de matériel (computers)
+    uploadComputerPicture = async (computerId, imageBase64) => this.request(`/computers/${computerId}/picture`, {
+        method: 'POST',
+        body: JSON.stringify({ imageBase64 })
+    })
+    getComputerPicture = async (computerId) => this.request(`/computers/${computerId}/picture`)
+    deleteComputerPicture = async (computerId) => this.request(`/computers/${computerId}/picture`, { method: 'DELETE' })
+
+    // ✅ Photos utilisateurs AD (excel_users)
+    uploadExcelUserPicture = async (username, imageBase64) => this.request(`/excel-users/${username}/picture`, {
+        method: 'POST',
+        body: JSON.stringify({ imageBase64 })
+    })
+    getExcelUserPicture = async (username) => this.request(`/excel-users/${username}/picture`)
+    deleteExcelUserPicture = async (username) => this.request(`/excel-users/${username}/picture`, { method: 'DELETE' })
 }
 
 // Création d'une instance unique (singleton) pour toute l'application

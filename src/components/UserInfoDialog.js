@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -9,11 +9,14 @@ import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Grid from '@mui/material/Grid';
+import Avatar from '@mui/material/Avatar';
 
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import PersonIcon from '@mui/icons-material/Person';
+
+import apiService from '../services/apiService';
 
 const InfoRow = ({ label, value, isPassword = false, forceCopy = false }) => {
   const [showPassword, setShowPassword] = useState(false);
@@ -47,6 +50,31 @@ const InfoRow = ({ label, value, isPassword = false, forceCopy = false }) => {
 };
 
 const UserInfoDialog = ({ open, onClose, user }) => {
+  const [userPhoto, setUserPhoto] = useState(null);
+
+  // ✅ Charger la photo de l'utilisateur AD depuis excel_users
+  useEffect(() => {
+    const loadUserPhoto = async () => {
+      if (user && user.username && open) {
+        try {
+          const photoResult = await apiService.getExcelUserPicture(user.username);
+          if (photoResult.success && photoResult.picture) {
+            setUserPhoto(photoResult.picture);
+          } else {
+            setUserPhoto(null);
+          }
+        } catch (err) {
+          console.log('Aucune photo trouvée pour cet utilisateur AD');
+          setUserPhoto(null);
+        }
+      } else {
+        setUserPhoto(null);
+      }
+    };
+
+    loadUserPhoto();
+  }, [user, open]);
+
   if (!user) return null;
 
   const { userInfo } = user;
@@ -55,6 +83,17 @@ const UserInfoDialog = ({ open, onClose, user }) => {
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><PersonIcon /> Fiche Utilisateur</DialogTitle>
       <DialogContent dividers>
+        {/* ✅ Affichage photo de profil en haut */}
+        {userPhoto && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3, mt: 1 }}>
+            <Avatar
+              src={userPhoto}
+              alt={userInfo?.displayName || user.username}
+              sx={{ width: 120, height: 120 }}
+            />
+          </Box>
+        )}
+
         <Grid container spacing={1}>
           {/* CORRECTION: Utilisation de user.username */}
           <InfoRow label="Nom d'utilisateur" value={user.username} />

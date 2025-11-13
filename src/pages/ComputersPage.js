@@ -138,7 +138,22 @@ const ComputersPage = () => {
 
     const handleSaveComputer = async (computerData) => {
         try {
-            await apiService.saveComputer(computerData);
+            // ✅ Extraire la photo avant sauvegarde
+            const { picture_base64, ...dataToSave } = computerData;
+
+            const result = await apiService.saveComputer(dataToSave);
+
+            // ✅ Upload photo pour les nouveaux matériels
+            if (result.success && result.computer && result.computer.id && picture_base64 && !computerData.id) {
+                try {
+                    await apiService.uploadComputerPicture(result.computer.id, picture_base64);
+                    console.log('Photo du matériel ajoutée');
+                } catch (photoError) {
+                    console.error('Erreur upload photo matériel:', photoError);
+                    // Ne pas bloquer la sauvegarde pour une erreur de photo
+                }
+            }
+
             showNotification('success', 'Ordinateur sauvegardé.');
             await invalidate('computers');
         } catch (error) { showNotification('error', `Erreur: ${error.message}`); }

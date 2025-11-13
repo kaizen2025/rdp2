@@ -14,6 +14,8 @@ import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import Slide from '@mui/material/Slide';
+import ImageUploadField from './common/ImageUploadField';
+import apiService from '../services/apiService';
 
 const Transition = React.forwardRef(function Transition(props, ref) {
     return <Slide direction="up" ref={ref} {...props} />;
@@ -62,6 +64,7 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
         serialNumber: '',
         status: COMPUTER_STATUS.AVAILABLE,
         notes: '',
+        picture_base64: null, // ✅ NOUVEAU - Photo du matériel
         specifications: {
             cpu: '',
             ram: '',
@@ -86,64 +89,82 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
     const [errors, setErrors] = useState({});
 
     useEffect(() => {
-        if (computer) {
-            setFormData({
-                id: computer.id || null,
-                name: computer.name || '',
-                brand: computer.brand || '',
-                model: computer.model || '',
-                serialNumber: computer.serialNumber || '',
-                status: computer.status || COMPUTER_STATUS.AVAILABLE,
-                notes: computer.notes || '',
-                specifications: {
-                    cpu: computer.specifications?.cpu || '',
-                    ram: computer.specifications?.ram || '',
-                    os: computer.specifications?.os || '',
-                    format: computer.specifications?.format || '',
-                    storage: computer.specifications?.storage || '',
-                    screen: computer.specifications?.screen || ''
-                },
-                warranty: {
-                    hasWarranty: computer.warranty?.hasWarranty || false,
-                    provider: computer.warranty?.provider || '',
-                    expirationDate: computer.warranty?.expirationDate ? new Date(computer.warranty.expirationDate) : null,
-                    purchaseDate: computer.warranty?.purchaseDate ? new Date(computer.warranty.purchaseDate) : null,
-                    purchasePrice: computer.warranty?.purchasePrice || ''
-                },
-                location: computer.location || '',
-                condition: computer.condition || 'Bon',
-                assignedTo: computer.assignedTo || '',
-                assetTag: computer.assetTag || ''
-            });
-        } else {
-            setFormData({
-                name: '',
-                brand: '',
-                model: '',
-                serialNumber: '',
-                status: COMPUTER_STATUS.AVAILABLE,
-                notes: '',
-                specifications: {
-                    cpu: '',
-                    ram: '',
-                    os: '',
-                    format: '',
-                    storage: '',
-                    screen: ''
-                },
-                warranty: {
-                    hasWarranty: false,
-                    provider: '',
-                    expirationDate: null,
-                    purchaseDate: null,
-                    purchasePrice: ''
-                },
-                location: '',
-                condition: 'Bon',
-                assignedTo: '',
-                assetTag: ''
-            });
-        }
+        const loadComputerData = async () => {
+            if (computer) {
+                // ✅ Charger la photo du matériel si disponible
+                let photoBase64 = null;
+                try {
+                    const photoResult = await apiService.getComputerPicture(computer.id);
+                    if (photoResult.success && photoResult.picture) {
+                        photoBase64 = photoResult.picture;
+                    }
+                } catch (err) {
+                    // Pas de photo ou erreur de chargement, c'est OK
+                    console.log('Aucune photo trouvée pour ce matériel');
+                }
+
+                setFormData({
+                    id: computer.id || null,
+                    name: computer.name || '',
+                    brand: computer.brand || '',
+                    model: computer.model || '',
+                    serialNumber: computer.serialNumber || '',
+                    status: computer.status || COMPUTER_STATUS.AVAILABLE,
+                    notes: computer.notes || '',
+                    picture_base64: photoBase64, // ✅ Charger photo existante
+                    specifications: {
+                        cpu: computer.specifications?.cpu || '',
+                        ram: computer.specifications?.ram || '',
+                        os: computer.specifications?.os || '',
+                        format: computer.specifications?.format || '',
+                        storage: computer.specifications?.storage || '',
+                        screen: computer.specifications?.screen || ''
+                    },
+                    warranty: {
+                        hasWarranty: computer.warranty?.hasWarranty || false,
+                        provider: computer.warranty?.provider || '',
+                        expirationDate: computer.warranty?.expirationDate ? new Date(computer.warranty.expirationDate) : null,
+                        purchaseDate: computer.warranty?.purchaseDate ? new Date(computer.warranty.purchaseDate) : null,
+                        purchasePrice: computer.warranty?.purchasePrice || ''
+                    },
+                    location: computer.location || '',
+                    condition: computer.condition || 'Bon',
+                    assignedTo: computer.assignedTo || '',
+                    assetTag: computer.assetTag || ''
+                });
+            } else {
+                setFormData({
+                    name: '',
+                    brand: '',
+                    model: '',
+                    serialNumber: '',
+                    status: COMPUTER_STATUS.AVAILABLE,
+                    notes: '',
+                    picture_base64: null,
+                    specifications: {
+                        cpu: '',
+                        ram: '',
+                        os: '',
+                        format: '',
+                        storage: '',
+                        screen: ''
+                    },
+                    warranty: {
+                        hasWarranty: false,
+                        provider: '',
+                        expirationDate: null,
+                        purchaseDate: null,
+                        purchasePrice: ''
+                    },
+                    location: '',
+                    condition: 'Bon',
+                    assignedTo: '',
+                    assetTag: ''
+                });
+            }
+        };
+
+        loadComputerData();
     }, [computer, open]);
 
     const handleWarrantyToggle = (e) => {
@@ -221,12 +242,40 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!validate()) {
             alert('Veuillez corriger les erreurs dans le formulaire.');
             return;
         }
+
+        // Sauvegarder les données du formulaire
         onSave(formData);
+
+        // ✅ Gérer la photo du matériel après sauvegarde
+        if (computer && computer.id) {
+            // Mode édition - gérer la photo
+            try {
+                // Vérifier si le matériel avait une photo avant
+                const existingPhotoResult = await apiService.getComputerPicture(computer.id);
+                const hadPhoto = existingPhotoResult.success && existingPhotoResult.picture;
+
+                if (formData.picture_base64) {
+                    // Upload/mise à jour de la photo
+                    await apiService.uploadComputerPicture(computer.id, formData.picture_base64);
+                    console.log('Photo du matériel mise à jour');
+                } else if (!formData.picture_base64 && hadPhoto) {
+                    // L'utilisateur a supprimé la photo
+                    await apiService.deleteComputerPicture(computer.id);
+                    console.log('Photo du matériel supprimée');
+                }
+            } catch (photoError) {
+                console.error('Erreur gestion photo matériel:', photoError);
+                // Ne pas bloquer la sauvegarde pour une erreur de photo
+            }
+        }
+        // Note: Pour les nouveaux matériels, la photo sera uploadée après la création
+        // via le code de ComputersPage qui récupère l'ID après création
+
         onClose();
     };
 
@@ -501,14 +550,31 @@ const ComputerDialog = ({ open, onClose, computer, onSave }) => {
                     </Grid>
 
                     <Grid item xs={12}>
-                        <TextField 
-                            name="notes" 
-                            label="Notes" 
-                            value={formData.notes} 
-                            onChange={handleChange} 
-                            fullWidth 
-                            multiline 
-                            rows={3} 
+                        <TextField
+                            name="notes"
+                            label="Notes"
+                            value={formData.notes}
+                            onChange={handleChange}
+                            fullWidth
+                            multiline
+                            rows={3}
+                        />
+                    </Grid>
+
+                    {/* ✅ NOUVEAU - Photo du matériel */}
+                    <Grid item xs={12}>
+                        <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>Photo du matériel</Typography>
+                        <Divider sx={{ mb: 2 }} />
+                    </Grid>
+
+                    <Grid item xs={12}>
+                        <ImageUploadField
+                            currentImage={formData.picture_base64}
+                            onUpload={(base64) => setFormData({ ...formData, picture_base64: base64 })}
+                            onDelete={() => setFormData({ ...formData, picture_base64: null })}
+                            label="Photo du matériel (ordinateur, écran, etc.)"
+                            size={120}
+                            maxSizeKB={500}
                         />
                     </Grid>
                 </Grid>

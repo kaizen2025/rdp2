@@ -44,6 +44,7 @@ import {
 } from '@mui/icons-material';
 import apiService from '../services/apiService';
 import PageHeader from '../components/common/PageHeader';
+import ImageUploadField from '../components/common/ImageUploadField';
 
 const AppUsersManagementPage = () => {
     const [users, setUsers] = useState([]);
@@ -60,6 +61,7 @@ const AppUsersManagementPage = () => {
         display_name: '',
         position: '',
         is_admin: false,
+        profile_picture_base64: null, // ✅ NOUVEAU - Photo de profil en base64
         permissions: {
             can_access_dashboard: true,
             can_access_rds_sessions: false,
@@ -101,15 +103,29 @@ const AppUsersManagementPage = () => {
     }, [loadUsers]);
 
     // Ouvrir dialog création/édition
-    const handleOpenDialog = (user = null) => {
+    const handleOpenDialog = async (user = null) => {
         if (user) {
             setEditingUser(user);
+
+            // ✅ Charger la photo de profil existante si disponible
+            let photoBase64 = null;
+            try {
+                const photoResult = await apiService.getUserProfilePicture(user.id);
+                if (photoResult.success && photoResult.picture) {
+                    photoBase64 = photoResult.picture;
+                }
+            } catch (err) {
+                // Pas de photo ou erreur de chargement, c'est OK
+                console.log('Aucune photo trouvée pour cet utilisateur');
+            }
+
             setFormData({
                 username: user.username,
                 email: user.email,
                 display_name: user.display_name,
                 position: user.position || '',
                 is_admin: user.is_admin === 1,
+                profile_picture_base64: photoBase64, // ✅ Charger photo existante
                 permissions: {
                     can_access_dashboard: user.can_access_dashboard === 1,
                     can_access_rds_sessions: user.can_access_rds_sessions === 1,
@@ -131,6 +147,7 @@ const AppUsersManagementPage = () => {
                 display_name: '',
                 position: '',
                 is_admin: false,
+                profile_picture_base64: null,
                 permissions: {
                     can_access_dashboard: true,
                     can_access_rds_sessions: false,
@@ -163,8 +180,28 @@ const AppUsersManagementPage = () => {
                 // Mise à jour permissions
                 const permissionsResult = await apiService.updateUserPermissions(editingUser.id, formData.permissions);
 
+                // ✅ Gérer la photo de profil
+                try {
+                    // Vérifier si l'utilisateur avait une photo avant
+                    const existingPhotoResult = await apiService.getUserProfilePicture(editingUser.id);
+                    const hadPhoto = existingPhotoResult.success && existingPhotoResult.picture;
+
+                    if (formData.profile_picture_base64) {
+                        // Upload/mise à jour de la photo
+                        await apiService.uploadUserProfilePicture(editingUser.id, formData.profile_picture_base64);
+                        console.log('Photo de profil mise à jour');
+                    } else if (!formData.profile_picture_base64 && hadPhoto) {
+                        // L'utilisateur a supprimé la photo
+                        await apiService.deleteUserProfilePicture(editingUser.id);
+                        console.log('Photo de profil supprimée');
+                    }
+                } catch (photoError) {
+                    console.error('Erreur gestion photo:', photoError);
+                    // Ne pas bloquer la sauvegarde pour une erreur de photo
+                }
+
                 if (userUpdateResult.success && permissionsResult.success) {
-                    setNotification({ open: true, message: 'Utilisateur mis à jour', severity: 'success' });
+                    setNotification({ open: true, message: 'Utilisateur mis à jour avec succès', severity: 'success' });
                     loadUsers();
                     setOpenDialog(false);
                 }
@@ -173,6 +210,17 @@ const AppUsersManagementPage = () => {
                 const result = await apiService.createAppUser(formData);
 
                 if (result.success) {
+                    // ✅ Upload photo de profil si fournie
+                    if (result.user && result.user.id && formData.profile_picture_base64) {
+                        try {
+                            await apiService.uploadUserProfilePicture(result.user.id, formData.profile_picture_base64);
+                            console.log('Photo de profil ajoutée au nouvel utilisateur');
+                        } catch (photoError) {
+                            console.error('Erreur upload photo:', photoError);
+                            // Ne pas bloquer la création pour une erreur de photo
+                        }
+                    }
+
                     setNotification({ open: true, message: `Utilisateur "${formData.display_name}" créé avec succès`, severity: 'success' });
                     loadUsers();
                     setOpenDialog(false);
@@ -430,6 +478,21 @@ const AppUsersManagementPage = () => {
                                 onChange={(e) => setFormData({ ...formData, position: e.target.value })}
                             />
                         </Grid>
+
+                        {/* ✅ NOUVEAU - Upload photo de profil */}
+                        <Grid item xs={12}>
+                            <Divider sx={{ my: 2 }} />
+                            <ImageUploadField
+                                currentImage={formData.profile_picture_base64}
+                                onUpload={(base64) => setFormData({ ...formData, profile_picture_base64: base64 })}
+                                onDelete={() => setFormData({ ...formData, profile_picture_base64: null })}
+                                label="Photo de profil"
+                                size={100}
+                                maxSizeKB={500}
+                            />
+                            <Divider sx={{ my: 2 }} />
+                        </Grid>
+
                         <Grid item xs={12}>
                             <FormControlLabel
                                 control={
