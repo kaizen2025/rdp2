@@ -66,6 +66,7 @@ class ApiService {
     // CONFIGURATION
     getConfig = async () => this.request('/config')
     saveConfig = async (newConfig) => this.request('/config', { method: 'POST', body: JSON.stringify({ newConfig }) })
+    updateConfig = async (newConfig) => this.saveConfig(newConfig) // Alias pour compatibilité
 
     // SESSIONS RDS
     getRdsSessions = async () => this.request('/rds-sessions')

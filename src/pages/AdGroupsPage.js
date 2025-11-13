@@ -1,8 +1,6 @@
 // src/pages/AdGroupsPage.js - VERSION ULTRA-ROBUSTE ANTI-CRASH
 
 import React, { useState, useMemo, memo, useCallback, useEffect } from 'react';
-import { List } from 'react-window';
-import AutoSizer from 'react-virtualized-auto-sizer';
 import { Box, Paper, Typography, Button, IconButton, Tooltip, CircularProgress, InputAdornment, Chip, FormControl, InputLabel, Select, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, List as MuiList, ListItem, ListItemText, ListItemIcon, Divider, TextField } from '@mui/material';
 
 // ✅ CORRECTION: Imports des icônes depuis le module principal
@@ -24,98 +22,87 @@ import SearchInput from '../components/common/SearchInput';
 import EmptyState from '../components/common/EmptyState';
 import LoadingScreen from '../components/common/LoadingScreen';
 
-const MemberRow = memo(({ member, style, isOdd, onRemove, groupName }) => {
+const MemberRow = memo(({ member, isOdd, onRemove, groupName }) => {
     if (!member) return null;
 
     return (
-        <Box style={style} sx={{ display: 'flex', alignItems: 'center', px: 2, backgroundColor: isOdd ? 'grey.50' : 'white', borderBottom: '1px solid', borderColor: 'divider', '&:hover': { backgroundColor: 'action.hover' } }}>
-            <Box sx={{ flex: 1, pr: 2 }}><Typography variant="body2" fontWeight={500}>{member.DisplayName || member.name || 'N/A'}</Typography><Typography variant="caption" color="text.secondary">{member.SamAccountName || member.sam || 'N/A'}</Typography></Box>
-            <Tooltip title="Retirer du groupe"><IconButton size="small" color="error" onClick={() => onRemove(member.SamAccountName || member.sam, groupName)}><PersonRemoveIcon fontSize="small" /></IconButton></Tooltip>
+        <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            px: 2,
+            py: 1,
+            minHeight: 60,
+            backgroundColor: isOdd ? 'grey.50' : 'white',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            '&:hover': { backgroundColor: 'action.hover' }
+        }}>
+            <Box sx={{ flex: 1, pr: 2 }}>
+                <Typography variant="body2" fontWeight={500}>
+                    {member.DisplayName || member.name || 'N/A'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                    {member.SamAccountName || member.sam || 'N/A'}
+                </Typography>
+            </Box>
+            <Tooltip title="Retirer du groupe">
+                <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() => onRemove(member.SamAccountName || member.sam, groupName)}
+                >
+                    <PersonRemoveIcon fontSize="small" />
+                </IconButton>
+            </Tooltip>
         </Box>
     );
 });
 MemberRow.displayName = 'MemberRow';
 
-// 🛡️ COMPOSANT WRAPPER ULTRA-SÉCURISÉ - Ne rend JAMAIS FixedSizeList sans itemData valide
-const SafeVirtualizedList = memo(({ itemData, Row, height, width }) => {
-    // 🔍 LOG 1: Vérification initiale
-    console.log('[SafeVirtualizedList] RENDER ATTEMPT', {
-        hasItemData: !!itemData,
-        itemDataType: typeof itemData,
-        hasMembers: itemData?.members ? true : false,
-        membersIsArray: Array.isArray(itemData?.members),
-        membersLength: itemData?.members?.length,
-        height,
-        width
+// 🛡️ LISTE SIMPLE SANS REACT-WINDOW - Plus robuste et sans dépendances problématiques
+const SimpleMemberList = memo(({ members, onRemove, groupName }) => {
+    console.log('[SimpleMemberList] Rendering', {
+        membersCount: members?.length,
+        groupName
     });
 
-    // 🛡️ PROTECTION 1: itemData null ou undefined
-    if (!itemData) {
-        console.warn('[SafeVirtualizedList] ❌ BLOCKED: itemData is null/undefined');
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height }}>
-                <CircularProgress />
-            </Box>
-        );
+    if (!Array.isArray(members) || members.length === 0) {
+        return null;
     }
 
-    // 🛡️ PROTECTION 2: itemData.members n'est pas un tableau
-    if (!Array.isArray(itemData.members)) {
-        console.warn('[SafeVirtualizedList] ❌ BLOCKED: itemData.members is not an array', typeof itemData.members);
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height }}>
-                <CircularProgress />
-            </Box>
-        );
+    if (typeof onRemove !== 'function' || !groupName) {
+        console.warn('[SimpleMemberList] ❌ Invalid props', { onRemove: typeof onRemove, groupName });
+        return null;
     }
 
-    // 🛡️ PROTECTION 3: itemData.onRemove n'est pas une fonction
-    if (typeof itemData.onRemove !== 'function') {
-        console.warn('[SafeVirtualizedList] ❌ BLOCKED: itemData.onRemove is not a function');
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height }}>
-                <CircularProgress />
-            </Box>
-        );
-    }
-
-    // 🛡️ PROTECTION 4: itemData.groupName est vide
-    if (!itemData.groupName) {
-        console.warn('[SafeVirtualizedList] ❌ BLOCKED: itemData.groupName is empty');
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height }}>
-                <CircularProgress />
-            </Box>
-        );
-    }
-
-    // ✅ Toutes les vérifications passées - On peut rendre FixedSizeList en toute sécurité
-    console.log('[SafeVirtualizedList] ✅ ALL CHECKS PASSED - Rendering FixedSizeList with', itemData.members.length, 'members');
-
-    try {
-        return (
-            <List
-                height={height}
-                itemCount={itemData.members.length}
-                itemSize={60}
-                width={width}
-                itemKey={(index, data) => data?.members?.[index]?.SamAccountName || `member-${index}`}
-                itemData={itemData}
-            >
-                {Row}
-            </List>
-        );
-    } catch (error) {
-        console.error('[SafeVirtualizedList] ❌ CRASH DURING RENDER:', error);
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height, flexDirection: 'column', gap: 2 }}>
-                <Typography color="error">Erreur lors du rendu de la liste</Typography>
-                <Typography variant="caption">{error.message}</Typography>
-            </Box>
-        );
-    }
+    return (
+        <Box sx={{
+            maxHeight: 500,
+            overflow: 'auto',
+            '&::-webkit-scrollbar': {
+                width: '8px',
+            },
+            '&::-webkit-scrollbar-track': {
+                backgroundColor: 'grey.100',
+            },
+            '&::-webkit-scrollbar-thumb': {
+                backgroundColor: 'grey.400',
+                borderRadius: '4px',
+            },
+        }}>
+            {members.map((member, index) => (
+                <MemberRow
+                    key={member?.SamAccountName || member?.sam || `member-${index}`}
+                    member={member}
+                    isOdd={index % 2 === 1}
+                    onRemove={onRemove}
+                    groupName={groupName}
+                />
+            ))}
+        </Box>
+    );
 });
-SafeVirtualizedList.displayName = 'SafeVirtualizedList';
+SimpleMemberList.displayName = 'SimpleMemberList';
 
 const AdGroupsPage = () => {
     const { showNotification } = useApp();
@@ -222,54 +209,8 @@ const AdGroupsPage = () => {
 
     const handleOpenAddDialog = () => { setUserSearchTerm(''); setAvailableUsers([]); setAddUserDialogOpen(true); };
 
-    // 🔥 CRÉATION ULTRA-SÉCURISÉE DE itemData
-    const itemData = useMemo(() => {
-        // 🔍 LOG 4: Tentative de création de itemData
-        console.log('[AdGroupsPage] Creating itemData', {
-            filteredMembersIsArray: Array.isArray(filteredMembers),
-            filteredMembersLength: filteredMembers?.length,
-            handleRemoveUserType: typeof handleRemoveUser,
-            selectedGroup
-        });
-
-        // ✅ Validation STRICTE
-        if (!Array.isArray(filteredMembers)) {
-            console.warn('[AdGroupsPage] ❌ itemData = NULL: filteredMembers is not an array');
-            return null;
-        }
-
-        if (typeof handleRemoveUser !== 'function') {
-            console.warn('[AdGroupsPage] ❌ itemData = NULL: handleRemoveUser is not a function');
-            return null;
-        }
-
-        if (!selectedGroup || typeof selectedGroup !== 'string' || selectedGroup === '') {
-            console.warn('[AdGroupsPage] ❌ itemData = NULL: selectedGroup is invalid', selectedGroup);
-            return null;
-        }
-
-        // ✅ Création sécurisée
-        const data = {
-            members: filteredMembers,
-            onRemove: handleRemoveUser,
-            groupName: selectedGroup
-        };
-
-        console.log('[AdGroupsPage] ✅ itemData CREATED:', data.members.length, 'members for group', data.groupName);
-        return data;
-    }, [filteredMembers, handleRemoveUser, selectedGroup]);
-
-    // 🎯 VÉRIFICATION FINALE
+    // 🎯 VÉRIFICATION SIMPLIFIÉE
     const isDataReady = useMemo(() => {
-        console.log('[AdGroupsPage] Checking isDataReady', {
-            isCacheLoading,
-            hasCache: !!cache,
-            hasConfig: !!config,
-            hasItemData: !!itemData,
-            itemDataHasMembers: !!itemData?.members,
-            selectedGroup
-        });
-
         if (isCacheLoading) {
             console.log('[AdGroupsPage] ❌ NOT READY: cache is loading');
             return false;
@@ -280,7 +221,7 @@ const AdGroupsPage = () => {
             return false;
         }
 
-        if (!config || typeof config !== 'object' || Object.keys(config).length === 0) {
+        if (!config || typeof config !== 'object' || Object.keys(config || {}).length === 0) {
             console.log('[AdGroupsPage] ❌ NOT READY: config invalid');
             return false;
         }
@@ -290,40 +231,17 @@ const AdGroupsPage = () => {
             return false;
         }
 
-        if (!itemData || !itemData.members || !Array.isArray(itemData.members)) {
-            console.log('[AdGroupsPage] ❌ NOT READY: itemData invalid');
-            return false;
-        }
-
-        if (typeof itemData.onRemove !== 'function') {
-            console.log('[AdGroupsPage] ❌ NOT READY: itemData.onRemove not a function');
-            return false;
-        }
-
-        if (!itemData.groupName) {
-            console.log('[AdGroupsPage] ❌ NOT READY: itemData.groupName empty');
-            return false;
-        }
-
         console.log('[AdGroupsPage] ✅ DATA READY');
         return true;
-    }, [isCacheLoading, cache, config, selectedGroup, itemData]);
+    }, [isCacheLoading, cache, config, selectedGroup]);
 
     const currentGroupData = useMemo(() => {
         if (!adGroups || typeof adGroups !== 'object') return {};
         return adGroups[selectedGroup] || {};
     }, [adGroups, selectedGroup]);
 
-    const Row = useCallback(({ index, style, data }) => {
-        if (!data || typeof data !== 'object') return null;
-        const members = data.members || [];
-        const member = members[index];
-        if (!member) return null;
-        return <MemberRow member={member} style={style} isOdd={index % 2 === 1} onRemove={data.onRemove} groupName={data.groupName} />;
-    }, []);
-
     // ✅ Afficher le loading si le cache n'est pas encore chargé ou si config est vide
-    if (isCacheLoading || !config || typeof config !== 'object' || Object.keys(config).length === 0) {
+    if (isCacheLoading || !config || typeof config !== 'object' || Object.keys(config || {}).length === 0) {
         console.log('[AdGroupsPage] Rendering LoadingScreen (cache/config loading)');
         return <LoadingScreen type="list" />;
     }
@@ -357,19 +275,12 @@ const AdGroupsPage = () => {
                     <EmptyState type={searchTerm ? 'search' : 'empty'} onAction={searchTerm ? () => setSearchTerm('') : handleOpenAddDialog} />
                 </Paper>
             ) : (
-                <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column', minHeight: 500 }}>
-                    <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                        <AutoSizer>
-                            {({ height, width }) => (
-                                <SafeVirtualizedList
-                                    itemData={itemData}
-                                    Row={Row}
-                                    height={height}
-                                    width={width}
-                                />
-                            )}
-                        </AutoSizer>
-                    </Box>
+                <Paper elevation={2} sx={{ display: 'flex', flexDirection: 'column' }}>
+                    <SimpleMemberList
+                        members={filteredMembers}
+                        onRemove={handleRemoveUser}
+                        groupName={selectedGroup}
+                    />
                 </Paper>
             )}
             <Dialog open={addUserDialogOpen} onClose={() => setAddUserDialogOpen(false)} maxWidth="sm" fullWidth>

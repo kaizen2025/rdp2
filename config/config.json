@@ -249,5 +249,23 @@
             ".git"
         ],
         "maxFileSize": 104857600
+    },
+    "gemini": {
+        "enabled": true,
+        "apiKey": "",
+        "models": {
+            "text": "gemini-2.0-flash-exp",
+            "vision": "gemini-2.0-flash-exp",
+            "embedding": "text-embedding-004"
+        },
+        "temperature": 0.7,
+        "maxTokens": 8192,
+        "orchestrator": {
+            "enabled": true,
+            "autoDetectIntent": true,
+            "useOCRForImages": true,
+            "useEmbeddingForSearch": true,
+            "enableDocumentActions": true
+        }
     }
 }
