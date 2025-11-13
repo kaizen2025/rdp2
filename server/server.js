@@ -22,6 +22,11 @@ const aiRoutes = require('./aiRoutes');
 const aiMultimodalRoutes = require('../backend/routes/ai-multimodal');
 const { findAllPorts, savePorts, isPortAvailable } = require('../backend/utils/portUtils');
 
+// ✅ NOUVEAU - Routes d'authentification et permissions
+const authRoutes = require('../backend/routes/auth');
+const notificationRoutes = require('../backend/routes/notifications');
+const notificationScheduler = require('../backend/services/notificationScheduler');
+
 
 // ... (le début du fichier jusqu'à startServer reste identique)
 let API_PORT = 3002;
@@ -144,6 +149,9 @@ function startBackgroundTasks() {
     runAsyncTask('Technician Presence', technicianService.updateAllTechniciansPresence, 2 * 60 * 1000);
     runAsyncTask('AD Status Cache', adCacheService.updateUserAdStatuses, 5 * 60 * 1000, 15000); // Lancement après 15s
 
+    // ✅ NOUVEAU - Démarrer le planificateur de notifications automatiques
+    notificationScheduler.start();
+
     console.log('✅ Tâches de fond planifiées.');
 }
 
@@ -208,10 +216,14 @@ async function startServer() {
         });
         // --- FIN DE L'ENDPOINT ---
 
+        // ✅ NOUVEAU - Monter les routes d'authentification et notifications EN PREMIER
+        app.use('/api/auth', authRoutes);
+        app.use('/api/notifications', notificationRoutes);
+
         app.use('/api', apiRoutes(broadcast));
         app.use('/api/ai', aiRoutes(broadcast));
         app.use('/api/ai', aiMultimodalRoutes); // Routes multimodales (chat, upload, files)
-        console.log('✅ Routes API configurées (standard + multimodal).');
+        console.log('✅ Routes API configurées (standard + multimodal + auth + notifications).');
         
         // Démarrage des tâches de fond APRÈS que le serveur soit prêt
         startBackgroundTasks();
