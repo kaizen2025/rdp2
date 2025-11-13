@@ -36,8 +36,11 @@ const LoanDialog = ({ open, onClose, loan, onSave, users, itStaff, computers = [
 
     useEffect(() => {
         if (open) {
-            apiService.getAccessories().then(accs => setAvailableAccessories(accs.filter(a => a.active)));
-            
+            // ✅ OPTIMISATION: Différer le chargement des accessoires
+            requestAnimationFrame(() => {
+                apiService.getAccessories().then(accs => setAvailableAccessories(accs.filter(a => a.active)));
+            });
+
             if (isEditMode) {
                 setFormData({
                     ...loan,
@@ -45,7 +48,7 @@ const LoanDialog = ({ open, onClose, loan, onSave, users, itStaff, computers = [
                     expectedReturnDate: new Date(loan.expectedReturnDate),
                     accessories: loan.accessories || [],
                 });
-                setUserConfirmed(true); // En mode édition, on considère que c'est déjà confirmé
+                setUserConfirmed(true);
             } else {
                 const defaultStaff = currentTechnician?.name || (itStaff.length > 0 ? itStaff[0] : '');
                 setFormData({
@@ -100,12 +103,10 @@ const LoanDialog = ({ open, onClose, loan, onSave, users, itStaff, computers = [
         setFormData(prev => ({ ...prev, accessories: prev.accessories.includes(accessoryId) ? prev.accessories.filter(id => id !== accessoryId) : [...prev.accessories, accessoryId] }));
     };
 
-    const availableComputers = useMemo(() => {
-        if (isEditMode) {
-            return computers.filter(c => c.status === 'available' || c.id === loan.computerId);
-        }
-        return computers.filter(c => c.status === 'available');
-    }, [computers, isEditMode, loan]);
+    // ✅ OPTIMISATION: Déférer le calcul lourd - pas besoin de useMemo
+    const availableComputers = isEditMode
+        ? computers.filter(c => c.status === 'available' || c.id === loan?.computerId)
+        : computers.filter(c => c.status === 'available');
 
     const selectedUser = users.find(u => u.username === formData.userName);
 

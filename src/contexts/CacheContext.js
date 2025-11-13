@@ -82,18 +82,48 @@ export const CacheProvider = ({ children }) => {
         initialLoad();
     }, [fetchDataForEntity]);
 
-    // Écoute des événements WebSocket pour les mises à jour
+    // ✅ OPTIMISATION: Mises à jour partielles au lieu de full re-fetch
     useEffect(() => {
         const handleDataUpdate = (payload) => {
             if (payload && payload.entity) {
                 const entityToUpdate = payload.group ? `${payload.entity}:${payload.group}` : payload.entity;
                 if (ENTITIES.includes(entityToUpdate)) {
                     console.log(`[CacheContext] Mise à jour reçue pour: ${entityToUpdate}`);
-                    fetchDataForEntity(entityToUpdate);
+
+                    // ✅ NOUVEAU: Si le payload contient des données partielles, les appliquer directement
+                    if (payload.data && payload.operation) {
+                        setCache(prev => {
+                            const current = prev[entityToUpdate] || [];
+                            let updated;
+
+                            if (payload.operation === 'update' && payload.data.id) {
+                                // Mise à jour d'un élément
+                                updated = Array.isArray(current)
+                                    ? current.map(item => item.id === payload.data.id ? { ...item, ...payload.data } : item)
+                                    : current;
+                            } else if (payload.operation === 'delete' && payload.data.id) {
+                                // Suppression d'un élément
+                                updated = Array.isArray(current)
+                                    ? current.filter(item => item.id !== payload.data.id)
+                                    : current;
+                            } else if (payload.operation === 'create') {
+                                // Ajout d'un nouvel élément
+                                updated = Array.isArray(current) ? [...current, payload.data] : current;
+                            } else {
+                                // Opération inconnue, remplacer tout
+                                updated = payload.data;
+                            }
+
+                            return { ...prev, [entityToUpdate]: updated };
+                        });
+                    } else {
+                        // Pas de données partielles, faire un full re-fetch
+                        fetchDataForEntity(entityToUpdate);
+                    }
                 }
             }
         };
-        
+
         const unsubscribe = events.on('data_updated', handleDataUpdate);
         return () => unsubscribe();
     }, [events, fetchDataForEntity]);

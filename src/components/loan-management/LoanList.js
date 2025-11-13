@@ -31,6 +31,30 @@ const STATUS_CONFIG = {
     cancelled: { label: 'Annulé', color: 'default' },
 };
 
+const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString('fr-FR');
+
+// ✅ OPTIMISATION: Composant memoïsé pour éviter re-renders inutiles
+const LoanRow = React.memo(({ loan, onReturn, onEdit, onExtend, onHistory, onCancel }) => {
+    const config = STATUS_CONFIG[loan.status] || {};
+
+    return (
+        <TableRow key={loan.id} hover>
+            <TableCell><Chip label={config.label} color={config.color} size="small" /></TableCell>
+            <TableCell>{loan.computerName}</TableCell>
+            <TableCell>{loan.userDisplayName || loan.userName}</TableCell>
+            <TableCell>{formatDate(loan.loanDate)}</TableCell>
+            <TableCell>{formatDate(loan.expectedReturnDate)}</TableCell>
+            <TableCell>
+                <Tooltip title="Retourner"><IconButton size="small" color="success" onClick={() => onReturn(loan)}><AssignmentReturnIcon /></IconButton></Tooltip>
+                <Tooltip title="Modifier"><IconButton size="small" color="primary" onClick={() => onEdit(loan)}><EditIcon /></IconButton></Tooltip>
+                <Tooltip title="Prolonger"><IconButton size="small" color="info" onClick={() => onExtend(loan)}><UpdateIcon /></IconButton></Tooltip>
+                <Tooltip title="Historique"><IconButton size="small" onClick={() => onHistory(loan)}><HistoryIcon /></IconButton></Tooltip>
+                <Tooltip title="Annuler"><IconButton size="small" color="error" onClick={() => onCancel(loan)}><CancelIcon /></IconButton></Tooltip>
+            </TableCell>
+        </TableRow>
+    );
+});
+
 const LoanList = ({ preFilter }) => {
     const { showNotification } = useApp();
     const { cache, isLoading, invalidate } = useCache();
@@ -113,8 +137,6 @@ const LoanList = ({ preFilter }) => {
         }
     };
 
-    const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString('fr-FR');
-
     if (isLoading) {
         return <LoadingScreen type="table" />;
     }
@@ -162,25 +184,17 @@ const LoanList = ({ preFilter }) => {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {filteredLoans.map(loan => {
-                                const config = STATUS_CONFIG[loan.status] || {};
-                                return (
-                                    <TableRow key={loan.id} hover>
-                                        <TableCell><Chip label={config.label} color={config.color} size="small" /></TableCell>
-                                        <TableCell>{loan.computerName}</TableCell>
-                                        <TableCell>{loan.userDisplayName || loan.userName}</TableCell>
-                                        <TableCell>{formatDate(loan.loanDate)}</TableCell>
-                                        <TableCell>{formatDate(loan.expectedReturnDate)}</TableCell>
-                                        <TableCell>
-                                            <Tooltip title="Retourner"><IconButton size="small" color="success" onClick={() => setDialog({ type: 'return', data: loan })}><AssignmentReturnIcon /></IconButton></Tooltip>
-                                            <Tooltip title="Modifier"><IconButton size="small" color="primary" onClick={() => setDialog({ type: 'edit', data: loan })}><EditIcon /></IconButton></Tooltip>
-                                            <Tooltip title="Prolonger"><IconButton size="small" color="info" onClick={() => setDialog({ type: 'extend', data: loan })}><UpdateIcon /></IconButton></Tooltip>
-                                            <Tooltip title="Historique"><IconButton size="small" onClick={() => setDialog({ type: 'history', data: loan })}><HistoryIcon /></IconButton></Tooltip>
-                                            <Tooltip title="Annuler"><IconButton size="small" color="error" onClick={() => handleCancelLoan(loan)}><CancelIcon /></IconButton></Tooltip>
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })}
+                            {filteredLoans.map(loan => (
+                                <LoanRow
+                                    key={loan.id}
+                                    loan={loan}
+                                    onReturn={(loan) => setDialog({ type: 'return', data: loan })}
+                                    onEdit={(loan) => setDialog({ type: 'edit', data: loan })}
+                                    onExtend={(loan) => setDialog({ type: 'extend', data: loan })}
+                                    onHistory={(loan) => setDialog({ type: 'history', data: loan })}
+                                    onCancel={handleCancelLoan}
+                                />
+                            ))}
                         </TableBody>
                     </Table>
                 </TableContainer>

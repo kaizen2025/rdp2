@@ -47,15 +47,25 @@ export const AppProvider = ({ children }) => {
         _setInternalTechnician(adapted);
     }, []);
 
-    const currentTechnician = _internalTechnician; 
+    const currentTechnician = _internalTechnician;
     const [isInitializing, setIsInitializing] = useState(true);
     const [error, setError] = useState('');
     const [notifications, setNotifications] = useState([]);
     const [isOnline, setIsOnline] = useState(navigator.onLine);
-    
+
+    // ✅ NOUVEAU: Cache centralisé avec lazy loading
+    const [cache, setCache] = useState({
+        computers: { data: [], loaded: false, loading: false },
+        loans: { data: [], loaded: false, loading: false },
+        users: { data: [], loaded: false, loading: false },
+        rds_sessions: { data: [], loaded: false, loading: false },
+        technicians: { data: [], loaded: false, loading: false }
+    });
+
     const wsRef = useRef(null);
     const reconnectTimeoutRef = useRef(null);
     const initialized = useRef(false);
+    const loadingPhases = useRef({ critical: false, secondary: false, lazy: false });
 
     const eventListeners = useRef(new Map());
 
@@ -112,6 +122,31 @@ export const AppProvider = ({ children }) => {
             try {
                 const data = JSON.parse(event.data);
                 if (data.type === 'data_updated' && data.payload?.entity) {
+                    // ✅ NOUVEAU: Mise à jour partielle du cache si des données sont fournies
+                    if (data.payload.data) {
+                        console.log(`[WebSocket] Mise à jour partielle: ${data.payload.entity}`);
+                        updateCacheEntity(data.payload.entity, (current) => {
+                            if (data.payload.operation === 'update' && data.payload.data.id) {
+                                // Mettre à jour un élément existant
+                                return current.map(item =>
+                                    item.id === data.payload.data.id ? { ...item, ...data.payload.data } : item
+                                );
+                            } else if (data.payload.operation === 'delete' && data.payload.data.id) {
+                                // Supprimer un élément
+                                return current.filter(item => item.id !== data.payload.data.id);
+                            } else if (data.payload.operation === 'create') {
+                                // Ajouter un nouvel élément
+                                return [...current, data.payload.data];
+                            }
+                            // Si opération inconnue, remplacer tout
+                            return data.payload.data;
+                        });
+                    } else {
+                        // Pas de données partielles, invalider le cache pour re-fetch
+                        console.log(`[WebSocket] Invalidation cache: ${data.payload.entity}`);
+                        invalidateCache(data.payload.entity);
+                    }
+
                     emit(`data_updated:${data.payload.entity}`, data.payload);
                     emit('data_updated', data.payload);
                 } else {
@@ -133,7 +168,7 @@ export const AppProvider = ({ children }) => {
             console.error('❌ Erreur WebSocket.');
             ws.close();
         };
-    }, [emit, showNotification]);
+    }, [emit, showNotification, updateCacheEntity, invalidateCache]);
 
     const handleSaveConfig = useCallback(async ({ newConfig }) => {
         try {
@@ -154,13 +189,74 @@ export const AppProvider = ({ children }) => {
         setConfig(newConfig);
     }, []);
 
+    // ✅ NOUVEAU: Fonction de chargement d'entité avec cache
+    const loadEntity = useCallback(async (entityName, apiFetch) => {
+        // Si déjà chargé ou en cours de chargement, ignorer
+        if (cache[entityName]?.loaded || cache[entityName]?.loading) {
+            return cache[entityName].data;
+        }
+
+        // Marquer comme en cours de chargement
+        setCache(prev => ({
+            ...prev,
+            [entityName]: { ...prev[entityName], loading: true }
+        }));
+
+        try {
+            const data = await apiFetch();
+            setCache(prev => ({
+                ...prev,
+                [entityName]: { data, loaded: true, loading: false }
+            }));
+            return data;
+        } catch (error) {
+            console.error(`Erreur chargement ${entityName}:`, error);
+            setCache(prev => ({
+                ...prev,
+                [entityName]: { ...prev[entityName], loading: false }
+            }));
+            return [];
+        }
+    }, [cache]);
+
+    // ✅ NOUVEAU: Mise à jour partielle d'une entité (sans re-fetch complet)
+    const updateCacheEntity = useCallback((entityName, updater) => {
+        setCache(prev => {
+            const currentData = prev[entityName]?.data || [];
+            const newData = typeof updater === 'function' ? updater(currentData) : updater;
+            return {
+                ...prev,
+                [entityName]: { data: newData, loaded: true, loading: false }
+            };
+        });
+    }, []);
+
+    // ✅ NOUVEAU: Invalidation du cache pour forcer un rechargement
+    const invalidateCache = useCallback((entityName) => {
+        setCache(prev => ({
+            ...prev,
+            [entityName]: { data: [], loaded: false, loading: false }
+        }));
+    }, []);
+
+    // ✅ NOUVEAU: Getter de cache pour les composants
+    const getCachedData = useCallback((entityName) => {
+        return cache[entityName]?.data || [];
+    }, [cache]);
+
+    const isCacheLoaded = useCallback((entityName) => {
+        return cache[entityName]?.loaded || false;
+    }, [cache]);
+
     useEffect(() => {
         if (initialized.current) return;
         initialized.current = true;
 
         const initializeApp = async () => {
             try {
-                // ✅ FIX: Add timeout to prevent blocking webpack compilation
+                console.log('🚀 [AppContext] Phase CRITIQUE - Chargement config...');
+
+                // ✅ PHASE CRITIQUE (immédiat): Config uniquement
                 const timeoutPromise = new Promise((_, reject) =>
                     setTimeout(() => reject(new Error('Config load timeout')), 5000)
                 );
@@ -172,12 +268,34 @@ export const AppProvider = ({ children }) => {
 
                 setConfig(loadedConfig);
                 connectWebSocket();
+                loadingPhases.current.critical = true;
+
+                console.log('✅ [AppContext] Phase CRITIQUE terminée');
+
+                // ✅ PHASE SECONDARY (2s délai): Computers, Loans, Excel Users
+                setTimeout(() => {
+                    console.log('🚀 [AppContext] Phase SECONDARY - Chargement entities...');
+                    loadEntity('computers', () => apiService.getComputers());
+                    loadEntity('loans', () => apiService.getLoans());
+                    loadEntity('users', () => apiService.getExcelUsers());
+                    loadingPhases.current.secondary = true;
+                    console.log('✅ [AppContext] Phase SECONDARY démarrée');
+                }, 2000);
+
+                // ✅ PHASE LAZY (5s délai): RDS Sessions, Connected Technicians
+                setTimeout(() => {
+                    console.log('🚀 [AppContext] Phase LAZY - Chargement entities lourdes...');
+                    loadEntity('rds_sessions', () => apiService.getRdsSessions());
+                    loadEntity('technicians', () => apiService.getConnectedTechnicians());
+                    // Note: ad_groups nécessite recherche, chargé à la demande par les composants
+                    loadingPhases.current.lazy = true;
+                    console.log('✅ [AppContext] Phase LAZY démarrée');
+                }, 5000);
+
             } catch (err) {
                 console.error('Erreur initialisation App:', err);
-                // ✅ FIX: Don't block on config load failure - use defaults
                 setError(`Impossible de charger la configuration: ${err.message}`);
                 setIsOnline(false);
-                // Set minimal default config to allow app to continue
                 setConfig({
                     domain: 'anecoopfr.local',
                     servers: [],
@@ -188,18 +306,17 @@ export const AppProvider = ({ children }) => {
             }
         };
 
-        // ✅ FIX: Don't await - let initialization happen async
         initializeApp();
 
         return () => {
             clearTimeout(reconnectTimeoutRef.current);
             if (wsRef.current) { wsRef.current.close(); }
         };
-    }, [connectWebSocket]);
+    }, [connectWebSocket, loadEntity]);
     
     const value = {
         config,
-        updateConfig, // ✅ NEW: Export updateConfig
+        updateConfig,
         currentTechnician,
         setCurrentTechnician,
         isInitializing,
@@ -209,6 +326,14 @@ export const AppProvider = ({ children }) => {
         showNotification,
         handleSaveConfig,
         events: { on, off, emit },
+        // ✅ NOUVEAU: Cache API
+        cache: {
+            loadEntity,
+            updateCacheEntity,
+            invalidateCache,
+            getCachedData,
+            isCacheLoaded
+        }
     };
 
     return (
