@@ -60,8 +60,8 @@ const ComputerCard = ({ computer, onEdit, onDelete, onHistory, onMaintenance, on
             </Box>
             <Box sx={{ flexGrow: 1 }} />
             <Divider />
-            <Box sx={{ p: 0.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box>
+            <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
                     <Tooltip title="Modifier"><IconButton size="small" onClick={() => onEdit(computer)}><EditIcon fontSize="small" /></IconButton></Tooltip>
                     <Tooltip title="Historique"><IconButton size="small" onClick={() => onHistory(computer)}><HistoryIcon fontSize="small" /></IconButton></Tooltip>
                     <Tooltip title="Maintenance"><IconButton size="small" onClick={() => onMaintenance(computer)}><BuildIcon fontSize="small" /></IconButton></Tooltip>
@@ -117,6 +117,9 @@ const ComputersPage = () => {
         itStaff: cache.config?.it_staff || [],
         loans: cache.loans || [],
     }), [cache]);
+
+    const brands = useMemo(() => [...new Set(computers.map(c => c.brand).filter(Boolean))], [computers]);
+    const locations = useMemo(() => [...new Set(computers.map(c => c.location).filter(Boolean))], [computers]);
 
     const filteredComputers = useMemo(() => {
         let result = [...computers];
@@ -189,7 +192,7 @@ const ComputersPage = () => {
                     { label: 'En maintenance', value: stats.maintenance, icon: BuildIcon }
                 ]}
                 actions={
-                    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                         <Button variant="outlined" startIcon={<MouseIcon />} onClick={() => setDialog({ type: 'accessories' })}>Gérer les accessoires</Button>
                         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialog({ type: 'computer' })}>Ajouter</Button>
                         <Tooltip title="Actualiser"><IconButton onClick={() => invalidate('computers')} color="primary"><RefreshIcon /></IconButton></Tooltip>
@@ -200,9 +203,39 @@ const ComputersPage = () => {
             <Paper elevation={2} sx={{ p: 2, mb: 2, borderRadius: 2 }}>
                 <Grid container spacing={2} alignItems="center">
                     <Grid item xs={12} md={4}><SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Rechercher..." fullWidth /></Grid>
-                    <Grid item xs={6} sm={3} md={2}><FormControl fullWidth size="small"><InputLabel>Statut</InputLabel><Select value={statusFilter} label="Statut" onChange={(e) => setStatusFilter(e.target.value)}>{/* ... */}</Select></FormControl></Grid>
-                    <Grid item xs={6} sm={3} md={2}><FormControl fullWidth size="small"><InputLabel>Localisation</InputLabel><Select value={locationFilter} label="Localisation" onChange={(e) => setLocationFilter(e.target.value)}>{/* ... */}</Select></FormControl></Grid>
-                    <Grid item xs={6} sm={3} md={2}><FormControl fullWidth size="small"><InputLabel>Marque</InputLabel><Select value={brandFilter} label="Marque" onChange={(e) => setBrandFilter(e.target.value)}>{/* ... */}</Select></FormControl></Grid>
+                    <Grid item xs={6} sm={3} md={2}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Statut</InputLabel>
+                            <Select value={statusFilter} label="Statut" onChange={(e) => setStatusFilter(e.target.value)}>
+                                <MenuItem value="all">Tous</MenuItem>
+                                {Object.entries(STATUS_CONFIG).map(([key, { label }]) => (
+                                    <MenuItem key={key} value={key}>{label}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid item xs={6} sm={3} md={2}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Localisation</InputLabel>
+                            <Select value={locationFilter} label="Localisation" onChange={(e) => setLocationFilter(e.target.value)}>
+                                <MenuItem value="all">Toutes</MenuItem>
+                                {locations.map(location => (
+                                    <MenuItem key={location} value={location}>{location}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid item xs={6} sm={3} md={2}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Marque</InputLabel>
+                            <Select value={brandFilter} label="Marque" onChange={(e) => setBrandFilter(e.target.value)}>
+                                <MenuItem value="all">Toutes</MenuItem>
+                                {brands.map(brand => (
+                                    <MenuItem key={brand} value={brand}>{brand}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
                     <Grid item xs={6} sm={3} md={2}>
                         <ToggleButtonGroup value={view} exclusive onChange={(e, newView) => newView && setView(newView)} size="small">
                             <Tooltip title="Vue Cartes"><ToggleButton value="grid"><ViewModuleIcon /></ToggleButton></Tooltip>

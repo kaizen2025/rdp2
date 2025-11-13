@@ -77,6 +77,12 @@ module.exports = (broadcast) => {
         res.json(result);
     }));
 
+    router.post('/technicians/:id/photo', asyncHandler(async (req, res) => {
+        const result = await technicianService.saveTechnicianPhoto(req.params.id, req.body);
+        broadcast({ type: 'data_updated', payload: { entity: 'technicians', operation: 'update', data: { id: req.params.id } } });
+        res.json(result);
+    }));
+
     router.get('/rds-sessions', asyncHandler(async (req, res) => res.json(await rdsService.getStoredRdsSessions())));
     router.post('/rds-sessions/refresh', asyncHandler(async (req, res) => {
         const result = await rdsService.refreshAndStoreRdsSessions();
@@ -87,6 +93,11 @@ module.exports = (broadcast) => {
     router.get('/rds-sessions/ping/:server', asyncHandler(async (req, res) => res.json(await rdsService.pingServer(req.params.server))));
     
     router.get('/computers', asyncHandler(async (req, res) => res.json(await dataService.getComputers())));
+    router.post('/computers/:id/photo', asyncHandler(async (req, res) => {
+        const result = await dataService.saveComputerPhoto(req.params.id, req.body);
+        broadcast({ type: 'data_updated', payload: { entity: 'computers', operation: 'update', data: { id: req.params.id } } });
+        res.json(result);
+    }));
     router.post('/computers', asyncHandler(async (req, res) => {
         const result = await dataService.saveComputer(req.body, getCurrentTechnician(req));
         // ✅ OPTIMISATION: Broadcast avec données partielles

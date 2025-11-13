@@ -40,7 +40,8 @@ import {
     AdminPanelSettings as AdminIcon,
     Person as PersonIcon,
     PeopleAlt as PeopleAltIcon,
-    Refresh as RefreshIcon
+    Refresh as RefreshIcon,
+    PhotoCamera as PhotoCameraIcon
 } from '@mui/icons-material';
 import apiService from '../services/apiService';
 import PageHeader from '../components/common/PageHeader';
@@ -60,6 +61,7 @@ const AppUsersManagementPage = () => {
         display_name: '',
         position: '',
         is_admin: false,
+        photo: null,
         permissions: {
             can_access_dashboard: true,
             can_access_rds_sessions: false,
@@ -110,6 +112,7 @@ const AppUsersManagementPage = () => {
                 display_name: user.display_name,
                 position: user.position || '',
                 is_admin: user.is_admin === 1,
+                photo: user.photo || null,
                 permissions: {
                     can_access_dashboard: user.can_access_dashboard === 1,
                     can_access_rds_sessions: user.can_access_rds_sessions === 1,
@@ -162,6 +165,10 @@ const AppUsersManagementPage = () => {
 
                 // Mise à jour permissions
                 const permissionsResult = await apiService.updateUserPermissions(editingUser.id, formData.permissions);
+
+                if (formData.photo) {
+                    await apiService.saveTechnicianPhoto(editingUser.id, formData.photo);
+                }
 
                 if (userUpdateResult.success && permissionsResult.success) {
                     setNotification({ open: true, message: 'Utilisateur mis à jour', severity: 'success' });
@@ -393,6 +400,26 @@ const AppUsersManagementPage = () => {
                 </DialogTitle>
                 <DialogContent sx={{ mt: 2 }}>
                     <Grid container spacing={2}>
+                        <Grid item xs={12}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                                <Avatar
+                                    src={formData.photo ? URL.createObjectURL(formData.photo) : (editingUser?.photo ? `data:image/jpeg;base64,${editingUser.photo}` : '')}
+                                    sx={{ width: 80, height: 80 }}
+                                />
+                                <input
+                                    accept="image/*"
+                                    style={{ display: 'none' }}
+                                    id="user-photo-upload"
+                                    type="file"
+                                    onChange={(e) => setFormData(prev => ({ ...prev, photo: e.target.files[0] }))}
+                                />
+                                <label htmlFor="user-photo-upload">
+                                    <Button variant="contained" component="span" startIcon={<PhotoCameraIcon />}>
+                                        Changer la photo
+                                    </Button>
+                                </label>
+                            </Box>
+                        </Grid>
                         <Grid item xs={12} sm={6}>
                             <TextField
                                 fullWidth
