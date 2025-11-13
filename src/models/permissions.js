@@ -215,28 +215,19 @@ export const MODULES = {
     path: '/ai-assistant',
     description: 'Assistant IA documentaire avec Gemini et OpenRouter',
     requiredPermission: 'ai_assistant:view'
-  },
-
-  // ✅ NOUVEAU - Gestion des utilisateurs de l'application
-  APP_USERS: {
-    id: 'app_users',
-    label: 'Utilisateurs App',
-    icon: '⚙️',
-    path: '/app-users',
-    description: 'Gestion des utilisateurs et permissions de l\'application',
-    requiredPermission: 'can_manage_users'
   }
 
-  // ✅ 8 ONGLETS PRINCIPAUX (navigation essentielle):
+  // ✅ 7 ONGLETS PRINCIPAUX (navigation essentielle):
   // 1. Tableau de bord - Vue d'ensemble
   // 2. Sessions RDS - Gestion des sessions
   // 3. Serveurs - Gestion des serveurs
-  // 4. Utilisateurs - Gestion des utilisateurs (LE PLUS IMPORTANT)
+  // 4. Utilisateurs - Gestion des utilisateurs Excel (LE PLUS IMPORTANT)
   // 5. Groupes AD - Gestion Active Directory
   // 6. Prêts - Gestion des prêts de matériel
   // 7. DocuCortex IA - Assistant documentaire (Gemini + OpenRouter)
 
   // ❌ SUPPRIMÉS (non utilisés ou doublons):
+  // - APP_USERS: Intégré dans Configuration > Permissions & Rôles
   // - ASSISTANT: Consolidé dans DocuCortex IA (Gemini intégré)
   // - COMPUTERS: Géré via Serveurs
   // - CHAT_GED: Doublon avec DocuCortex IA
