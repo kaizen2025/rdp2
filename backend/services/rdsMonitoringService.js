@@ -2,6 +2,7 @@
 
 const { PowerShell } = require('../../lib/powershellWrapper');
 const EventEmitter = require('events');
+const configService = require('./configService');
 
 class RDSMonitoringService extends EventEmitter {
     constructor() {
@@ -118,24 +119,20 @@ class RDSMonitoringService extends EventEmitter {
                 } | ConvertTo-Json -Depth 10
             `;
 
-            const result = await ps.runCommand(script, ['-Server', serverName]);
+            // Replace server placeholder and execute
+            const fullScript = script.replace('$serverName', `'${serverName}'`);
+            const stats = await ps.executeJson(fullScript);
 
-            if (result.success && result.output) {
-                const stats = JSON.parse(result.output);
+            // Mettre à jour le cache
+            this.serverStats.set(serverName, {
+                ...stats,
+                lastUpdate: new Date()
+            });
 
-                // Mettre à jour le cache
-                this.serverStats.set(serverName, {
-                    ...stats,
-                    lastUpdate: new Date()
-                });
+            // Vérifier les alertes
+            this.checkAlerts(serverName, stats);
 
-                // Vérifier les alertes
-                this.checkAlerts(serverName, stats);
-
-                return { success: true, stats };
-            }
-
-            return { success: false, error: result.error || 'Échec récupération stats' };
+            return { success: true, stats };
 
         } catch (error) {
             console.error(`[RDSMonitoring] Erreur stats ${serverName}:`, error);
@@ -230,7 +227,11 @@ class RDSMonitoringService extends EventEmitter {
      * Vérifier tous les serveurs configurés
      */
     async checkAllServers() {
-        const config = require('../../config/config.json');
+        const config = configService.getConfig();
+        if (!config) {
+            console.warn('[RDSMonitoring] Config not loaded yet');
+            return;
+        }
         const servers = config.rds_servers || [];
 
         console.log(`[RDSMonitoring] Check de ${servers.length} serveurs...`);

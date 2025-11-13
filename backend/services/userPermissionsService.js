@@ -2,7 +2,7 @@
  * Service de gestion des utilisateurs et permissions de l'application
  */
 
-const dbService = require('./databaseService');
+const Database = require('better-sqlite3');
 const bcrypt = require('bcrypt');
 const fs = require('fs');
 const path = require('path');
@@ -11,6 +11,25 @@ class UserPermissionsService {
     constructor() {
         this.initialized = false;
         this.SALT_ROUNDS = 10;
+        this.db = null;
+    }
+
+    /**
+     * Obtenir la connexion à la base de données
+     */
+    getDb() {
+        if (!this.db) {
+            const dbPath = path.join(__dirname, '../../data/rds_viewer_data.sqlite');
+            const dbDir = path.dirname(dbPath);
+
+            if (!fs.existsSync(dbDir)) {
+                fs.mkdirSync(dbDir, { recursive: true });
+            }
+
+            this.db = new Database(dbPath);
+            this.db.pragma('journal_mode = WAL');
+        }
+        return this.db;
     }
 
     /**
@@ -24,7 +43,8 @@ class UserPermissionsService {
             const schema = fs.readFileSync(schemaPath, 'utf-8');
 
             // Exécuter le schéma
-            dbService.exec(schema);
+            const db = this.getDb();
+            db.exec(schema);
 
             this.initialized = true;
             console.log('✅ Tables utilisateurs et permissions initialisées');
@@ -44,7 +64,7 @@ class UserPermissionsService {
 
         const passwordHash = await bcrypt.hash(data.password || 'admin', this.SALT_ROUNDS);
 
-        const stmt = dbService.prepare(`
+        const stmt = this.getDb().prepare(`
             INSERT INTO app_users (
                 username, email, display_name, position,
                 password_hash, is_admin, must_change_password
@@ -89,7 +109,7 @@ class UserPermissionsService {
             ...customPermissions
         };
 
-        const stmt = dbService.prepare(`
+        const stmt = this.getDb().prepare(`
             INSERT INTO app_permissions (
                 user_id,
                 can_access_dashboard, can_access_rds_sessions, can_access_servers,
@@ -119,7 +139,7 @@ class UserPermissionsService {
     getAllUsers() {
         this.initialize();
 
-        const users = dbService.all(`
+        const users = this.getDb().prepare(`
             SELECT
                 u.*,
                 p.can_access_dashboard,
@@ -136,7 +156,7 @@ class UserPermissionsService {
             LEFT JOIN app_permissions p ON u.id = p.user_id
             WHERE u.is_active = 1
             ORDER BY u.is_admin DESC, u.display_name ASC
-        `);
+        `).all();
 
         // Supprimer les hash de mots de passe pour la sécurité
         return users.map(user => {
@@ -151,7 +171,7 @@ class UserPermissionsService {
     getUserById(userId) {
         this.initialize();
 
-        const user = dbService.get(`
+        const user = this.getDb().prepare(`
             SELECT
                 u.*,
                 p.can_access_dashboard,
@@ -167,7 +187,7 @@ class UserPermissionsService {
             FROM app_users u
             LEFT JOIN app_permissions p ON u.id = p.user_id
             WHERE u.id = ?
-        `, [userId]);
+        `).get(userId);
 
         if (!user) return null;
 
@@ -181,7 +201,7 @@ class UserPermissionsService {
     getUserByUsername(username) {
         this.initialize();
 
-        return dbService.get(`
+        return this.getDb().prepare(`
             SELECT
                 u.*,
                 p.can_access_dashboard,
@@ -197,7 +217,7 @@ class UserPermissionsService {
             FROM app_users u
             LEFT JOIN app_permissions p ON u.id = p.user_id
             WHERE u.username = ? AND u.is_active = 1
-        `, [username]);
+        `).get(username);
     }
 
     /**
@@ -236,7 +256,7 @@ class UserPermissionsService {
         values.push(userId);
 
         const sql = `UPDATE app_users SET ${fields.join(', ')} WHERE id = ?`;
-        const result = dbService.run(sql, values);
+        const result = this.getDb().prepare(sql).run(values);
 
         return result.changes > 0;
     }
@@ -249,13 +269,13 @@ class UserPermissionsService {
 
         const passwordHash = await bcrypt.hash(newPassword, this.SALT_ROUNDS);
 
-        const result = dbService.run(`
+        const result = this.getDb().prepare(`
             UPDATE app_users
             SET password_hash = ?,
                 must_change_password = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        `, [passwordHash, resetMustChange ? 0 : 1, userId]);
+        `).run(passwordHash, resetMustChange ? 0 : 1, userId);
 
         return result.changes > 0;
     }
@@ -266,10 +286,9 @@ class UserPermissionsService {
     async verifyPassword(username, password) {
         this.initialize();
 
-        const user = dbService.get(
-            'SELECT * FROM app_users WHERE username = ? AND is_active = 1',
-            [username]
-        );
+        const user = this.getDb().prepare(
+            'SELECT * FROM app_users WHERE username = ? AND is_active = 1'
+        ).get(username);
 
         if (!user) return null;
 
@@ -277,10 +296,9 @@ class UserPermissionsService {
         if (!isValid) return null;
 
         // Mettre à jour last_login
-        dbService.run(
-            'UPDATE app_users SET last_login = CURRENT_TIMESTAMP WHERE id = ?',
-            [user.id]
-        );
+        this.getDb().prepare(
+            'UPDATE app_users SET last_login = CURRENT_TIMESTAMP WHERE id = ?'
+        ).run(user.id);
 
         // Retourner l'utilisateur avec ses permissions
         return this.getUserById(user.id);
@@ -293,7 +311,7 @@ class UserPermissionsService {
         this.initialize();
 
         // Les permissions seront supprimées automatiquement (CASCADE)
-        const result = dbService.run('DELETE FROM app_users WHERE id = ? AND id != 1', [userId]);
+        const result = this.getDb().prepare('DELETE FROM app_users WHERE id = ? AND id != 1').run(userId);
         return result.changes > 0;
     }
 
@@ -334,7 +352,7 @@ class UserPermissionsService {
         values.push(userId);
 
         const sql = `UPDATE app_permissions SET ${fields.join(', ')} WHERE user_id = ?`;
-        const result = dbService.run(sql, values);
+        const result = this.getDb().prepare(sql).run(values);
 
         return result.changes > 0;
     }
@@ -345,10 +363,9 @@ class UserPermissionsService {
     getUserPermissions(userId) {
         this.initialize();
 
-        return dbService.get(
-            'SELECT * FROM app_permissions WHERE user_id = ?',
-            [userId]
-        );
+        return this.getDb().prepare(
+            'SELECT * FROM app_permissions WHERE user_id = ?'
+        ).get(userId);
     }
 
     /**
@@ -387,7 +404,7 @@ class UserPermissionsService {
     logLogin(userId, ipAddress, userAgent, success, failureReason = null) {
         this.initialize();
 
-        const stmt = dbService.prepare(`
+        const stmt = this.getDb().prepare(`
             INSERT INTO app_login_history (user_id, ip_address, user_agent, success, failure_reason)
             VALUES (?, ?, ?, ?, ?)
         `);
@@ -401,12 +418,12 @@ class UserPermissionsService {
     getLoginHistory(userId, limit = 50) {
         this.initialize();
 
-        return dbService.all(`
+        return this.getDb().prepare(`
             SELECT * FROM app_login_history
             WHERE user_id = ?
             ORDER BY login_timestamp DESC
             LIMIT ?
-        `, [userId, limit]);
+        `).all(userId, limit);
     }
 
     /**
@@ -415,11 +432,12 @@ class UserPermissionsService {
     getLoginStats() {
         this.initialize();
 
+        const db = this.getDb();
         return {
-            totalLogins: dbService.get('SELECT COUNT(*) as count FROM app_login_history')?.count || 0,
-            successfulLogins: dbService.get('SELECT COUNT(*) as count FROM app_login_history WHERE success = 1')?.count || 0,
-            failedLogins: dbService.get('SELECT COUNT(*) as count FROM app_login_history WHERE success = 0')?.count || 0,
-            uniqueUsers: dbService.get('SELECT COUNT(DISTINCT user_id) as count FROM app_login_history')?.count || 0
+            totalLogins: db.prepare('SELECT COUNT(*) as count FROM app_login_history').get()?.count || 0,
+            successfulLogins: db.prepare('SELECT COUNT(*) as count FROM app_login_history WHERE success = 1').get()?.count || 0,
+            failedLogins: db.prepare('SELECT COUNT(*) as count FROM app_login_history WHERE success = 0').get()?.count || 0,
+            uniqueUsers: db.prepare('SELECT COUNT(DISTINCT user_id) as count FROM app_login_history').get()?.count || 0
         };
     }
 }

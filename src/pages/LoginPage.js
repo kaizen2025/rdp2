@@ -1,13 +1,14 @@
 /**
- * LoginPage - Interface de connexion améliorée
- * Système de sélection de technicien IT avec design moderne
+ * LoginPage - Interface de connexion améliorée avec authentification app_users
+ * Système de sélection de technicien avec design moderne + gestion complète permissions
  */
 
 import React, { useState, useEffect } from 'react';
 import {
-    Box, Paper, Typography, TextField, Button, Alert, Container,
-    CircularProgress, Fade, InputAdornment, IconButton, Card,
-    CardActionArea, CardContent, Avatar, Grid, Chip, Zoom
+    Box, Paper, Typography, Button, Alert, Container,
+    CircularProgress, Fade, Card, CardActionArea, CardContent,
+    Avatar, Grid, Chip, Zoom, Dialog, DialogTitle, DialogContent,
+    DialogActions, TextField, InputAdornment, IconButton
 } from '@mui/material';
 import {
     LockOpen as LockOpenIcon,
@@ -20,37 +21,49 @@ import { useApp } from '../contexts/AppContext';
 const LoginPage = ({ onLoginSuccess }) => {
     const { setCurrentTechnician } = useApp();
 
-    const [technicians, setTechnicians] = useState([]);
-    const [selectedTechnician, setSelectedTechnician] = useState(null);
+    const [users, setUsers] = useState([]);
+    const [selectedUser, setSelectedUser] = useState(null);
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [loadingUsers, setLoadingUsers] = useState(true);
     const [showPassword, setShowPassword] = useState(false);
 
-    // Charger les techniciens disponibles
+    // Dialog changement mot de passe
+    const [changePasswordDialog, setChangePasswordDialog] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [loggedUser, setLoggedUser] = useState(null);
+
+    // Charger les utilisateurs depuis app_users
     useEffect(() => {
-        const loadTechnicians = async () => {
+        const loadUsers = async () => {
+            setLoadingUsers(true);
             try {
-                const config = await apiService.getConfig();
-                if (config && config.it_technicians) {
-                    // Filtrer uniquement les techniciens actifs
-                    const activeTechs = config.it_technicians.filter(t => t.isActive);
-                    setTechnicians(activeTechs);
+                const response = await apiService.getAllAppUsers();
+                if (response.success && response.users) {
+                    // Filtrer uniquement les utilisateurs actifs
+                    const activeUsers = response.users.filter(u => u.is_active === 1);
+                    setUsers(activeUsers);
+                } else {
+                    setUsers([]);
                 }
             } catch (error) {
-                console.error('Erreur chargement techniciens:', error);
-                setError('Impossible de charger la liste des techniciens');
+                console.error('Erreur chargement utilisateurs:', error);
+                setError('Impossible de charger la liste des utilisateurs');
+            } finally {
+                setLoadingUsers(false);
             }
         };
 
-        loadTechnicians();
+        loadUsers();
     }, []);
 
     const handleLogin = async (e) => {
         e.preventDefault();
 
-        if (!selectedTechnician) {
-            setError('Veuillez sélectionner un technicien');
+        if (!selectedUser) {
+            setError('Veuillez sélectionner un utilisateur');
             return;
         }
 
@@ -58,34 +71,26 @@ const LoginPage = ({ onLoginSuccess }) => {
         setIsLoading(true);
 
         try {
-            // Vérifier le mot de passe (SHA-256)
-            const passwordHash = await hashPassword(password);
-            const config = await apiService.getConfig();
+            // Authentification via API app_users
+            const result = await apiService.login(selectedUser.username, password);
 
-            if (passwordHash !== config.appPasswordHash) {
-                setError('Mot de passe incorrect');
-                setIsLoading(false);
-                return;
-            }
+            if (result.success && result.user) {
+                setLoggedUser(result.user);
 
-            // Enrichir le technicien avec les permissions du rôle
-            const enrichedTechnician = { ...selectedTechnician };
-            if (config.roles && selectedTechnician.role) {
-                const roleConfig = config.roles[selectedTechnician.role];
-                if (roleConfig && roleConfig.permissions) {
-                    enrichedTechnician.permissions = roleConfig.permissions;
-                } else {
-                    console.warn(`⚠️ Rôle "${selectedTechnician.role}" introuvable, permissions viewer par défaut`);
-                    enrichedTechnician.permissions = ['dashboard:view', 'sessions:view'];
+                // Vérifier si l'utilisateur doit changer son mot de passe
+                if (result.mustChangePassword) {
+                    setChangePasswordDialog(true);
+                    setIsLoading(false);
+                    return;
                 }
-            } else {
-                enrichedTechnician.permissions = ['dashboard:view', 'sessions:view'];
-            }
 
-            // Connexion réussie
-            setCurrentTechnician(enrichedTechnician);
-            localStorage.setItem('currentTechnicianId', enrichedTechnician.id);
-            onLoginSuccess(enrichedTechnician);
+                // Connexion réussie
+                setCurrentTechnician(result.user);
+                localStorage.setItem('currentUserId', result.user.id.toString());
+                onLoginSuccess(result.user);
+            } else {
+                setError(result.error || 'Erreur de connexion');
+            }
         } catch (err) {
             console.error('Erreur login:', err);
             setError(`Erreur de connexion: ${err.message}`);
@@ -94,25 +99,52 @@ const LoginPage = ({ onLoginSuccess }) => {
         }
     };
 
-    // Hash SHA-256
-    const hashPassword = async (password) => {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(password);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const handleChangePassword = async () => {
+        if (newPassword !== confirmPassword) {
+            setError('Les mots de passe ne correspondent pas');
+            return;
+        }
+
+        if (newPassword.length < 4) {
+            setError('Le mot de passe doit contenir au moins 4 caractères');
+            return;
+        }
+
+        try {
+            setIsLoading(true);
+            const result = await apiService.changePassword(loggedUser.id, password, newPassword);
+
+            if (result.success) {
+                const updatedUser = { ...loggedUser, must_change_password: 0 };
+                setCurrentTechnician(updatedUser);
+                localStorage.setItem('currentUserId', updatedUser.id.toString());
+                onLoginSuccess(updatedUser);
+            } else {
+                setError(result.error || 'Erreur lors du changement de mot de passe');
+            }
+        } catch (err) {
+            console.error('Erreur changement mot de passe:', err);
+            setError(`Erreur: ${err.message}`);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    // Couleurs de fond pour les avatars selon le rôle
-    const getAvatarColor = (role) => {
-        const colors = {
-            'admin': '#d32f2f',
-            'manager': '#1976d2',
-            'technician': '#388e3c',
-            'viewer': '#757575'
-        };
-        return colors[role] || '#667eea';
+    // Couleurs de fond pour les avatars selon admin/user
+    const getAvatarColor = (user) => {
+        if (user.is_admin === 1) return '#d32f2f'; // Rouge pour admin
+        return '#667eea'; // Violet pour utilisateurs normaux
     };
+
+    if (loadingUsers) {
+        return (
+            <Container component="main" maxWidth="md" sx={{ mt: 8 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+                    <CircularProgress size={60} />
+                </Box>
+            </Container>
+        );
+    }
 
     return (
         <Container component="main" maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -172,18 +204,18 @@ const LoginPage = ({ onLoginSuccess }) => {
                                 👤 Sélectionnez votre profil
                             </Typography>
 
-                            {/* Grille de techniciens */}
+                            {/* Grille d'utilisateurs */}
                             <Grid container spacing={2} sx={{ mb: 4 }}>
-                                {technicians.map((tech, index) => (
-                                    <Grid item xs={12} sm={6} md={4} lg={3} key={tech.id}>
+                                {users.map((user, index) => (
+                                    <Grid item xs={12} sm={6} md={4} lg={3} key={user.id}>
                                         <Zoom in={true} timeout={300 + index * 100}>
                                             <Card
-                                                elevation={selectedTechnician?.id === tech.id ? 12 : 3}
+                                                elevation={selectedUser?.id === user.id ? 12 : 3}
                                                 sx={{
-                                                    border: selectedTechnician?.id === tech.id ? 4 : 0,
+                                                    border: selectedUser?.id === user.id ? 4 : 0,
                                                     borderColor: 'primary.main',
                                                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                                    transform: selectedTechnician?.id === tech.id ? 'scale(1.05)' : 'scale(1)',
+                                                    transform: selectedUser?.id === user.id ? 'scale(1.05)' : 'scale(1)',
                                                     '&:hover': {
                                                         transform: 'translateY(-4px)',
                                                         boxShadow: 6
@@ -191,7 +223,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                                                 }}
                                             >
                                                 <CardActionArea
-                                                    onClick={() => setSelectedTechnician(tech)}
+                                                    onClick={() => setSelectedUser(user)}
                                                     sx={{ height: '100%' }}
                                                 >
                                                     <CardContent sx={{ textAlign: 'center', py: 3, px: 2 }}>
@@ -201,15 +233,15 @@ const LoginPage = ({ onLoginSuccess }) => {
                                                                 height: 72,
                                                                 mx: 'auto',
                                                                 mb: 2,
-                                                                bgcolor: getAvatarColor(tech.role),
+                                                                bgcolor: getAvatarColor(user),
                                                                 fontSize: '1.8rem',
                                                                 fontWeight: 'bold',
                                                                 boxShadow: 3,
-                                                                border: selectedTechnician?.id === tech.id ? 3 : 0,
+                                                                border: selectedUser?.id === user.id ? 3 : 0,
                                                                 borderColor: 'white'
                                                             }}
                                                         >
-                                                            {tech.avatar || tech.name.substring(0, 2).toUpperCase()}
+                                                            {user.display_name.substring(0, 2).toUpperCase()}
                                                         </Avatar>
                                                         <Typography
                                                             variant="h6"
@@ -221,7 +253,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                                                                 whiteSpace: 'nowrap'
                                                             }}
                                                         >
-                                                            {tech.name}
+                                                            {user.display_name}
                                                         </Typography>
                                                         <Typography
                                                             variant="body2"
@@ -234,14 +266,14 @@ const LoginPage = ({ onLoginSuccess }) => {
                                                                 justifyContent: 'center'
                                                             }}
                                                         >
-                                                            {tech.position}
+                                                            {user.position || 'Technicien'}
                                                         </Typography>
-                                                        {tech.role && (
+                                                        {user.is_admin === 1 && (
                                                             <Chip
-                                                                label={tech.role.toUpperCase()}
+                                                                label="ADMIN"
                                                                 size="small"
                                                                 sx={{
-                                                                    bgcolor: getAvatarColor(tech.role),
+                                                                    bgcolor: '#d32f2f',
                                                                     color: 'white',
                                                                     fontWeight: 'bold',
                                                                     fontSize: '0.7rem'
@@ -257,7 +289,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                             </Grid>
 
                             {/* Message si aucune sélection */}
-                            {!selectedTechnician && (
+                            {!selectedUser && (
                                 <Fade in={true}>
                                     <Alert
                                         severity="info"
@@ -274,7 +306,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                             )}
 
                             {/* Champ mot de passe (apparaît après sélection) */}
-                            {selectedTechnician && (
+                            {selectedUser && (
                                 <Fade in={true} timeout={500}>
                                     <Box>
                                         <TextField
@@ -340,6 +372,12 @@ const LoginPage = ({ onLoginSuccess }) => {
                                         >
                                             {isLoading ? 'Connexion en cours...' : 'Se connecter'}
                                         </Button>
+
+                                        <Box sx={{ mt: 2, textAlign: 'center' }}>
+                                            <Typography variant="caption" color="text.secondary">
+                                                Mot de passe par défaut : admin
+                                            </Typography>
+                                        </Box>
                                     </Box>
                                 </Fade>
                             )}
@@ -349,11 +387,72 @@ const LoginPage = ({ onLoginSuccess }) => {
                     {/* Footer */}
                     <Box sx={{ textAlign: 'center', mt: 3, opacity: 0.9 }}>
                         <Typography variant="caption" sx={{ fontSize: '0.85rem' }}>
-                            © 2025 Anecoop - RDS Viewer v3.0
+                            © 2025 Anecoop - RDS Viewer v3.1
                         </Typography>
                     </Box>
                 </Paper>
             </Fade>
+
+            {/* Dialog changement de mot de passe obligatoire */}
+            <Dialog
+                open={changePasswordDialog}
+                disableEscapeKeyDown
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle sx={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    fontWeight: 600
+                }}>
+                    Changement de mot de passe requis
+                </DialogTitle>
+                <DialogContent sx={{ mt: 3 }}>
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                        Pour des raisons de sécurité, vous devez changer votre mot de passe avant de continuer.
+                    </Alert>
+
+                    <TextField
+                        fullWidth
+                        margin="normal"
+                        label="Nouveau mot de passe"
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        disabled={isLoading}
+                        autoFocus
+                    />
+
+                    <TextField
+                        fullWidth
+                        margin="normal"
+                        label="Confirmer le mot de passe"
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        disabled={isLoading}
+                    />
+
+                    {error && (
+                        <Alert severity="error" sx={{ mt: 2 }}>
+                            {error}
+                        </Alert>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button
+                        variant="contained"
+                        onClick={handleChangePassword}
+                        disabled={isLoading || !newPassword || !confirmPassword}
+                        sx={{
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            fontWeight: 600
+                        }}
+                    >
+                        {isLoading ? 'Changement...' : 'Changer le mot de passe'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Container>
     );
 };
