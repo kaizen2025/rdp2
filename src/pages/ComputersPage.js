@@ -60,14 +60,14 @@ const ComputerCard = ({ computer, onEdit, onDelete, onHistory, onMaintenance, on
             </Box>
             <Box sx={{ flexGrow: 1 }} />
             <Divider />
-            <Box sx={{ p: 0.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box>
+            <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
                     <Tooltip title="Modifier"><IconButton size="small" onClick={() => onEdit(computer)}><EditIcon fontSize="small" /></IconButton></Tooltip>
                     <Tooltip title="Historique"><IconButton size="small" onClick={() => onHistory(computer)}><HistoryIcon fontSize="small" /></IconButton></Tooltip>
                     <Tooltip title="Maintenance"><IconButton size="small" onClick={() => onMaintenance(computer)}><BuildIcon fontSize="small" /></IconButton></Tooltip>
                 </Box>
                 {computer.status === 'available' && (
-                    <Button size="small" variant="contained" startIcon={<AssignmentIcon />} onClick={() => onLoan(computer)}>Prêter</Button>
+                    <Button size="small" variant="contained" color="primary" startIcon={<AssignmentIcon />} onClick={() => onLoan(computer)}>Prêter</Button>
                 )}
             </Box>
             <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
@@ -117,6 +117,12 @@ const ComputersPage = () => {
         itStaff: cache.config?.it_staff || [],
         loans: cache.loans || [],
     }), [cache]);
+
+    // ✅ Listes dynamiques pour les filtres
+    const { locations, brands } = useMemo(() => ({
+        locations: [...new Set(computers.map(c => c.location).filter(Boolean))].sort(),
+        brands: [...new Set(computers.map(c => c.brand).filter(Boolean))].sort()
+    }), [computers]);
 
     const filteredComputers = useMemo(() => {
         let result = [...computers];
@@ -200,9 +206,37 @@ const ComputersPage = () => {
             <Paper elevation={2} sx={{ p: 2, mb: 2, borderRadius: 2 }}>
                 <Grid container spacing={2} alignItems="center">
                     <Grid item xs={12} md={4}><SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Rechercher..." fullWidth /></Grid>
-                    <Grid item xs={6} sm={3} md={2}><FormControl fullWidth size="small"><InputLabel>Statut</InputLabel><Select value={statusFilter} label="Statut" onChange={(e) => setStatusFilter(e.target.value)}>{/* ... */}</Select></FormControl></Grid>
-                    <Grid item xs={6} sm={3} md={2}><FormControl fullWidth size="small"><InputLabel>Localisation</InputLabel><Select value={locationFilter} label="Localisation" onChange={(e) => setLocationFilter(e.target.value)}>{/* ... */}</Select></FormControl></Grid>
-                    <Grid item xs={6} sm={3} md={2}><FormControl fullWidth size="small"><InputLabel>Marque</InputLabel><Select value={brandFilter} label="Marque" onChange={(e) => setBrandFilter(e.target.value)}>{/* ... */}</Select></FormControl></Grid>
+                    <Grid item xs={6} sm={3} md={2}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Statut</InputLabel>
+                            <Select value={statusFilter} label="Statut" onChange={(e) => setStatusFilter(e.target.value)}>
+                                <MenuItem value="all">Tous</MenuItem>
+                                <MenuItem value="available">Disponible</MenuItem>
+                                <MenuItem value="loaned">Prêté</MenuItem>
+                                <MenuItem value="reserved">Réservé</MenuItem>
+                                <MenuItem value="maintenance">Maintenance</MenuItem>
+                                <MenuItem value="retired">Retiré</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid item xs={6} sm={3} md={2}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Localisation</InputLabel>
+                            <Select value={locationFilter} label="Localisation" onChange={(e) => setLocationFilter(e.target.value)}>
+                                <MenuItem value="all">Toutes</MenuItem>
+                                {locations.map(loc => <MenuItem key={loc} value={loc}>{loc}</MenuItem>)}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid item xs={6} sm={3} md={2}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Marque</InputLabel>
+                            <Select value={brandFilter} label="Marque" onChange={(e) => setBrandFilter(e.target.value)}>
+                                <MenuItem value="all">Toutes</MenuItem>
+                                {brands.map(brand => <MenuItem key={brand} value={brand}>{brand}</MenuItem>)}
+                            </Select>
+                        </FormControl>
+                    </Grid>
                     <Grid item xs={6} sm={3} md={2}>
                         <ToggleButtonGroup value={view} exclusive onChange={(e, newView) => newView && setView(newView)} size="small">
                             <Tooltip title="Vue Cartes"><ToggleButton value="grid"><ViewModuleIcon /></ToggleButton></Tooltip>

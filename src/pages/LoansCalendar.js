@@ -153,7 +153,7 @@ const LoansCalendar = () => {
                     </Box>
                     <ButtonGroup size="small">
                         <Button variant={view === 'month' ? 'contained' : 'outlined'} startIcon={<CalendarMonth />} onClick={() => setView('month')}>Mois</Button>
-                        <Button variant={view === 'week' ? 'contained' : 'outlined'} startIcon={<ViewWeek />} onClick={() => setView('week')} disabled>Semaine</Button>
+                        <Button variant={view === 'week' ? 'contained' : 'outlined'} startIcon={<ViewWeek />} onClick={() => setView('week')}>Semaine</Button>
                     </ButtonGroup>
                 </Box>
             </Paper>
