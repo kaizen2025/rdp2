@@ -102,8 +102,8 @@ class ApiService {
     // NOTIFICATIONS
     getNotifications = async () => this.request('/notifications')
     getUnreadNotifications = async () => this.request('/notifications/unread')
-    markNotificationAsRead = async (id) => this.request(`/notifications/${id}/mark-read`, { method: 'POST' })
-    markAllNotificationsAsRead = async () => this.request('/notifications/mark-all-read', { method: 'POST' })
+    markNotificationAsRead = async (id) => this.request(`/notifications/${id}/read`, { method: 'PUT' })
+    markAllNotificationsAsRead = async () => this.request('/notifications/read-all', { method: 'PUT' })
 
     // ACTIVE DIRECTORY
     searchAdUsers = async (term) => this.request(`/ad/users/search/${encodeURIComponent(term)}`)

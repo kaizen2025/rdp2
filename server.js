@@ -6,9 +6,11 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const fs = require('fs');
 const rdsMonitoringService = require('./backend/services/rdsMonitoringService');
+const notificationScheduler = require('./backend/services/notificationScheduler');
 
 // ✅ NOUVEAU - Routes d'authentification
 const authRoutes = require('./backend/routes/auth');
+const notificationRoutes = require('./backend/routes/notifications');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -34,6 +36,9 @@ if (!fs.existsSync(dataDir)) {
 
 // ✅ NOUVEAU - Routes d'authentification et gestion utilisateurs
 app.use('/api/auth', authRoutes);
+
+// ✅ NOUVEAU - Routes de notifications
+app.use('/api/notifications', notificationRoutes);
 
 // Routes API
 app.get('/api/health', (req, res) => {
@@ -307,6 +312,10 @@ app.listen(PORT, () => {
   // Démarrer le monitoring RDS automatique
   console.log('🔄 Démarrage du monitoring RDS...');
   rdsMonitoringService.start();
+
+  // Démarrer le planificateur de notifications
+  console.log('🔔 Démarrage du planificateur de notifications...');
+  notificationScheduler.start();
 
   // Logger les alertes dans la console
   rdsMonitoringService.on('alert', (alert) => {
