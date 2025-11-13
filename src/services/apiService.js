@@ -164,6 +164,26 @@ class ApiService {
     updateConversationPinned = async (conversationId, isPinned) => this.request(`/ai/conversations/${conversationId}/pin`, { method: 'PUT', body: JSON.stringify({ isPinned }) })
     deleteConversation = async (conversationId) => this.request(`/ai/conversations/${conversationId}`, { method: 'DELETE' })
 
+    // ==================== AUTHENTIFICATION ET UTILISATEURS ====================
+
+    // Authentification
+    login = async (username, password) => this.request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) })
+    changePassword = async (userId, oldPassword, newPassword) => this.request('/auth/change-password', { method: 'POST', body: JSON.stringify({ userId, oldPassword, newPassword }) })
+    checkPermissions = async (userId, tabName) => this.request(`/auth/check-permissions/${userId}/${tabName}`)
+
+    // Gestion utilisateurs
+    getAllAppUsers = async () => this.request('/auth/users')
+    getAppUser = async (userId) => this.request(`/auth/users/${userId}`)
+    createAppUser = async (userData) => this.request('/auth/users', { method: 'POST', body: JSON.stringify(userData) })
+    updateAppUser = async (userId, userData) => this.request(`/auth/users/${userId}`, { method: 'PUT', body: JSON.stringify(userData) })
+    deleteAppUser = async (userId) => this.request(`/auth/users/${userId}`, { method: 'DELETE' })
+    updateUserPermissions = async (userId, permissions) => this.request(`/auth/users/${userId}/permissions`, { method: 'PUT', body: JSON.stringify(permissions) })
+    resetUserPassword = async (userId, newPassword) => this.request(`/auth/users/${userId}/reset-password`, { method: 'POST', body: JSON.stringify({ newPassword }) })
+
+    // Statistiques connexions
+    getLoginStats = async () => this.request('/auth/stats/login')
+    getUserLoginHistory = async (userId, limit = 50) => this.request(`/auth/users/${userId}/login-history?limit=${limit}`)
+
     // Settings & Statistics
     getAISettings = async () => this.request('/ai/settings')
     updateAISetting = async (key, value) => this.request(`/ai/settings/${key}`, { method: 'PUT', body: JSON.stringify({ value }) })

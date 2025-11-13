@@ -7,6 +7,9 @@ const path = require('path');
 const fs = require('fs');
 const rdsMonitoringService = require('./backend/services/rdsMonitoringService');
 
+// ✅ NOUVEAU - Routes d'authentification
+const authRoutes = require('./backend/routes/auth');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -29,12 +32,15 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
+// ✅ NOUVEAU - Routes d'authentification et gestion utilisateurs
+app.use('/api/auth', authRoutes);
+
 // Routes API
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     message: 'DocuCortex IA API - Serveur opérationnel',
-    version: '3.0.31',
+    version: '3.0.32',
     timestamp: new Date().toISOString()
   });
 });
