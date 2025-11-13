@@ -34,6 +34,7 @@ const AIConfigPage = lazy(() => import('../pages/AIConfigPage'));
 const SettingsPage = lazy(() => import('../pages/SettingsPage'));
 const ChatDialog = lazy(() => import('../pages/ChatPage'));
 const NotificationsPanel = lazy(() => import('../components/NotificationsPanel'));
+const AppUsersManagementPage = lazy(() => import('../pages/AppUsersManagementPage'));
 
 const LoadingFallback = () => (
     <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 180px)' }}>
@@ -249,6 +250,12 @@ function MainLayout({ onLogout, currentTechnician, onChatClick }) {
                             <Route path="/ai-assistant" element={
                                 <ProtectedRoute requiredPermission="ai_assistant:view">
                                     <AIAssistantPage />
+                                </ProtectedRoute>
+                            } />
+
+                            <Route path="/app-users" element={
+                                <ProtectedRoute requiredPermission="can_manage_users">
+                                    <AppUsersManagementPage />
                                 </ProtectedRoute>
                             } />
 

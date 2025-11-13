@@ -215,9 +215,19 @@ export const MODULES = {
     path: '/ai-assistant',
     description: 'Assistant IA documentaire avec Gemini et OpenRouter',
     requiredPermission: 'ai_assistant:view'
+  },
+
+  // ✅ NOUVEAU - Gestion des utilisateurs de l'application
+  APP_USERS: {
+    id: 'app_users',
+    label: 'Utilisateurs App',
+    icon: '⚙️',
+    path: '/app-users',
+    description: 'Gestion des utilisateurs et permissions de l\'application',
+    requiredPermission: 'can_manage_users'
   }
 
-  // ✅ 7 ONGLETS PRINCIPAUX (navigation essentielle):
+  // ✅ 8 ONGLETS PRINCIPAUX (navigation essentielle):
   // 1. Tableau de bord - Vue d'ensemble
   // 2. Sessions RDS - Gestion des sessions
   // 3. Serveurs - Gestion des serveurs

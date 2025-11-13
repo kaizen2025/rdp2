@@ -47,7 +47,17 @@ class PermissionService {
   getUserPermissions() {
     if (!this.currentUser) return [];
 
-    // Si l'utilisateur a un rôle défini, utiliser les permissions du rôle
+    // ✅ NOUVEAU - Support pour app_users avec permissions par onglet
+    if (this.currentUser.is_admin === 1) {
+      return ['*']; // Super admin complet
+    }
+
+    // Si l'utilisateur a des permissions app_users (nouveau système)
+    if (this._hasAppUserPermissions()) {
+      return this._convertAppUserPermissions();
+    }
+
+    // Ancien système - Si l'utilisateur a un rôle défini, utiliser les permissions du rôle
     if (this.currentUser.role) {
       const role = this.getRoleFromConfig(this.currentUser.role);
       if (role && role.permissions) {
@@ -57,6 +67,57 @@ class PermissionService {
 
     // Sinon, utiliser les permissions directes
     return this.currentUser.permissions || [];
+  }
+
+  /**
+   * Vérifie si l'utilisateur a des permissions du nouveau système app_users
+   */
+  _hasAppUserPermissions() {
+    return this.currentUser && (
+      this.currentUser.can_access_dashboard !== undefined ||
+      this.currentUser.can_access_rds_sessions !== undefined ||
+      this.currentUser.can_manage_users !== undefined
+    );
+  }
+
+  /**
+   * Convertit les permissions app_users vers le format de permissions standard
+   */
+  _convertAppUserPermissions() {
+    const permissions = [];
+    const user = this.currentUser;
+
+    // Mapper les permissions d'onglets
+    const permissionMap = {
+      can_access_dashboard: ['dashboard:view', 'dashboard:export'],
+      can_access_rds_sessions: ['sessions:view', 'sessions:edit', 'sessions:export'],
+      can_access_servers: ['servers:view', 'servers:edit', 'servers:export'],
+      can_access_users: ['users:view', 'users:edit', 'users:export'],
+      can_access_ad_groups: ['ad_groups:view', 'ad_groups:edit', 'ad_groups:export'],
+      can_access_loans: ['loans:view', 'loans:create', 'loans:edit', 'loans:export'],
+      can_access_docucortex: ['ai_assistant:view', 'ai_assistant:create', 'ai_assistant:edit']
+    };
+
+    Object.entries(permissionMap).forEach(([field, perms]) => {
+      if (user[field] === 1) {
+        permissions.push(...perms);
+      }
+    });
+
+    // Permissions spéciales
+    if (user.can_manage_users === 1) {
+      permissions.push('config:admin', 'can_manage_users');
+    }
+
+    if (user.can_manage_permissions === 1) {
+      permissions.push('config:permissions', 'can_manage_permissions');
+    }
+
+    if (user.can_view_reports === 1) {
+      permissions.push('reports:view', 'reports:export');
+    }
+
+    return permissions.length > 0 ? permissions : ['dashboard:view']; // Par défaut: tableau de bord
   }
 
   /**
