@@ -18,10 +18,12 @@ const openrouterService = require('./openrouterService'); // ✅ Service OpenRou
 const geminiService = require('./geminiService'); // ✅ Service Gemini (NOUVEAU)
 const path = require('path');
 const fs = require('fs').promises;
+const dataService = require('../dataService');
 
 class AIService {
-    constructor(databaseService) {
+    constructor(databaseService, dataServiceInstance) {
         this.db = databaseService;
+        this.dataService = dataServiceInstance || dataService;
         this.initialized = false;
         this.stats = {
             totalDocuments: 0,
@@ -438,12 +440,24 @@ class AIService {
                         let documentSources = [];
                         let searchResult = null;
 
-                        // Rechercher les documents SEULEMENT si nécessaire
-                        if (needsDocuments) {
-                            console.log('🔍 Question nécessite une recherche documentaire');
-                            searchResult = await this.searchDocuments(message, { limit: 5 });
-                        } else {
-                            console.log('💬 Question conversationnelle - pas de recherche documentaire');
+                        // Orchestrator logic
+                        const intent = await this._orchestrateQuery(message);
+                        switch (intent) {
+                            case 'web_search':
+                                console.log('🌐 Orchestrator: Web Search');
+                                const webResult = await this._performWebSearch(message);
+                                return { success: true, response: webResult, aiProvider: 'web_search' };
+                            case 'app_command':
+                                console.log('📱 Orchestrator: App Command');
+                                const appCommandResult = await this.dataService.naturalLanguageSearch(message);
+                                return { success: true, response: JSON.stringify(appCommandResult.results), aiProvider: 'app_command' };
+                            case 'local_search':
+                            default:
+                                console.log('📄 Orchestrator: Local Search');
+                                if (this._needsDocumentSearch(message)) {
+                                    searchResult = await this.searchDocuments(message, { limit: 5 });
+                                }
+                                break;
                         }
 
                         if (searchResult && searchResult.success && searchResult.results.length > 0) {
@@ -544,6 +558,9 @@ ${contextDocs}
 
             // Sauvegarder la conversation en DB
             if (result.success) {
+                if (result.confidence < 0.5) {
+                    result.suggestions = this._generateSuggestions(message);
+                }
                 this.db.createAIConversation({
                     session_id: sessionId,
                     user_message: message,
@@ -2646,6 +2663,74 @@ ${contextDocs}
         // Par défaut, pour tout le reste, faire une recherche documentaire
         // (principe de précaution - mieux vaut chercher que ne pas chercher)
         return true;
+    }
+
+    _needsWebSearch(message) {
+        const lowerMessage = message.toLowerCase().trim();
+        const webSearchKeywords = [
+            'météo', 'temps qu\'il fait', 'actualité', 'news', 'combien coûte', 'quel est le prix',
+            'dernières nouvelles', 'qui est', 'qu\'est-ce que'
+        ];
+
+        for (const keyword of webSearchKeywords) {
+            if (lowerMessage.includes(keyword)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    _generateSuggestions(query) {
+        return [
+            { label: `Affiner la recherche pour "${query}"`, action: 'refine_search' },
+            { label: 'Voir les documents les plus pertinents', action: 'show_relevant_documents' },
+            { label: 'Forcer une réindexation des documents', action: 'force_reindex' }
+        ];
+    }
+
+    async _orchestrateQuery(query) {
+        const prompt = `
+            You are an intelligent orchestrator for a multi-tool AI agent.
+            Your task is to classify the user's query into one of the following categories:
+
+            1.  **local_search**: The user is asking a question about internal procedures, documents, or information that would be stored on a local server.
+                Examples: "Comment installer une imprimante ?", "Quelle est la procédure pour un nouvel employé ?", "Trouve le document sur la sécurité VPN."
+
+            2.  **app_command**: The user is giving a command to the application, such as searching for specific data within the app's database.
+                Examples: "Trouve-moi tous les PC portables prêtés", "Affiche les prêts en retard", "Quels sont les ordinateurs de marque Dell ?"
+
+            3.  **web_search**: The user is asking a general knowledge question, or a question about current events, prices, or information that would be found on the internet.
+                Examples: "Quel temps fait-il à Paris ?", "Qui est le PDG de Microsoft ?", "Quelles sont les dernières nouvelles sur l'IA ?"
+
+            Here is the user's query: "${query}"
+
+            Return only the category as a single JSON string, like this: {"category": "local_search"}
+        `;
+
+        try {
+            const aiResponse = await this.generateText(prompt, { max_tokens: 50, temperature: 0.1 });
+            const jsonResponse = JSON.parse(aiResponse);
+            return jsonResponse.category;
+        } catch (error) {
+            console.error('Error during query orchestration:', error);
+            // Default to local_search as a safe fallback
+            return 'local_search';
+        }
+    }
+
+    async _performWebSearch(query) {
+        try {
+            const searchResults = await this.google_search({ query });
+            if (searchResults.results && searchResults.results.length > 0) {
+                // For now, just return the snippet of the first result.
+                // This could be expanded to summarize multiple results.
+                return searchResults.results[0].snippet;
+            }
+            return "Je n'ai pas trouvé de réponse à votre question sur le web.";
+        } catch (error) {
+            console.error('Error during web search:', error);
+            return "Désolé, je n'ai pas pu effectuer la recherche web.";
+        }
     }
 
     // ==================== NOUVELLES MÉTHODES DOCUCORTEX GED ====================

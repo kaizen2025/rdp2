@@ -2,6 +2,7 @@
 
 const db = require('./databaseService');
 const { generateId } = require('./utils');
+const aiService = require('./ai/aiService');
 
 const parseJSON = (field, defaultValue = null) => {
     if (field === null || field === undefined) return defaultValue;
@@ -185,9 +186,136 @@ async function updateLoanSettings(settings, technician) {
     return { success: true };
 }
 
+async function bulkDeleteComputers(ids, technician) {
+    const placeholders = ids.map(() => '?').join(',');
+    const sql = `DELETE FROM computers WHERE id IN (${placeholders})`;
+    try {
+        db.run(sql, ids);
+        return { success: true, message: `${ids.length} ordinateurs supprimés.` };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+async function bulkUpdateComputers(ids, updates, technician) {
+    const now = new Date().toISOString();
+    let sql = 'UPDATE computers SET ';
+    const params = [];
+
+    if (updates.status) {
+        sql += 'status = ?, ';
+        params.push(updates.status);
+    }
+    if (updates.location) {
+        sql += 'location = ?, ';
+        params.push(updates.location);
+    }
+
+    sql += 'lastModified = ?, modifiedBy = ? ';
+    params.push(now, technician.name);
+
+    const placeholders = ids.map(() => '?').join(',');
+    sql += `WHERE id IN (${placeholders})`;
+    params.push(...ids);
+
+    try {
+        db.run(sql, params);
+        return { success: true, message: `${ids.length} ordinateurs mis à jour.` };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+async function naturalLanguageSearch(query, technician) {
+    const prompt = `
+        You are an intelligent search assistant for a fleet management application.
+        Your task is to convert a natural language query into a structured JSON object that can be used to query a SQLite database.
+
+        The database has two main tables: 'computers' and 'loans'.
+
+        Here is the schema for the 'computers' table:
+        - id (TEXT, primary key)
+        - name (TEXT)
+        - brand (TEXT)
+        - model (TEXT)
+        - serialNumber (TEXT)
+        - status (TEXT, can be 'available', 'loaned', 'reserved', 'maintenance', 'retired')
+        - location (TEXT)
+        - condition (TEXT)
+        - assetTag (TEXT)
+
+        Here is the schema for the 'loans' table:
+        - id (TEXT, primary key)
+        - computerId (TEXT, foreign key to computers.id)
+        - computerName (TEXT)
+        - userName (TEXT)
+        - userDisplayName (TEXT)
+        - loanDate (TEXT, ISO 8601 format)
+        - expectedReturnDate (TEXT, ISO 8601 format)
+        - actualReturnDate (TEXT, ISO 8601 format)
+        - status (TEXT, can be 'active', 'overdue', 'critical', 'returned', 'cancelled')
+
+        Based on the user's query, you must construct a JSON object with the following structure:
+        {
+            "target": "computers" | "loans",
+            "filters": [
+                { "field": "<field_name>", "operator": "<operator>", "value": "<value>" }
+            ],
+            "joins": [
+                { "target": "<table>", "on": "<field1> = <field2>" }
+            ]
+        }
+
+        Supported operators are: '=', '!=', 'LIKE', '>', '<', '>=', '<=', 'IN', 'NOT IN'.
+        For 'LIKE' queries, you can use the '%' wildcard.
+        For dates, use the format 'YYYY-MM-DD HH:MM:SS'.
+
+        Here is the user's query: "${query}"
+
+        Return only the JSON object, with no other text or explanation.
+    `;
+
+    try {
+        const aiResponse = await aiService.generateText(prompt, {
+            max_tokens: 512,
+            temperature: 0.1,
+            top_p: 1,
+            frequency_penalty: 0,
+            presence_penalty: 0,
+        });
+
+        const jsonResponse = JSON.parse(aiResponse);
+        let sql = `SELECT * FROM ${jsonResponse.target}`;
+        const params = [];
+
+        if (jsonResponse.joins && jsonResponse.joins.length > 0) {
+            jsonResponse.joins.forEach(join => {
+                sql += ` JOIN ${join.target} ON ${join.on}`;
+            });
+        }
+
+        if (jsonResponse.filters && jsonResponse.filters.length > 0) {
+            sql += ' WHERE ';
+            jsonResponse.filters.forEach((filter, index) => {
+                if (index > 0) sql += ' AND ';
+                sql += `${filter.field} ${filter.operator} ?`;
+                params.push(filter.value);
+            });
+        }
+
+        const results = db.all(sql, params);
+        return { success: true, results };
+    } catch (error) {
+        console.error('Error during natural language search:', error);
+        return { success: false, error: 'Failed to process natural language query.' };
+    }
+}
+
 module.exports = {
     getComputers, saveComputer, deleteComputer, addComputerMaintenance, saveComputerPhoto,
     getLoans, createLoan, updateLoan, returnLoan, extendLoan, cancelLoan,
     getLoanHistory, getLoanStatistics,
     getLoanSettings, updateLoanSettings,
+    bulkDeleteComputers, bulkUpdateComputers,
+    naturalLanguageSearch
 };

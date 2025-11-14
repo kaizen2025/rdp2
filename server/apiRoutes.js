@@ -116,6 +116,21 @@ module.exports = (broadcast) => {
         broadcast({ type: 'data_updated', payload: { entity: 'computers', operation: 'delete', data: { id: parseInt(req.params.id) } } });
         res.json(result);
     }));
+
+    // --- BULK ACTIONS ---
+    router.post('/computers/bulk-delete', asyncHandler(async (req, res) => {
+        const { ids } = req.body;
+        const result = await dataService.bulkDeleteComputers(ids, getCurrentTechnician(req));
+        broadcast({ type: 'data_updated', payload: { entity: 'computers', operation: 'bulk_delete', data: { ids } } });
+        res.json(result);
+    }));
+
+    router.post('/computers/bulk-update', asyncHandler(async (req, res) => {
+        const { ids, updates } = req.body;
+        const result = await dataService.bulkUpdateComputers(ids, updates, getCurrentTechnician(req));
+        broadcast({ type: 'data_updated', payload: { entity: 'computers', operation: 'bulk_update', data: { ids, updates } } });
+        res.json(result);
+    }));
     router.post('/computers/:id/maintenance', asyncHandler(async (req, res) => {
         const result = await dataService.addComputerMaintenance(req.params.id, req.body, getCurrentTechnician(req));
         // ✅ OPTIMISATION: Broadcast avec données partielles (mise à jour ordinateur)
@@ -273,6 +288,13 @@ module.exports = (broadcast) => {
         const { messageId, channelId, emoji } = req.body;
         const result = await chatService.toggleReaction(messageId, channelId, emoji, getCurrentTechnician(req).id);
         broadcast({ type: 'chat_reaction_toggled', payload: { messageId, channelId } });
+        res.json(result);
+    }));
+
+    // --- Natural Language Search ---
+    router.post('/search', asyncHandler(async (req, res) => {
+        const { query } = req.body;
+        const result = await dataService.naturalLanguageSearch(query, getCurrentTechnician(req));
         res.json(result);
     }));
 

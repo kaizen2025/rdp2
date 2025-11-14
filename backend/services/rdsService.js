@@ -151,7 +151,7 @@ async function getStoredRdsSessions() {
 
 async function pingServer(server) {
     const getSystemDetails = () => new Promise((resolve, reject) => {
-        const command = `powershell.exe -Command "Get-CimInstance -ClassName Win32_OperatingSystem -ComputerName ${server} | Select-Object FreePhysicalMemory, TotalVisibleMemorySize, FreeSpaceInPagingFiles; Get-CimInstance -ClassName Win32_LogicalDisk -ComputerName ${server} -Filter 'DriveType=3' | Select-Object Size, FreeSpace"`;
+        const command = `powershell.exe -Command "Get-WmiObject -ComputerName ${server} -Class Win32_Processor | Measure-Object -Property LoadPercentage -Average | Select-Object Average; Get-CimInstance -ClassName Win32_LogicalDisk -ComputerName ${server} -Filter 'DriveType=3' | Select-Object Size, FreeSpace"`;
 
         exec(command, (error, stdout) => {
             if (error) {
@@ -159,10 +159,10 @@ async function pingServer(server) {
             }
 
             const sections = stdout.trim().split(/\r\n\s*Size\s+FreeSpace/);
-            const osInfoLines = sections[0].trim().split('\r\n').slice(2);
+            const cpuInfoLines = sections[0].trim().split('\r\n').slice(2);
             const diskInfoLines = sections.length > 1 ? sections[1].trim().split('\r\n') : [];
 
-            const osInfo = osInfoLines[0].trim().split(/\s+/);
+            const cpuUsage = parseFloat(cpuInfoLines[0].trim());
 
             let totalDiskSize = 0;
             let totalDiskFreeSpace = 0;
@@ -174,12 +174,9 @@ async function pingServer(server) {
                 }
             });
 
-            const totalMemory = parseInt(osInfo[2], 10) * 1024;
-            const freeMemory = parseInt(osInfo[0], 10) * 1024;
-
             resolve({
                 cpu: {
-                    usage: ((totalMemory - freeMemory) / totalMemory) * 100
+                    usage: cpuUsage
                 },
                 storage: {
                     total: totalDiskSize,

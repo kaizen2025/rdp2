@@ -82,4 +82,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     // Permet à React d'écouter les messages de log du processus principal
     onLogMessage: (callback) => ipcRenderer.on('log-message', (event, message) => callback(message)),
+
+    // ========================================
+    // INTERACTION AVEC LE SYSTÈME DE FICHIERS
+    // ========================================
+    openFile: (filePath) => ipcRenderer.invoke('open-file', filePath),
+    openFolder: (filePath) => ipcRenderer.invoke('open-folder', filePath),
 });

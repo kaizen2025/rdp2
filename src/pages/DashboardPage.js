@@ -2,7 +2,7 @@
 
 import React, { memo, useMemo, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Grid, Paper, Typography, List, ListItem, ListItemText, ListItemAvatar, Tooltip, Chip, Avatar, CircularProgress } from '@mui/material';
+import { Box, Grid, Paper, Typography, List, ListItem, ListItemText, ListItemAvatar, Tooltip, Chip, Avatar, CircularProgress, IconButton } from '@mui/material';
 
 // Icons
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -12,6 +12,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import PeopleIcon from '@mui/icons-material/People';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import HistoryIcon from '@mui/icons-material/History';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import WarningIcon from '@mui/icons-material/Warning';
@@ -25,7 +26,7 @@ import PageHeader from '../components/common/PageHeader';
 import StatCard from '../components/common/StatCard';
 import LoadingScreen from '../components/common/LoadingScreen';
 
-const ServerStatusWidget = memo(() => {
+const ServerStatusWidget = memo(({ onAnalyze }) => {
     const { cache } = useCache();
     const serversToPing = useMemo(() => cache.config?.rds_servers || [], [cache.config]);
     const [statuses, setStatuses] = useState({});
@@ -92,7 +93,20 @@ const ServerStatusWidget = memo(() => {
                     {serversToPing.map(server => {
                         const status = statuses[server];
                         return (
-                            <ListItem key={server} disablePadding sx={{ mb: 0.3 }}>
+                            <ListItem
+                                key={server}
+                                disablePadding
+                                sx={{ mb: 0.3 }}
+                                secondaryAction={
+                                    status?.online && (
+                                        <Tooltip title="Analyser avec DocuCortex">
+                                            <IconButton size="small" onClick={() => onAnalyze(server, status)}>
+                                                <SmartToyIcon fontSize="small" />
+                                            </IconButton>
+                                        </Tooltip>
+                                    )
+                                }
+                            >
                                 <Tooltip title={
                                     status?.online ? `CPU: ${status.cpu?.usage.toFixed(2)}% | Stockage: ${formatBytes(status.storage?.free)} libres sur ${formatBytes(status.storage?.total)}` : status?.message || 'Vérification...'
                                 } placement="right" arrow>
@@ -186,7 +200,7 @@ const RecentActivityWidget = memo(() => {
     );
 });
 
-const DashboardPage = () => {
+const DashboardPage = ({ onAnalyzeServer }) => {
     const navigate = useNavigate();
     const { cache, isLoading } = useCache();
 
@@ -212,6 +226,16 @@ const DashboardPage = () => {
         };
         return { activeLoans: active, overdueLoans: overdue, stats: statistics };
     }, [loans, computers, loan_history]);
+
+    const handleAnalyzeServer = (server, status) => {
+        const prompt = `J'aimerais une analyse du serveur RDS "${server}". Voici les métriques actuelles :
+- Utilisation CPU : ${status.cpu.usage.toFixed(2)}%
+- Stockage total : ${status.storage.total}
+- Stockage libre : ${status.storage.free}
+
+Peux-tu me donner un diagnostic et des pistes d'optimisation ?`;
+        onAnalyzeServer(prompt);
+    };
 
     if (isLoading) {
         return <LoadingScreen type="dashboard" />;
@@ -240,7 +264,7 @@ const DashboardPage = () => {
                 </Grid>
 
                 <Grid item xs={12} lg={4}>
-                    <ServerStatusWidget />
+                    <ServerStatusWidget onAnalyze={handleAnalyzeServer} />
                 </Grid>
                 <Grid item xs={12} lg={4}>
                     <ConnectedTechniciansWidget />

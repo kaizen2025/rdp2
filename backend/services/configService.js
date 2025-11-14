@@ -41,6 +41,7 @@ function validateConfig(config) {
     const requiredKeys = {
         'databasePath': 'Le chemin vers la base de données SQLite.',
         'excelFilePath': 'Le chemin vers le fichier Excel des utilisateurs.',
+        'documentSyncPath': 'Le chemin vers le dossier des documents à synchroniser.'
     };
     for (const [key, description] of Object.entries(requiredKeys)) {
         const value = key.split('.').reduce((o, i) => o?.[i], config);

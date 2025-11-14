@@ -5,7 +5,7 @@ import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-
 import {
     Box, AppBar, Toolbar, Typography, IconButton, Tooltip, Menu, MenuItem,
     Badge, Chip, Avatar, Divider, Paper, Tabs, Tab, Collapse, Alert,
-    ListItemIcon, ListItemText, CircularProgress // ✅ IMPORT MANQUANT AJOUTÉ
+    ListItemIcon, ListItemText, CircularProgress, TextField, InputAdornment, Popper, Grow, ClickAwayListener, MenuList
 } from '@mui/material';
 
 // Icons
@@ -13,7 +13,7 @@ import {
     Dns as DnsIcon, People as PeopleIcon, GroupWork as GroupWorkIcon,
     LaptopChromebook as LaptopChromebookIcon, Settings as SettingsIcon, Logout as LogoutIcon,
     Dashboard as DashboardIcon, Computer as ComputerIcon, Chat as ChatIcon,
-    Notifications as NotificationsIcon, SmartToy as SmartToyIcon
+    Notifications as NotificationsIcon, SmartToy as SmartToyIcon, Search as SearchIcon
 } from '@mui/icons-material';
 
 import { useApp } from '../contexts/AppContext';
@@ -63,11 +63,34 @@ function MainLayout({ onLogout, currentTechnician, onChatClick }) {
 
     const [userMenuAnchor, setUserMenuAnchor] = useState(null);
     const [chatOpen, setChatOpen] = useState(false);
+    const [initialMessage, setInitialMessage] = useState('');
     const [notificationsPanelOpen, setNotificationsPanelOpen] = useState(false);
     const [onlineTechnicians, setOnlineTechnicians] = useState([]);
     const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
     const [activeSessionsCount, setActiveSessionsCount] = useState(0);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [searchLoading, setSearchLoading] = useState(false);
+    const searchAnchorEl = useRef(null);
+
+    const handleSearch = async () => {
+        if (!searchQuery.trim()) return;
+        setSearchLoading(true);
+        try {
+            const results = await apiService.naturalLanguageSearch(searchQuery);
+            setSearchResults(results.results);
+        } catch (error) {
+            console.error('Search error:', error);
+            setSearchResults([]);
+        }
+        setSearchLoading(false);
+    };
+
+    const handleOpenChatWithPrompt = (prompt) => {
+        setInitialMessage(prompt);
+        setChatOpen(true);
+    };
 
     // ✅ NOUVEAU - Menu dynamique basé sur les permissions
     const accessibleModules = getAccessibleModules();
@@ -114,9 +137,37 @@ function MainLayout({ onLogout, currentTechnician, onChatClick }) {
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', bgcolor: 'background.default' }}>
             <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 2 }}>
                 <Toolbar>
-                    <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+                    <Typography variant="h6" noWrap component="div" sx={{  }}>
                         RDS Viewer - Anecoop
                     </Typography>
+
+                    <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center' }} ref={searchAnchorEl}>
+                        <TextField
+                            variant="outlined"
+                            size="small"
+                            placeholder="Recherche globale..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                    handleSearch();
+                                }
+                            }}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <SearchIcon />
+                                    </InputAdornment>
+                                ),
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        {searchLoading && <CircularProgress size={20} />}
+                                    </InputAdornment>
+                                )
+                            }}
+                            sx={{ width: '400px', '& .MuiOutlinedInput-root': { borderRadius: '20px' } }}
+                        />
+                    </Box>
 
                     <Chip label={isOnline ? "En ligne" : "Hors ligne"} color={isOnline ? "success" : "error"} size="small" sx={{ mr: 2 }} />
                     <Tooltip title={`${activeSessionsCount} session(s) active(s)`}><Chip icon={<ComputerIcon />} label={activeSessionsCount} color="primary" size="small" sx={{ mr: 2 }} onClick={() => navigate('/sessions')} /></Tooltip>
@@ -173,6 +224,33 @@ function MainLayout({ onLogout, currentTechnician, onChatClick }) {
                 {notificationsPanelOpen && <NotificationsPanel open={notificationsPanelOpen} onClose={() => setNotificationsPanelOpen(false)} onUpdate={refreshData} />}
             </Suspense>
 
+            <Popper
+                open={searchResults.length > 0}
+                anchorEl={searchAnchorEl.current}
+                role={undefined}
+                transition
+                disablePortal
+            >
+                {({ TransitionProps, placement }) => (
+                    <Grow
+                        {...TransitionProps}
+                        style={{ transformOrigin: placement === 'bottom' ? 'center top' : 'center bottom' }}
+                    >
+                        <Paper>
+                            <ClickAwayListener onClickAway={() => setSearchResults([])}>
+                                <MenuList autoFocusItem={searchResults.length > 0} id="search-results-list">
+                                    {searchResults.map((result) => (
+                                        <MenuItem key={result.id} onClick={() => setSearchResults([])}>
+                                            <ListItemText primary={result.name || result.computerName} secondary={result.serialNumber || result.userName} />
+                                        </MenuItem>
+                                    ))}
+                                </MenuList>
+                            </ClickAwayListener>
+                        </Paper>
+                    </Grow>
+                )}
+            </Popper>
+
             <Box component="main" sx={{ flexGrow: 1, pt: '64px', display: 'flex', flexDirection: 'column' }}>
                 <Paper square elevation={1} sx={{ borderBottom: 1, borderColor: 'divider', position: 'sticky', top: '64px', zIndex: (theme) => theme.zIndex.drawer + 1 }}>
                     <Tabs
@@ -213,7 +291,7 @@ function MainLayout({ onLogout, currentTechnician, onChatClick }) {
                             {/* ✅ NOUVEAU - Routes protégées par permissions */}
                             <Route path="/dashboard" element={
                                 <ProtectedRoute requiredPermission="dashboard:view">
-                                    <DashboardPage />
+                                    <DashboardPage onAnalyzeServer={handleOpenChatWithPrompt} />
                                 </ProtectedRoute>
                             } />
 
