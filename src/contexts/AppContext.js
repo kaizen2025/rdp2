@@ -8,8 +8,35 @@ const AppContext = createContext();
 export { AppContext }; // ✅ EXPORT AJOUTÉ pour usePermissions
 export const useApp = () => useContext(AppContext);
 
-// ✅ CORRECTION: Utiliser localhost explicitement pour éviter une URL invalide dans Electron
-const WS_URL = `ws://localhost:3003`;
+/**
+ * Construit dynamiquement l'URL du WebSocket.
+ * Gère les URL relatives (proxy dev) et absolues (prod).
+ */
+function getWebSocketUrl(apiBaseUrl) {
+    // En développement, apiBaseUrl est souvent '/api', ce qui n'est pas une URL valide.
+    // Nous construisons l'URL à partir de l'hôte de la page actuelle.
+    if (apiBaseUrl && apiBaseUrl.startsWith('/')) {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}`;
+        console.log(`[WebSocket] URL dynamique construite (depuis proxy): ${wsUrl}`);
+        return wsUrl;
+    }
+
+    // En production ou si une URL complète est fournie.
+    try {
+        const url = new URL(apiBaseUrl);
+        const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${url.host}`;
+        console.log(`[WebSocket] URL dynamique construite (depuis URL absolue): ${wsUrl}`);
+        return wsUrl;
+    } catch (e) {
+        console.error("URL API invalide, impossible de construire l'URL WebSocket:", apiBaseUrl);
+        // Fallback de dernier recours, peu susceptible de fonctionner.
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        return `${protocol}//${window.location.hostname}:3002`;
+    }
+}
+
 
 /**
  * Adaptateur pour convertir l'objet app_users en format compatible avec l'ancien système
@@ -40,6 +67,7 @@ function adaptUserToTechnician(user) {
 export const AppProvider = ({ children }) => {
     const [config, setConfig] = useState(null);
     const [_internalTechnician, _setInternalTechnician] = useState(null);
+    const [wsUrl, setWsUrl] = useState(''); // ✅ État pour l'URL du WebSocket
 
     // Wrapper qui adapte automatiquement la structure
     const setCurrentTechnician = useCallback((user) => {
@@ -53,7 +81,6 @@ export const AppProvider = ({ children }) => {
     const [notifications, setNotifications] = useState([]);
     const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-    // ✅ NOUVEAU: Cache centralisé avec lazy loading
     const [cache, setCache] = useState({
         computers: { data: [], loaded: false, loading: false },
         loans: { data: [], loaded: false, loading: false },
@@ -103,8 +130,6 @@ export const AppProvider = ({ children }) => {
         }
     }, []);
 
-    // ✅ NOUVEAU: Mise à jour partielle d'une entité (sans re-fetch complet)
-    // DOIT être défini AVANT connectWebSocket qui l'utilise
     const updateCacheEntity = useCallback((entityName, updater) => {
         setCache(prev => {
             const currentData = prev[entityName]?.data || [];
@@ -116,8 +141,6 @@ export const AppProvider = ({ children }) => {
         });
     }, []);
 
-    // ✅ NOUVEAU: Invalidation du cache pour forcer un rechargement
-    // DOIT être défini AVANT connectWebSocket qui l'utilise
     const invalidateCache = useCallback((entityName) => {
         setCache(prev => ({
             ...prev,
@@ -126,11 +149,15 @@ export const AppProvider = ({ children }) => {
     }, []);
 
     const connectWebSocket = useCallback(() => {
+        if (!wsUrl) {
+            console.warn("[WebSocket] Attente de l'URL...");
+            return;
+        }
         if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
             return;
         }
 
-        wsRef.current = new WebSocket(WS_URL);
+        wsRef.current = new WebSocket(wsUrl);
         const ws = wsRef.current;
 
         ws.onopen = () => {
@@ -144,31 +171,22 @@ export const AppProvider = ({ children }) => {
             try {
                 const data = JSON.parse(event.data);
                 if (data.type === 'data_updated' && data.payload?.entity) {
-                    // ✅ NOUVEAU: Mise à jour partielle du cache si des données sont fournies
                     if (data.payload.data) {
                         console.log(`[WebSocket] Mise à jour partielle: ${data.payload.entity}`);
                         updateCacheEntity(data.payload.entity, (current) => {
                             if (data.payload.operation === 'update' && data.payload.data.id) {
-                                // Mettre à jour un élément existant
-                                return current.map(item =>
-                                    item.id === data.payload.data.id ? { ...item, ...data.payload.data } : item
-                                );
+                                return current.map(item => item.id === data.payload.data.id ? { ...item, ...data.payload.data } : item);
                             } else if (data.payload.operation === 'delete' && data.payload.data.id) {
-                                // Supprimer un élément
                                 return current.filter(item => item.id !== data.payload.data.id);
                             } else if (data.payload.operation === 'create') {
-                                // Ajouter un nouvel élément
                                 return [...current, data.payload.data];
                             }
-                            // Si opération inconnue, remplacer tout
                             return data.payload.data;
                         });
                     } else {
-                        // Pas de données partielles, invalider le cache pour re-fetch
                         console.log(`[WebSocket] Invalidation cache: ${data.payload.entity}`);
                         invalidateCache(data.payload.entity);
                     }
-
                     emit(`data_updated:${data.payload.entity}`, data.payload);
                     emit('data_updated', data.payload);
                 } else {
@@ -190,7 +208,14 @@ export const AppProvider = ({ children }) => {
             console.error('❌ Erreur WebSocket.');
             ws.close();
         };
-    }, [emit, showNotification, updateCacheEntity, invalidateCache]);
+    }, [emit, showNotification, updateCacheEntity, invalidateCache, wsUrl]);
+
+    // ✅ NOUVEL EFFET: Connecter le WebSocket dès que l'URL est connue
+    useEffect(() => {
+        if (wsUrl) {
+            connectWebSocket();
+        }
+    }, [wsUrl, connectWebSocket]);
 
     const handleSaveConfig = useCallback(async ({ newConfig }) => {
         try {
@@ -206,42 +231,26 @@ export const AppProvider = ({ children }) => {
         }
     }, []);
 
-    // ✅ NEW: updateConfig method for direct state updates
     const updateConfig = useCallback((newConfig) => {
         setConfig(newConfig);
     }, []);
 
-    // ✅ NOUVEAU: Fonction de chargement d'entité avec cache
     const loadEntity = useCallback(async (entityName, apiFetch) => {
-        // Si déjà chargé ou en cours de chargement, ignorer
         if (cache[entityName]?.loaded || cache[entityName]?.loading) {
             return cache[entityName].data;
         }
-
-        // Marquer comme en cours de chargement
-        setCache(prev => ({
-            ...prev,
-            [entityName]: { ...prev[entityName], loading: true }
-        }));
-
+        setCache(prev => ({ ...prev, [entityName]: { ...prev[entityName], loading: true } }));
         try {
             const data = await apiFetch();
-            setCache(prev => ({
-                ...prev,
-                [entityName]: { data, loaded: true, loading: false }
-            }));
+            setCache(prev => ({ ...prev, [entityName]: { data, loaded: true, loading: false } }));
             return data;
         } catch (error) {
             console.error(`Erreur chargement ${entityName}:`, error);
-            setCache(prev => ({
-                ...prev,
-                [entityName]: { ...prev[entityName], loading: false }
-            }));
+            setCache(prev => ({ ...prev, [entityName]: { ...prev[entityName], loading: false } }));
             return [];
         }
     }, [cache]);
 
-    // ✅ NOUVEAU: Getter de cache pour les composants
     const getCachedData = useCallback((entityName) => {
         return cache[entityName]?.data || [];
     }, [cache]);
@@ -258,51 +267,33 @@ export const AppProvider = ({ children }) => {
             try {
                 console.log('🚀 [AppContext] Phase CRITIQUE - Chargement config...');
 
-                // ✅ PHASE CRITIQUE (immédiat): Config uniquement
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Config load timeout')), 5000)
-                );
+                // ✅ L'URL du WebSocket est maintenant déterminée ici
+                setWsUrl(getWebSocketUrl(apiService.baseURL));
 
-                const loadedConfig = await Promise.race([
-                    apiService.getConfig(),
-                    timeoutPromise
-                ]);
-
+                const loadedConfig = await apiService.getConfig();
                 setConfig(loadedConfig);
-                connectWebSocket();
                 loadingPhases.current.critical = true;
-
                 console.log('✅ [AppContext] Phase CRITIQUE terminée');
 
-                // ✅ PHASE SECONDARY (2s délai): Computers, Loans, Excel Users
                 setTimeout(() => {
                     console.log('🚀 [AppContext] Phase SECONDARY - Chargement entities...');
                     loadEntity('computers', () => apiService.getComputers());
                     loadEntity('loans', () => apiService.getLoans());
                     loadEntity('users', () => apiService.getExcelUsers());
                     loadingPhases.current.secondary = true;
-                    console.log('✅ [AppContext] Phase SECONDARY démarrée');
                 }, 2000);
 
-                // ✅ PHASE LAZY (5s délai): RDS Sessions, Connected Technicians
                 setTimeout(() => {
                     console.log('🚀 [AppContext] Phase LAZY - Chargement entities lourdes...');
                     loadEntity('rds_sessions', () => apiService.getRdsSessions());
                     loadEntity('technicians', () => apiService.getConnectedTechnicians());
-                    // Note: ad_groups nécessite recherche, chargé à la demande par les composants
                     loadingPhases.current.lazy = true;
-                    console.log('✅ [AppContext] Phase LAZY démarrée');
                 }, 5000);
 
             } catch (err) {
                 console.error('Erreur initialisation App:', err);
                 setError(`Impossible de charger la configuration: ${err.message}`);
                 setIsOnline(false);
-                setConfig({
-                    domain: 'anecoopfr.local',
-                    servers: [],
-                    rdsServers: []
-                });
             } finally {
                 setIsInitializing(false);
             }
@@ -314,28 +305,13 @@ export const AppProvider = ({ children }) => {
             clearTimeout(reconnectTimeoutRef.current);
             if (wsRef.current) { wsRef.current.close(); }
         };
-    }, [connectWebSocket, loadEntity]);
+    }, [loadEntity]);
     
     const value = {
-        config,
-        updateConfig,
-        currentTechnician,
-        setCurrentTechnician,
-        isInitializing,
-        error,
-        isOnline,
-        notifications,
-        showNotification,
-        handleSaveConfig,
+        config, updateConfig, currentTechnician, setCurrentTechnician, isInitializing,
+        error, isOnline, notifications, showNotification, handleSaveConfig,
         events: { on, off, emit },
-        // ✅ NOUVEAU: Cache API
-        cache: {
-            loadEntity,
-            updateCacheEntity,
-            invalidateCache,
-            getCachedData,
-            isCacheLoaded
-        }
+        cache: { loadEntity, updateCacheEntity, invalidateCache, getCachedData, isCacheLoaded }
     };
 
     return (

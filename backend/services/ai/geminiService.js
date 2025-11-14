@@ -86,6 +86,16 @@ class GeminiService {
     }
 
     /**
+     * Ré-initialise le service avec une nouvelle configuration.
+     */
+    async reinitialize(apiKey, config) {
+        console.log('[GeminiService] 🔄 Ré-initialisation demandée...');
+        // Désactiver temporairement pour éviter les erreurs pendant la ré-initialisation
+        this.initialized = false;
+        return this.initialize(apiKey, config);
+    }
+
+    /**
      * 🎭 CHEF D'ORCHESTRE - Décide automatiquement quelle méthode utiliser
      */
     async orchestrate(query, context = {}) {
@@ -450,6 +460,36 @@ Ton style: professionnel, précis, actionnable, avec touches d'emojis pertinents
             initialized: this.initialized,
             orchestrator: this.config?.orchestrator
         };
+    }
+
+    /**
+     * Récupère la liste des modèles disponibles depuis l'API Google.
+     */
+    async listModels() {
+        if (!this.initialized || !this.genAI) {
+            return { success: false, error: 'Le service Gemini n\'est pas initialisé avec une clé API valide.' };
+        }
+
+        try {
+            console.log('[GeminiService] 🔍 Récupération de la liste des modèles...');
+            const { models } = await this.genAI.listModels();
+
+            const availableModels = models
+                .filter(m => m.supportedGenerationMethods.includes('generateContent'))
+                .map(m => ({
+                    id: m.name,
+                    name: m.displayName,
+                    description: m.description,
+                    contextWindow: m.inputTokenLimit,
+                    supportsVision: m.name.includes('vision'),
+                }));
+
+            console.log(`[GeminiService] ✅ ${availableModels.length} modèles trouvés.`);
+            return { success: true, models: availableModels };
+        } catch (error) {
+            console.error('[GeminiService] ❌ Erreur lors de la récupération des modèles:', error.message);
+            return { success: false, error: `Impossible de récupérer les modèles: ${error.message}` };
+        }
     }
 }
 

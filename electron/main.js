@@ -12,6 +12,7 @@ const isDev = require('electron-is-dev');
 
 // Import du bridge Active Directory
 const { initializeAdBridge, cleanupAdBridge } = require('./ad-bridge');
+const configService = require('../backend/services/configService'); // ✅ Charger le service de configuration
 
 // --- Configuration des logs améliorée ---
 log.transports.file.level = 'info';
@@ -370,16 +371,27 @@ function setupIpcHandlers() {
 }
 
 async function main() {
-    await startServer(); // S'assure que le serveur (et la config) est prêt
+    await configService.loadConfigAsync(); // ✅ Charger la config d'abord !
+
+    // Le démarrage du serveur dépend de la config en mode prod
+    startServer();
+
     setupAutoUpdater();
     initializeAdBridge();
     setupIpcHandlers();
     createWindow(); // Crée la fenêtre, qui a maintenant accès à un serveur prêt
 
-    // Les services qui dépendent de la fenêtre ou de la config peuvent démarrer ici
-    if (mainWindow) {
-        logToUI('info', '[Main] Démarrage des services post-fenêtre...');
-        notificationScheduler.start(mainWindow);
+    // ✅ Démarrer les services de fond uniquement si la config est valide
+    if (configService.isConfigurationValid()) {
+        logToUI('info', '[Main] Démarrage des services de fond (planificateur de notifications)...');
+        notificationScheduler.start();
+    } else {
+        logToUI('error', '[Main] ❌ Configuration invalide, les services de fond ne seront pas démarrés.');
+        // Optionnel : Afficher une alerte à l'utilisateur
+        dialog.showErrorBox(
+            'Erreur de Configuration',
+            'Le fichier de configuration est manquant ou invalide. Certaines fonctionnalités (comme les notifications) seront désactivées.'
+        );
     }
 
     app.on('activate', () => {

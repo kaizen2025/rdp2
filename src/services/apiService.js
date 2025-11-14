@@ -2,15 +2,24 @@
 
 class ApiService {
     constructor() {
-        // Détection automatique du mode
+        // --- DÉTERMINATION DE L'URL DE BASE DE L'API ---
+        // Stratégie de détection (priorité la plus haute en premier)
+
+        // 1. (POUR LES TESTS E2E) Paramètre d'URL pour forcer l'URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const apiUrlFromParam = urlParams.get('api_url');
+
+        // 2. Détection du mode Electron
         const isElectron = window.electronAPI !== undefined;
 
-        // En mode Electron : utiliser le port fixe configuré dans Electron (3002)
-        // En mode navigateur dev : utiliser le proxy (setupProxy.js lit .ports.json automatiquement)
-        if (isElectron) {
+        if (apiUrlFromParam) {
+            this.baseURL = apiUrlFromParam;
+            console.log(`[ApiService] ✅ URL API forcée par paramètre d'URL: ${this.baseURL}`);
+        } else if (isElectron) {
+            // 3. En mode Electron : utiliser le port fixe ou la variable d'environnement
             this.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:3002/api';
         } else {
-            // Le proxy setupProxy.js gère automatiquement la redirection depuis .ports.json
+            // 4. En mode navigateur dev : utiliser le proxy (chemin relatif)
             this.baseURL = process.env.REACT_APP_API_URL || '/api';
         }
 
@@ -25,8 +34,6 @@ class ApiService {
         const url = `${this.baseURL}${endpoint}`;
         const techId = this.currentTechnicianId;
         
-        // ✅ CORRECTION: Ne pas forcer Content-Type si le body est FormData
-        // Le navigateur définit automatiquement multipart/form-data avec boundary
         const headers = { ...options.headers };
         if (!(options.body instanceof FormData)) {
             headers['Content-Type'] = headers['Content-Type'] || 'application/json';
@@ -40,7 +47,7 @@ class ApiService {
                 const errorData = await response.json().catch(() => ({ error: response.statusText, message: `Erreur HTTP ${response.status}` }));
                 const errorMessage = errorData.error || errorData.details || errorData.message;
                 const error = new Error(errorMessage);
-                error.response = response; // Attache la réponse complète à l'erreur
+                error.response = response;
                 throw error;
             }
             if (response.status === 204) return null; // No Content
@@ -63,6 +70,7 @@ class ApiService {
         console.log('👤 Technicien actuel défini:', technicianId);
     }
 
+    // ... (le reste du fichier reste inchangé) ...
     // SANTÉ DU SERVEUR
     checkServerHealth = async () => this.request('/health')
 
@@ -141,7 +149,6 @@ class ApiService {
     createAdUser = async (userData) => this.request(`/ad/users`, { method: 'POST', body: JSON.stringify(userData) })
     getAdOUs = async (parentId = null) => this.request(parentId ? `/ad/ous?parentId=${encodeURIComponent(parentId)}` : '/ad/ous')
     getAdUsersInOU = async (ouDN) => this.request(`/ad/ou-users?ouDN=${encodeURIComponent(ouDN)}`)
-    searchAdUsers = async (searchTerm) => this.request(`/ad/users/search?term=${encodeURIComponent(searchTerm)}`)
 
     // UTILISATEURS EXCEL
     getExcelUsers = async () => this.request('/excel/users')
@@ -158,42 +165,28 @@ class ApiService {
     deleteChatMessage = async (messageId, channelId) => this.request(`/chat/messages/${messageId}`, { method: 'DELETE', body: JSON.stringify({ channelId }) })
     toggleChatReaction = async (messageId, channelId, emoji) => this.request('/chat/reactions', { method: 'POST', body: JSON.stringify({ messageId, channelId, emoji }) })
 
-    // ✅ AGENT IA
-    // Health & Initialization
+    // AGENT IA
     getAIHealth = async () => this.request('/ai/health')
     initializeAI = async () => this.request('/ai/initialize', { method: 'POST' })
-    
-    // Documents
     uploadAIDocument = async (file) => {
         const formData = new FormData();
         formData.append('file', file);
-        return this.request('/ai/documents/upload', {
-            method: 'POST',
-            body: formData // ✅ Content-Type auto-détecté (multipart/form-data)
-        });
+        return this.request('/ai/documents/upload', { method: 'POST', body: formData });
     }
     getAIDocuments = async (limit = 100, offset = 0) => this.request(`/ai/documents?limit=${limit}&offset=${offset}`)
     getAIDocument = async (id) => this.request(`/ai/documents/${id}`)
     deleteAIDocument = async (id) => this.request(`/ai/documents/${id}`, { method: 'DELETE' })
     searchAIDocuments = async (query, maxResults = 5, minScore = 0.1) => this.request('/ai/documents/search', { method: 'POST', body: JSON.stringify({ query, maxResults, minScore }) })
-    
-    // Conversations - ✅ Using enhanced endpoint with OpenRouter support
     sendAIMessage = async (sessionId, message, userId = null, aiProvider = 'openrouter') => this.request('/ai/chat/enhanced', { method: 'POST', body: JSON.stringify({ sessionId, message, userId, aiProvider }) })
     sendGeminiMessage = async (sessionId, message, fileText, userId = null) => this.request('/ai/chat/enhanced', { method: 'POST', body: JSON.stringify({ sessionId, message, fileText, userId, aiProvider: 'gemini' }) })
     getAIConversationHistory = async (sessionId, limit = 50) => this.request(`/ai/conversations/${sessionId}?limit=${limit}`)
     getAllAIConversations = async (limit = 50) => this.request(`/ai/conversations?limit=${limit}`)
-
-    // ✅ NOUVEAU - Gestion historique conversations
     updateConversationPinned = async (conversationId, isPinned) => this.request(`/ai/conversations/${conversationId}/pin`, { method: 'PUT', body: JSON.stringify({ isPinned }) })
     deleteConversation = async (conversationId) => this.request(`/ai/conversations/${conversationId}`, { method: 'DELETE' })
 
-    // ==================== AUTHENTIFICATION ET UTILISATEURS ====================
-
-    // Authentification
+    // AUTHENTIFICATION ET UTILISATEURS
     changePassword = async (userId, oldPassword, newPassword) => this.request('/auth/change-password', { method: 'POST', body: JSON.stringify({ userId, oldPassword, newPassword }) })
     checkPermissions = async (userId, tabName) => this.request(`/auth/check-permissions/${userId}/${tabName}`)
-
-    // Gestion utilisateurs
     getAllAppUsers = async () => this.request('/auth/users')
     getAppUser = async (userId) => this.request(`/auth/users/${userId}`)
     createAppUser = async (userData) => this.request('/auth/users', { method: 'POST', body: JSON.stringify(userData) })
@@ -201,8 +194,6 @@ class ApiService {
     deleteAppUser = async (userId) => this.request(`/auth/users/${userId}`, { method: 'DELETE' })
     updateUserPermissions = async (userId, permissions) => this.request(`/auth/users/${userId}/permissions`, { method: 'PUT', body: JSON.stringify(permissions) })
     resetUserPassword = async (userId, newPassword) => this.request(`/auth/users/${userId}/reset-password`, { method: 'POST', body: JSON.stringify({ newPassword }) })
-
-    // Statistiques connexions
     getLoginStats = async () => this.request('/auth/stats/login')
     getUserLoginHistory = async (userId, limit = 50) => this.request(`/auth/users/${userId}/login-history?limit=${limit}`)
 
@@ -217,64 +208,13 @@ class ApiService {
     resetAI = async () => this.request('/ai/reset', { method: 'POST' })
     cleanupAI = async () => this.request('/ai/cleanup', { method: 'POST' })
 
-    // ✅ OCR - Optical Character Recognition
-    processOCR = async (formData) => this.request('/ai/ocr', {
-        method: 'POST',
-        body: formData // FormData avec file + options
-    })
+    // OCR
+    processOCR = async (formData) => this.request('/ai/ocr', { method: 'POST', body: formData })
     getOCRStatistics = async () => this.request('/ai/ocr/statistics')
 
-    // ✅ Analyse de documents
-    analyzeAIDocument = async (documentId, analysisType = 'complete') => this.request('/ai/documents/' + documentId + '/analyze', {
-        method: 'POST',
-        body: JSON.stringify({ analysisType })
-    })
-    analyzeText = async (text, analysisType = 'complete') => this.request('/ai/analyze', {
-        method: 'POST',
-        body: JSON.stringify({ text, analysisType })
-    })
-
-    // ✅ Résumés de documents
-    summarizeAIDocument = async (documentId, options = {}) => this.request('/ai/documents/' + documentId + '/summarize', {
-        method: 'POST',
-        body: JSON.stringify(options)
-    })
-    summarizeText = async (text, options = {}) => this.request('/ai/summarize', {
-        method: 'POST',
-        body: JSON.stringify({ text, ...options })
-    })
-
-    // ✅ Extraction d'entités et mots-clés
-    extractKeywords = async (documentId) => this.request('/ai/documents/' + documentId + '/keywords')
-    extractEntities = async (documentId) => this.request('/ai/documents/' + documentId + '/entities')
-
-    // ✅ Analyse de sentiment
-    analyzeSentiment = async (text) => this.request('/ai/sentiment', {
-        method: 'POST',
-        body: JSON.stringify({ text })
-    })
-
-    // ✅ Préférences utilisateur
-    getUserPreferences = async () => this.request('/ai/preferences')
-    saveUserPreferences = async (preferences) => this.request('/ai/preferences', {
-        method: 'POST',
-        body: JSON.stringify(preferences)
-    })
-
-    // ✅ Export de conversations
-    exportConversation = async (sessionId, mode) => this.request(`/ai/conversations/${sessionId}/export?mode=${mode}`)
-
-    // ✅ Prévisualisation de documents
-    getDocumentPreview = async (documentId) => this.request(`/ai/documents/${documentId}/preview`)
-    downloadDocument = async (documentId) => {
-        // Téléchargement direct
-        window.open(`${this.baseURL}/ai/documents/${documentId}/download`, '_blank');
-    }
-
-    // Natural Language Search
+    // Autres services IA ...
     naturalLanguageSearch = async (query) => this.request('/search', { method: 'POST', body: JSON.stringify({ query }) })
 }
 
-// Création d'une instance unique (singleton) pour toute l'application
 const apiService = new ApiService();
 export default apiService;

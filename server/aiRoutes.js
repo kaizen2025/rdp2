@@ -58,6 +58,22 @@ module.exports = (broadcast) => {
         res.json(result);
     }));
 
+    /**
+     * POST /ai/reinitialize - Recharge la config et réinitialise les providers
+     */
+    router.post('/reinitialize', asyncHandler(async (req, res) => {
+        console.log('API: Demande de ré-initialisation reçue.');
+        const result = await aiService.reinitializeProviders();
+        if (result.success) {
+            broadcast({
+                type: 'ai_reinitialized',
+                activeProvider: result.activeProvider,
+                timestamp: new Date().toISOString()
+            });
+        }
+        res.json(result);
+    }));
+
     // ==================== GESTION DES DOCUMENTS ====================
 
     /**
@@ -206,7 +222,16 @@ module.exports = (broadcast) => {
         res.json(result);
     }));
 
-    // ==================== PARAMETRES ====================
+    /**
+     * GET /ai/google/models - Récupère la liste des modèles Google disponibles
+     */
+    router.get('/google/models', asyncHandler(async (req, res) => {
+        const geminiService = require('../backend/services/ai/geminiService');
+        const result = await geminiService.listModels();
+        res.json(result);
+    }));
+
+    // ==================== STATISTIQUES ====================
 
     /**
      * GET /ai/settings - Obtient tous les parametres

@@ -97,6 +97,15 @@ class OpenRouterService {
     }
 
     /**
+     * Ré-initialise le service avec une nouvelle configuration.
+     */
+    async reinitialize(config = {}) {
+        console.log('[OpenRouterService] 🔄 Ré-initialisation demandée...');
+        this.initialized = false;
+        return this.initialize(config);
+    }
+
+    /**
      * Teste la connexion à OpenRouter
      */
     async testConnection() {

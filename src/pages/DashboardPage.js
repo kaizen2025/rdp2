@@ -1,8 +1,8 @@
-// src/pages/DashboardPage.js - VERSION MODERNISÉE AVEC CACHE CENTRALISÉ
+// src/pages/DashboardPage.js - VERSION AMÉLIORÉE AVEC PLUS DE STATS ET BOUTONS
 
 import React, { memo, useMemo, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Grid, Paper, Typography, List, ListItem, ListItemText, ListItemAvatar, Tooltip, Chip, Avatar, CircularProgress, IconButton } from '@mui/material';
+import { Box, Grid, Paper, Typography, List, ListItem, ListItemText, ListItemAvatar, Tooltip, Chip, Avatar, CircularProgress, IconButton, Button } from '@mui/material';
 
 // Icons
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -18,6 +18,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import WarningIcon from '@mui/icons-material/Warning';
 import LaptopChromebookIcon from '@mui/icons-material/LaptopChromebook';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import BookmarkAddedIcon from '@mui/icons-material/BookmarkAdded'; // ✅ NOUVELLE ICÔNE
 
 import { useCache } from '../contexts/CacheContext';
 import apiService from '../services/apiService';
@@ -26,6 +27,7 @@ import PageHeader from '../components/common/PageHeader';
 import StatCard from '../components/common/StatCard';
 import LoadingScreen from '../components/common/LoadingScreen';
 
+// ... (Les widgets ServerStatus, ConnectedTechnicians, RecentActivity restent inchangés)
 const ServerStatusWidget = memo(({ onAnalyze }) => {
     const { cache } = useCache();
     const serversToPing = useMemo(() => cache.config?.rds_servers || [], [cache.config]);
@@ -127,7 +129,6 @@ const ServerStatusWidget = memo(({ onAnalyze }) => {
         </Paper>
     );
 });
-
 const ConnectedTechniciansWidget = memo(() => {
     const { cache } = useCache();
     const technicians = useMemo(() => cache.technicians || [], [cache.technicians]);
@@ -175,7 +176,6 @@ const ConnectedTechniciansWidget = memo(() => {
         </Paper>
     );
 });
-
 const RecentActivityWidget = memo(() => {
     const { cache } = useCache();
     const activities = cache.loan_history || [];
@@ -199,6 +199,7 @@ const RecentActivityWidget = memo(() => {
         </Paper>
     );
 });
+
 
 const DashboardPage = ({ onAnalyzeServer }) => {
     const navigate = useNavigate();
@@ -247,20 +248,35 @@ Peux-tu me donner un diagnostic et des pistes d'optimisation ?`;
                 title="Tableau de Bord"
                 subtitle="Vue d'ensemble de l'activité RDS et gestion des prêts"
                 icon={DashboardIcon}
+                actions={
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                        <Button variant="outlined" startIcon={<LaptopChromebookIcon />} onClick={() => navigate('/loans')}>
+                            Gérer l'inventaire
+                        </Button>
+                        <Button variant="outlined" startIcon={<PeopleIcon />} onClick={() => navigate('/users')}>
+                            Gérer les utilisateurs
+                        </Button>
+                    </Box>
+                }
             />
 
             <Grid container spacing={{ xs: 1.5, sm: 2 }}>
-                <Grid item xs={12} sm={6} md={3}>
+                {/* ✅ GRILLE AJUSTÉE POUR 5 CARTES */}
+                <Grid item xs={12} sm={6} md={2.4}>
                     <StatCard title="Matériel Total" value={stats.computers.total} subtitle={`${stats.computers.available} disponibles`} icon={LaptopChromebookIcon} color="primary" loading={isLoading} onClick={() => navigate('/loans', { state: { initialTab: 1 }})} tooltip="Stock total d'ordinateurs et disponibilité" />
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <StatCard title="Prêts Actifs" value={stats.loans.active} subtitle={`${stats.loans.reserved} réservés`} icon={AssignmentIcon} color="info" loading={isLoading} onClick={() => navigate('/loans', { state: { initialTab: 0 }})} tooltip="Prêts en cours et réservations" />
+                <Grid item xs={12} sm={6} md={2.4}>
+                    <StatCard title="Prêts Actifs" value={stats.loans.active} icon={AssignmentIcon} color="info" loading={isLoading} onClick={() => navigate('/loans', { state: { initialTab: 0 }})} tooltip="Prêts en cours" />
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                {/* ✅ NOUVELLE CARTE DE STATS */}
+                <Grid item xs={12} sm={6} md={2.4}>
+                    <StatCard title="Prêts Réservés" value={stats.loans.reserved} icon={BookmarkAddedIcon} color="secondary" loading={isLoading} onClick={() => navigate('/loans', { state: { initialTab: 0, preFilter: 'reserved' }})} tooltip="Prêts réservés pour une date future" />
+                </Grid>
+                <Grid item xs={12} sm={6} md={2.4}>
                     <StatCard title="En Retard" value={stats.loans.overdue + stats.loans.critical} subtitle={`${stats.loans.critical} critiques`} icon={ErrorOutlineIcon} color="error" loading={isLoading} onClick={() => navigate('/loans', { state: { initialTab: 0, preFilter: 'overdue' }})} tooltip="Prêts en retard nécessitant une action" />
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <StatCard title="Historique Total" value={stats.history.totalLoans} icon={HistoryIcon} color="secondary" loading={isLoading} onClick={() => navigate('/loans', { state: { initialTab: 3 }})} tooltip="Nombre total de prêts effectués" />
+                <Grid item xs={12} sm={6} md={2.4}>
+                    <StatCard title="Historique Total" value={stats.history.totalLoans} icon={HistoryIcon} color="default" loading={isLoading} onClick={() => navigate('/loans', { state: { initialTab: 3 }})} tooltip="Nombre total de prêts effectués" />
                 </Grid>
 
                 <Grid item xs={12} lg={4}>
