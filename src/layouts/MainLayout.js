@@ -1,6 +1,6 @@
 // src/layouts/MainLayout.js - VERSION DÉFINITIVE AVEC NAVIGATION HORIZONTALE ET CORRECTIONS
 
-import React, { useState, useEffect, Suspense, lazy, useCallback } from 'react';
+import React, { useState, useEffect, Suspense, lazy, useCallback, useRef } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import {
     Box, AppBar, Toolbar, Typography, IconButton, Tooltip, Menu, MenuItem,
