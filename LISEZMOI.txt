@@ -1,0 +1,142 @@
+================================================================================
+                    🚀 RDP2 VIEWER - GUIDE RAPIDE 🚀
+================================================================================
+
+📁 EMPLACEMENT : C:\Projet\rdp2
+
+================================================================================
+⚡ DEMARRAGE RAPIDE
+================================================================================
+
+🔴 PROBLEME : Seule la page web s'ouvre (pas Electron) ?
+
+    ➜ SOLUTION IMMEDIATE :
+      Double-cliquez sur : fix-electron-not-starting.bat
+
+
+🟢 MISE A JOUR COMPLETE DU PROJET :
+
+    ➜ Double-cliquez sur : full-update.bat
+
+    Ce script fait TOUT :
+      ✓ Merge les corrections depuis Git
+      ✓ Nettoie node_modules
+      ✓ Reinstalle toutes les dependances
+      ✓ Verifie Electron
+      ✓ Lance l'application
+
+
+🟡 DIAGNOSTIC ET REPARATION :
+
+    ➜ Double-cliquez sur : diagnose-and-fix.bat
+
+    Detecte les problemes et propose des solutions
+
+
+================================================================================
+📋 TOUS LES SCRIPTS DISPONIBLES
+================================================================================
+
+1. full-update.bat
+   → Mise a jour complete depuis Git + reinstallation
+
+2. fix-electron-not-starting.bat
+   → Corrige le probleme "seule la page web s'ouvre"
+
+3. diagnose-and-fix.bat
+   → Diagnostique et repare automatiquement
+
+4. start-electron-only.bat
+   → Lance UNIQUEMENT Electron (si backend deja lance)
+
+5. GUIDE-DEMARRAGE.md
+   → Guide complet avec toutes les solutions
+
+================================================================================
+💡 COMMANDES MANUELLES (Invite de commande)
+================================================================================
+
+Ouvrir l'invite de commande dans C:\Projet\rdp2, puis :
+
+  ► Demarrer l'application :
+    npm run electron:start
+
+  ► Demarrer backend seul :
+    node server/server.js
+
+  ► Demarrer React seul :
+    npm run start
+
+  ► Lancer Electron seul :
+    electron .
+
+  ► Nettoyer et reinstaller :
+    rmdir /s /q node_modules
+    npm install
+
+  ► Arreter tous les processus :
+    taskkill /F /IM node.exe
+    taskkill /F /IM electron.exe
+
+================================================================================
+🔧 ORDRE DE RESOLUTION DES PROBLEMES
+================================================================================
+
+1️⃣  PREMIERE FOIS / PROBLEME MAJEUR
+    → Lancez : full-update.bat
+
+2️⃣  ELECTRON NE SE LANCE PAS
+    → Lancez : fix-electron-not-starting.bat
+
+3️⃣  ERREURS DIVERSES
+    → Lancez : diagnose-and-fix.bat
+
+4️⃣  TOUJOURS DES PROBLEMES
+    → Lisez : GUIDE-DEMARRAGE.md (guide complet)
+
+================================================================================
+✅ VERIFICATION RAPIDE
+================================================================================
+
+Avant de demarrer, verifiez que :
+
+  □ Node.js installe (v18+)     → node -v
+  □ npm installe                → npm -v
+  □ Git installe                → git --version
+  □ Dossier node_modules existe → dir node_modules
+  □ Electron installe           → npm list electron
+
+================================================================================
+📞 EN CAS DE PROBLEME PERSISTANT
+================================================================================
+
+1. Executez : diagnose-and-fix.bat
+2. Copiez le resultat affiche
+3. Lisez GUIDE-DEMARRAGE.md pour les solutions detaillees
+4. Verifiez les logs : %APPDATA%\rds-viewer\logs\main.log
+
+================================================================================
+🎯 CE QUI A ETE CORRIGE DANS CETTE VERSION
+================================================================================
+
+✅ Methodes manquantes dans notificationService.js
+✅ Gestion d'erreurs robuste dans notificationScheduler.js
+✅ Corrections de documentSyncService.js
+✅ Suppression du fichier .ports.json corrompu
+✅ Tous les services demarrent sans crash
+✅ Backend demarre sur le port 3002 sans erreur
+
+================================================================================
+📌 PORTS UTILISES
+================================================================================
+
+Backend (API)   : http://localhost:3002
+React (Dev)     : http://localhost:3000
+WebSocket       : Port 3003
+
+================================================================================
+
+Version : 3.0.26
+Date    : 2025-11-14
+
+================================================================================
