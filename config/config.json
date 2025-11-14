@@ -6,6 +6,7 @@
     "ad_server": "SRV-AD-1",
     "excelFilePath": "\\\\192.168.1.230\\Donnees\\Informatique\\PROGRAMMES\\Programme RDS\\RDS Viewer Group\\Data_utilisateur_partage.xlsx",
     "databasePath": "\\\\192.168.1.230\\Donnees\\Informatique\\PROGRAMMES\\Programme RDS\\RDS Viewer Group\\rds_viewer_data.sqlite",
+    "documentSyncPath": "/app/synced_documents",
     "updateUrl": "http://192.168.1.232/update/",
     "rds_servers": [
         "SRV-RDS-1",
@@ -169,7 +170,7 @@
             "id": "kevin_bivia",
             "name": "Kevin BIVIA",
             "position": "Chef de projet",
-            "email": "kevin.bivia@anecoop.fr",
+            "email": "kbivia@anecoop-france.com",
             "isActive": true,
             "role": "super_admin",
             "avatar": "KB"
@@ -178,7 +179,7 @@
             "id": "meher_benhassine",
             "name": "Meher BENHASSINE",
             "position": "Chef de projet",
-            "email": "meher.benhassine@anecoop.fr",
+            "email": "mbenhassine@anecoop-france.com",
             "isActive": true,
             "role": "admin",
             "avatar": "MB"
@@ -187,7 +188,7 @@
             "id": "christelle_moles",
             "name": "Christelle MOLES",
             "position": "Responsable informatique",
-            "email": "christelle.moles@anecoop.fr",
+            "email": "cmoles@anecoop-france.com",
             "isActive": true,
             "role": "admin",
             "avatar": "CM"
@@ -196,7 +197,7 @@
             "id": "macha_anton",
             "name": "Macha ANTON",
             "position": "Alternante informatique",
-            "email": "macha.anton@anecoop.fr",
+            "email": "manton@anecoop-france.com",
             "isActive": true,
             "role": "technician",
             "avatar": "MA"
