@@ -212,7 +212,7 @@ export const MODULES = {
     id: 'ai_assistant',
     label: 'DocuCortex IA',
     icon: '🤖',
-    path: '/ai-assistant',
+    path: '/ai-config',
     description: 'Assistant IA documentaire avec Gemini et OpenRouter',
     requiredPermission: 'ai_assistant:view'
   }

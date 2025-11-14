@@ -30,7 +30,6 @@ import {
     DialogContent,
     DialogActions,
     Tooltip,
-    LinearProgress,
     List,
     ListItem,
     ListItemText,
@@ -54,16 +53,25 @@ import {
     Assessment as StatsIcon,
     CloudQueue as CloudIcon,
     Language as LanguageIcon,
-    Security as SecurityIcon,
-    Toggle
+    Security as SecurityIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import PageHeader from '../components/common/PageHeader'; // ✅ Import du PageHeader
 
 const API_BASE = 'http://localhost:3002/api/ai';
+
+// ✅ Liste des modèles Google disponibles
+const GOOGLE_MODELS = [
+    "gemini-1.5-pro-latest",
+    "gemini-1.5-flash-latest",
+    "gemini-1.0-pro",
+    "gemini-pro-vision",
+];
 
 function AIConfigPage() {
     // State pour la configuration
     const [config, setConfig] = useState(null);
+    const [availableGoogleModels, setAvailableGoogleModels] = useState([]); // ✅ Nouvel état
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState({});
@@ -85,7 +93,27 @@ function AIConfigPage() {
     useEffect(() => {
         loadConfiguration();
         loadStatistics();
+        loadAvailableModels(); // ✅ Appel de la nouvelle fonction
     }, []);
+
+    // ✅ Nouvelle fonction pour charger les modèles
+    const loadAvailableModels = async () => {
+        try {
+            const response = await axios.get(`${API_BASE}/google/models`);
+            if (response.data.success && Array.isArray(response.data.models)) {
+                setAvailableGoogleModels(response.data.models);
+                showMessage('Liste des modèles Google chargée.', 'success');
+            } else {
+                // Ne pas afficher d'erreur si l'API key n'est juste pas configurée
+                if (response.data.error && !response.data.error.includes("pas initialisé")) {
+                    showMessage(response.data.error, 'warning');
+                }
+            }
+        } catch (error) {
+            console.error('Erreur chargement modèles Google:', error);
+            showMessage('Impossible de charger la liste des modèles Google.', 'error');
+        }
+    };
 
     // Charger la configuration
     const loadConfiguration = async () => {
@@ -93,7 +121,12 @@ function AIConfigPage() {
             setLoading(true);
             const response = await axios.get(`${API_BASE}/config`);
             if (response.data.success) {
-                setConfig(response.data.config);
+                // ✅ S'assurer que google.apiKey existe pour éviter les erreurs
+                const loadedConfig = response.data.config;
+                if (loadedConfig.providers.google && typeof loadedConfig.providers.google.apiKey === 'undefined') {
+                    loadedConfig.providers.google.apiKey = '';
+                }
+                setConfig(loadedConfig);
             } else {
                 showMessage('Erreur lors du chargement de la configuration', 'error');
             }
@@ -105,6 +138,7 @@ function AIConfigPage() {
         }
     };
 
+    // ... (autres fonctions existantes : loadStatistics, saveConfiguration, testProvider, toggleProvider, updateConfig, showMessage)
     // Charger les statistiques
     const loadStatistics = async () => {
         try {
@@ -123,7 +157,19 @@ function AIConfigPage() {
             setSaving(true);
             const response = await axios.put(`${API_BASE}/config`, config);
             if (response.data.success) {
-                showMessage('Configuration sauvegardée avec succès', 'success');
+                showMessage('Configuration sauvegardée. Ré-initialisation des services...', 'info');
+
+                // ✅ CRUCIAL : Forcer le backend à recharger la configuration
+                try {
+                    await axios.post(`${API_BASE}/reinitialize`);
+                    showMessage('Services IA ré-initialisés avec la nouvelle configuration !', 'success');
+                    // ✅ Recharger la liste des modèles disponibles après réinitialisation
+                    await loadAvailableModels();
+                } catch (reinitError) {
+                    console.error('Erreur ré-initialisation:', reinitError);
+                    showMessage('La sauvegarde a réussi, mais la ré-initialisation a échoué. Veuillez redémarrer le serveur.', 'warning');
+                }
+
                 await loadConfiguration(); // Recharger pour obtenir l'état à jour
             } else {
                 showMessage('Erreur lors de la sauvegarde', 'error');
@@ -241,40 +287,34 @@ function AIConfigPage() {
 
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-            {/* Header */}
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-                <Box>
-                    <Typography variant="h4" gutterBottom>
-                        <SettingsIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-                        Configuration IA
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        Gérez les providers, modèles et paramètres de l'intelligence artificielle
-                    </Typography>
-                </Box>
-                <Box>
-                    <Button
-                        variant="outlined"
-                        startIcon={<RefreshIcon />}
-                        onClick={loadConfiguration}
-                        sx={{ mr: 1 }}
-                    >
-                        Actualiser
-                    </Button>
-                    <Button
-                        variant="contained"
-                        startIcon={<SaveIcon />}
-                        onClick={saveConfiguration}
-                        disabled={saving}
-                    >
-                        {saving ? 'Sauvegarde...' : 'Sauvegarder'}
-                    </Button>
-                </Box>
-            </Box>
+            <PageHeader
+                title="Configuration IA"
+                subtitle="Gérez les providers, modèles et paramètres de l'intelligence artificielle"
+                icon={SettingsIcon}
+                actions={
+                    <Box>
+                        <Button
+                            variant="outlined"
+                            startIcon={<RefreshIcon />}
+                            onClick={loadConfiguration}
+                            sx={{ mr: 1 }}
+                        >
+                            Actualiser
+                        </Button>
+                        <Button
+                            variant="contained"
+                            startIcon={<SaveIcon />}
+                            onClick={saveConfiguration}
+                            disabled={saving}
+                        >
+                            {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+                        </Button>
+                    </Box>
+                }
+            />
 
-            {/* Tabs */}
             <Paper sx={{ mb: 3 }}>
-                <Tabs value={currentTab} onChange={(e, newValue) => setCurrentTab(newValue)}>
+                <Tabs value={currentTab} onChange={(e, newValue) => setCurrentTab(newValue)} centered>
                     <Tab label="Providers" icon={<CloudIcon />} iconPosition="start" />
                     <Tab label="Paramètres" icon={<SettingsIcon />} iconPosition="start" />
                     <Tab label="Statistiques" icon={<StatsIcon />} iconPosition="start" />
@@ -327,26 +367,19 @@ function AIConfigPage() {
 
                                         <Divider sx={{ my: 2 }} />
 
-                                        {/* Priorité */}
                                         <TextField
-                                            fullWidth
-                                            type="number"
-                                            label="Priorité"
+                                            fullWidth type="number" label="Priorité"
                                             value={provider.priority || 0}
                                             onChange={(e) => updateConfig(`providers.${providerName}.priority`, parseInt(e.target.value))}
-                                            margin="normal"
-                                            size="small"
-                                            helperText="1 = priorité la plus élevée"
+                                            margin="normal" size="small" helperText="1 = priorité la plus élevée"
                                         />
 
-                                        {/* Clé API */}
+                                        {/* ✅ Section Clé API conditionnelle */}
                                         <TextField
-                                            fullWidth
-                                            label="Clé API"
+                                            fullWidth label={`Clé API ${providerName === 'google' ? 'Google' : 'OpenRouter'}`}
                                             value={provider.apiKey || ''}
                                             onChange={(e) => updateConfig(`providers.${providerName}.apiKey`, e.target.value)}
-                                            margin="normal"
-                                            size="small"
+                                            margin="normal" size="small"
                                             type={showApiKeys[providerName] ? 'text' : 'password'}
                                             InputProps={{
                                                 endAdornment: (
@@ -365,41 +398,83 @@ function AIConfigPage() {
                                             }}
                                         />
 
-                                        {/* Modèle */}
-                                        <TextField
-                                            fullWidth
-                                            label="Modèle"
-                                            value={provider.model || ''}
-                                            onChange={(e) => updateConfig(`providers.${providerName}.model`, e.target.value)}
-                                            margin="normal"
-                                            size="small"
-                                        />
+                                        {/* ✅ Sélecteurs de modèles spécifiques pour Google */}
+                                        {providerName === 'google' ? (
+                                            <>
+                                                <FormControl fullWidth margin="normal" size="small">
+                                                    <InputLabel>Modèle Texte (Chat & RAG)</InputLabel>
+                                                    <Select
+                                                        label="Modèle Texte (Chat & RAG)"
+                                                        value={provider.models?.text || ''}
+                                                        onChange={(e) => updateConfig(`providers.google.models.text`, e.target.value)}
+                                                    >
+                                                        {availableGoogleModels.length > 0 ? (
+                                                            availableGoogleModels.filter(m => !m.id.includes('vision') && !m.id.includes('embedding')).map(model => (
+                                                                <MenuItem key={model.id} value={model.id}>
+                                                                    <ListItemText primary={model.name} secondary={model.contextWindow ? `Context: ${model.contextWindow}` : null} />
+                                                                </MenuItem>
+                                                            ))
+                                                        ) : <MenuItem disabled>Chargement...</MenuItem>}
+                                                    </Select>
+                                                </FormControl>
+                                                <FormControl fullWidth margin="normal" size="small">
+                                                    <InputLabel>Modèle Vision (Analyse d'image)</InputLabel>
+                                                    <Select
+                                                        label="Modèle Vision (Analyse d'image)"
+                                                        value={provider.models?.vision || ''}
+                                                        onChange={(e) => updateConfig(`providers.google.models.vision`, e.target.value)}
+                                                    >
+                                                        {availableGoogleModels.length > 0 ? (
+                                                            availableGoogleModels.filter(m => m.supportsVision).map(model => (
+                                                                <MenuItem key={model.id} value={model.id}>
+                                                                    <ListItemText primary={model.name} secondary={model.contextWindow ? `Context: ${model.contextWindow}` : null} />
+                                                                </MenuItem>
+                                                            ))
+                                                        ) : <MenuItem disabled>Chargement...</MenuItem>}
+                                                    </Select>
+                                                </FormControl>
+                                                <FormControl fullWidth margin="normal" size="small">
+                                                    <InputLabel>Modèle Embedding (Recherche)</InputLabel>
+                                                    <Select
+                                                        label="Modèle Embedding (Recherche)"
+                                                        value={provider.models?.embedding || ''}
+                                                        onChange={(e) => updateConfig(`providers.google.models.embedding`, e.target.value)}
+                                                    >
+                                                        {availableGoogleModels.length > 0 ? (
+                                                            availableGoogleModels.filter(m => m.id.includes('embedding')).map(model => (
+                                                                <MenuItem key={model.id} value={model.id}>
+                                                                    <ListItemText primary={model.name} />
+                                                                </MenuItem>
+                                                            ))
+                                                        ) : <MenuItem disabled>Chargement...</MenuItem>}
+                                                    </Select>
+                                                </FormControl>
+                                            </>
+                                        ) : (
+                                            <TextField
+                                                fullWidth label="Modèle"
+                                                value={provider.model || ''}
+                                                onChange={(e) => updateConfig(`providers.${providerName}.model`, e.target.value)}
+                                                margin="normal" size="small"
+                                            />
+                                        )}
 
-                                        {/* Température */}
                                         <TextField
-                                            fullWidth
-                                            type="number"
-                                            label="Température"
+                                            fullWidth type="number" label="Température"
                                             value={provider.temperature || 0.7}
                                             onChange={(e) => updateConfig(`providers.${providerName}.temperature`, parseFloat(e.target.value))}
-                                            margin="normal"
-                                            size="small"
+                                            margin="normal" size="small"
                                             inputProps={{ min: 0, max: 2, step: 0.1 }}
                                             helperText="0 = déterministe, 1 = créatif"
                                         />
 
-                                        {/* Max Tokens */}
                                         <TextField
-                                            fullWidth
-                                            type="number"
-                                            label="Max Tokens"
+                                            fullWidth type="number" label="Max Tokens"
                                             value={provider.max_tokens || 2048}
                                             onChange={(e) => updateConfig(`providers.${providerName}.max_tokens`, parseInt(e.target.value))}
-                                            margin="normal"
-                                            size="small"
+                                            margin="normal" size="small"
                                         />
 
-                                        {/* Statut */}
                                         {provider.status && (
                                             <Box mt={2}>
                                                 <Chip
@@ -429,6 +504,7 @@ function AIConfigPage() {
                 </Grid>
             )}
 
+            {/* ... (Tabs 2 et 3: Paramètres et Statistiques restent inchangés) */}
             {/* Tab 2: Paramètres */}
             {currentTab === 1 && (
                 <Grid container spacing={3}>
@@ -677,6 +753,7 @@ function AIConfigPage() {
                     </Grid>
                 </Grid>
             )}
+
 
             {/* Snackbar pour les notifications */}
             <Snackbar

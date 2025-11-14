@@ -87,6 +87,12 @@ const checkServerStatus = async () => {
 };
 
 const runChecks = async () => {
+    // ✅ CORRECTION CRITIQUE: Ne pas exécuter si la configuration n'est pas chargée.
+    if (!configService.isConfigurationValid()) {
+        console.warn('[NotificationScheduler] Configuration non prête, vérifications ignorées.');
+        return;
+    }
+
     try {
         console.log('[NotificationScheduler] Exécution des vérifications planifiées...');
         await checkOverdueLoans();

@@ -12,6 +12,7 @@ const isDev = require('electron-is-dev');
 
 // Import du bridge Active Directory
 const { initializeAdBridge, cleanupAdBridge } = require('./ad-bridge');
+const configService = require('../backend/services/configService'); // ✅ Charger le service de configuration
 
 // --- Configuration des logs améliorée ---
 log.transports.file.level = 'info';
@@ -369,15 +370,38 @@ function setupIpcHandlers() {
     });
 }
 
-app.whenReady().then(() => {
+async function main() {
+    await configService.loadConfigAsync(); // ✅ Charger la config d'abord !
+
+    // Le démarrage du serveur dépend de la config en mode prod
     startServer();
+
     setupAutoUpdater();
-    initializeAdBridge();  // ✅ Initialize AD IPC bridge
+    initializeAdBridge();
     setupIpcHandlers();
-    createWindow();
-    notificationScheduler.start(mainWindow);
-    app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
-});
+    createWindow(); // Crée la fenêtre, qui a maintenant accès à un serveur prêt
+
+    // ✅ Démarrer les services de fond uniquement si la config est valide
+    if (configService.isConfigurationValid()) {
+        logToUI('info', '[Main] Démarrage des services de fond (planificateur de notifications)...');
+        notificationScheduler.start();
+    } else {
+        logToUI('error', '[Main] ❌ Configuration invalide, les services de fond ne seront pas démarrés.');
+        // Optionnel : Afficher une alerte à l'utilisateur
+        dialog.showErrorBox(
+            'Erreur de Configuration',
+            'Le fichier de configuration est manquant ou invalide. Certaines fonctionnalités (comme les notifications) seront désactivées.'
+        );
+    }
+
+    app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0) {
+            createWindow();
+        }
+    });
+}
+
+app.whenReady().then(main);
 
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('will-quit', () => {

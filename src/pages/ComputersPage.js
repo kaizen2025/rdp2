@@ -91,7 +91,6 @@ const ComputerListItem = ({ computer, onEdit, onLoan, onSelect, isSelected }) =>
 
     return (
         <ListItem
-            hover
             onClick={(event) => onSelect(event, computer.id)}
             role="checkbox"
             aria-checked={isSelected}

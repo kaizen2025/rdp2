@@ -127,6 +127,63 @@ class AIService {
     }
 
     /**
+     * Recharge la configuration et ré-initialise tous les providers.
+     */
+    async reinitializeProviders() {
+        console.log('\n🔄 Rechargement de la configuration et ré-initialisation des providers IA...');
+        this.initialized = false;
+        this.activeProvider = 'default'; // Réinitialiser le provider actif
+
+        // Recharger la configuration depuis le fichier
+        this.config = this.loadAIConfig();
+
+        if (!this.config || !this.config.providers) {
+            console.warn('⚠️ Configuration IA non trouvée lors de la ré-initialisation.');
+            return { success: false, error: 'Configuration not found' };
+        }
+
+        const sortedProviders = this.getSortedProviders();
+        for (const providerName of sortedProviders) {
+            const providerService = this.providers[providerName]?.service;
+            const providerConfig = this.config.providers[providerName];
+
+            if (providerService && typeof providerService.reinitialize === 'function') {
+                if (providerConfig.enabled) {
+                    console.log(`🔄 Ré-initialisation de ${providerName}...`);
+                    try {
+                        const result = await providerService.reinitialize({
+                            apiKey: providerConfig.apiKey,
+                            model: providerConfig.model,
+                            timeout: providerConfig.timeout
+                        });
+
+                        if (result.success) {
+                            this.providers[providerName].enabled = true;
+                            if (this.activeProvider === 'default') {
+                                this.activeProvider = providerName;
+                                console.log(`✅ ${providerName} défini comme provider actif.`);
+                            }
+                        } else {
+                            this.providers[providerName].enabled = false;
+                            console.warn(`⚠️ Échec de la ré-initialisation de ${providerName}:`, result.error);
+                        }
+                    } catch (error) {
+                        this.providers[providerName].enabled = false;
+                        console.error(`❌ Erreur critique lors de la ré-initialisation de ${providerName}:`, error.message);
+                    }
+                } else {
+                    this.providers[providerName].enabled = false;
+                    console.log(`⏭️  ${providerName} désactivé, pas de ré-initialisation.`);
+                }
+            }
+        }
+
+        this.initialized = true;
+        console.log(`✅ Ré-initialisation terminée. Provider actif: ${this.activeProvider}`);
+        return { success: true, activeProvider: this.activeProvider };
+    }
+
+    /**
      * Charge la configuration IA depuis le fichier de config
      */
     loadAIConfig() {
