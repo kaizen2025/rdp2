@@ -54,12 +54,22 @@ const scanDirectoryRecursive = async (directory, currentFiles) => {
 
 // The main synchronization function
 const synchronizeDocuments = async (directory) => {
-    console.log(`[DocSync] Starting synchronization for directory: ${directory}`);
-    const currentManifest = getDocumentManifest();
-    const currentFiles = {};
+    try {
+        console.log(`[DocSync] Starting synchronization for directory: ${directory}`);
 
-    // Recursively scan the directory to get a flat list of all files
-    await scanDirectoryRecursive(directory, currentFiles);
+        // Vérifier que le répertoire existe
+        try {
+            await fs.access(directory);
+        } catch (error) {
+            console.warn(`[DocSync] Le répertoire ${directory} n'existe pas ou n'est pas accessible. Synchronisation annulée.`);
+            return;
+        }
+
+        const currentManifest = getDocumentManifest();
+        const currentFiles = {};
+
+        // Recursively scan the directory to get a flat list of all files
+        await scanDirectoryRecursive(directory, currentFiles);
 
     // Process all found files (new or modified)
     for (const filePath in currentFiles) {
@@ -87,32 +97,46 @@ const synchronizeDocuments = async (directory) => {
         }
     }
 
-    // Check for deleted files by comparing the manifest with the files found on disk
-    for (const filePath in currentManifest) {
-        if (!currentFiles[filePath]) {
-            console.log(`[DocSync] Detected deleted file: ${filePath}`);
-            const document = db.getAIDocumentByFilePath(filePath);
-            if (document) {
-                await aiService.deleteDocument(document.id);
+        // Check for deleted files by comparing the manifest with the files found on disk
+        for (const filePath in currentManifest) {
+            if (!currentFiles[filePath]) {
+                console.log(`[DocSync] Detected deleted file: ${filePath}`);
+                try {
+                    // Recherche du document dans la base de données via une requête SQL directe
+                    const document = db.get('SELECT * FROM ai_documents WHERE file_path = ?', [filePath]);
+                    if (document) {
+                        await aiService.deleteDocument(document.id);
+                    }
+                } catch (err) {
+                    console.error(`[DocSync] Erreur lors de la suppression du document ${filePath}:`, err);
+                }
+                deleteFromManifest(filePath);
             }
-            deleteFromManifest(filePath);
         }
-    }
 
-    console.log('[DocSync] Synchronization complete.');
+        console.log('[DocSync] Synchronization complete.');
+    } catch (error) {
+        console.error('[DocSync] Erreur lors de la synchronisation:', error);
+    }
 };
 
 // Scheduler to run the sync periodically
 let syncInterval = null;
 
 const start = (directory) => {
-    if (syncInterval) {
-        clearInterval(syncInterval);
+    try {
+        if (syncInterval) {
+            clearInterval(syncInterval);
+        }
+        // Run sync every 15 minutes
+        syncInterval = setInterval(() => synchronizeDocuments(directory), 15 * 60 * 1000);
+        // Also run on startup (but don't block)
+        synchronizeDocuments(directory).catch(err => {
+            console.error('[DocSync] Erreur lors du premier lancement de la synchronisation:', err);
+        });
+    } catch (error) {
+        console.error('[DocSync] Erreur lors du démarrage du service de synchronisation:', error);
     }
-    // Run sync every 15 minutes
-    syncInterval = setInterval(() => synchronizeDocuments(directory), 15 * 60 * 1000);
-    // Also run on startup
-    synchronizeDocuments(directory);
 };
 
 const stop = () => {

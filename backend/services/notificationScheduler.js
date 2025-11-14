@@ -9,79 +9,92 @@ let schedulerInterval = null;
 let mainWindow = null;
 
 const checkOverdueLoans = async () => {
-    const loans = await dataService.getLoans();
-    const overdueLoans = loans.filter(loan => loan.status === 'overdue' || loan.status === 'critical');
+    try {
+        const loans = await dataService.getLoans();
+        const overdueLoans = loans.filter(loan => loan.status === 'overdue' || loan.status === 'critical');
 
-    for (const loan of overdueLoans) {
-        const notification = {
-            title: 'Prêt en retard',
-            body: `Le prêt de ${loan.computerName} à ${loan.userDisplayName} est en retard.`,
-            type: 'warning',
-        };
-        // Avoid sending the same notification repeatedly
-        const existingNotif = await notificationService.findNotificationByContent(notification.body);
-        if (!existingNotif) {
-            await notificationService.createNotification(notification);
-            if (mainWindow) {
-                mainWindow.webContents.send('show-notification', notification);
+        for (const loan of overdueLoans) {
+            const notification = {
+                title: 'Prêt en retard',
+                body: `Le prêt de ${loan.computerName} à ${loan.userDisplayName} est en retard.`,
+                type: 'warning',
+            };
+            // Avoid sending the same notification repeatedly
+            const existingNotif = await notificationService.findNotificationByContent(notification.body);
+            if (!existingNotif) {
+                await notificationService.createNotification(notification);
+                if (mainWindow) {
+                    mainWindow.webContents.send('show-notification', notification);
+                }
             }
         }
+    } catch (error) {
+        console.error('[NotificationScheduler] Erreur lors de la vérification des prêts en retard:', error);
     }
 };
 
 const checkServerStatus = async () => {
-    const servers = configService.appConfig?.rds_servers || [];
-    if (servers.length === 0) return;
+    try {
+        const servers = configService.appConfig?.rds_servers || [];
+        if (servers.length === 0) return;
 
-    for (const server of servers) {
-        const status = await rdsService.pingServer(server);
-        if (!status.success) {
-            const notification = {
-                title: 'Serveur hors ligne',
-                body: `Le serveur RDS "${server}" est hors ligne.`,
-                type: 'error',
-            };
-            const existingNotif = await notificationService.findNotificationByContent(notification.body);
-            if (!existingNotif) {
-                await notificationService.createNotification(notification);
-                if (mainWindow) {
-                    mainWindow.webContents.send('show-notification', notification);
+        for (const server of servers) {
+            const status = await rdsService.pingServer(server);
+            if (!status.success) {
+                const notification = {
+                    title: 'Serveur hors ligne',
+                    body: `Le serveur RDS "${server}" est hors ligne.`,
+                    type: 'error',
+                };
+                const existingNotif = await notificationService.findNotificationByContent(notification.body);
+                if (!existingNotif) {
+                    await notificationService.createNotification(notification);
+                    if (mainWindow) {
+                        mainWindow.webContents.send('show-notification', notification);
+                    }
                 }
-            }
-        } else if (status.cpu && status.cpu.usage > 90) {
-            const notification = {
-                title: 'Alerte CPU',
-                body: `L'utilisation du CPU sur le serveur "${server}" est supérieure à 90%.`,
-                type: 'warning',
-            };
-            const existingNotif = await notificationService.findNotificationByContent(notification.body);
-            if (!existingNotif) {
-                await notificationService.createNotification(notification);
-                if (mainWindow) {
-                    mainWindow.webContents.send('show-notification', notification);
+            } else if (status.cpu && status.cpu.usage > 90) {
+                const notification = {
+                    title: 'Alerte CPU',
+                    body: `L'utilisation du CPU sur le serveur "${server}" est supérieure à 90%.`,
+                    type: 'warning',
+                };
+                const existingNotif = await notificationService.findNotificationByContent(notification.body);
+                if (!existingNotif) {
+                    await notificationService.createNotification(notification);
+                    if (mainWindow) {
+                        mainWindow.webContents.send('show-notification', notification);
+                    }
                 }
-            }
-        } else if (status.storage && status.storage.usage > 90) {
-            const notification = {
-                title: 'Alerte Stockage',
-                body: `L'utilisation du stockage sur le serveur "${server}" est supérieure à 90%.`,
-                type: 'warning',
-            };
-            const existingNotif = await notificationService.findNotificationByContent(notification.body);
-            if (!existingNotif) {
-                await notificationService.createNotification(notification);
-                if (mainWindow) {
-                    mainWindow.webContents.send('show-notification', notification);
+            } else if (status.storage && status.storage.usage > 90) {
+                const notification = {
+                    title: 'Alerte Stockage',
+                    body: `L'utilisation du stockage sur le serveur "${server}" est supérieure à 90%.`,
+                    type: 'warning',
+                };
+                const existingNotif = await notificationService.findNotificationByContent(notification.body);
+                if (!existingNotif) {
+                    await notificationService.createNotification(notification);
+                    if (mainWindow) {
+                        mainWindow.webContents.send('show-notification', notification);
+                    }
                 }
             }
         }
+    } catch (error) {
+        console.error('[NotificationScheduler] Erreur lors de la vérification du statut des serveurs:', error);
     }
 };
 
 const runChecks = async () => {
-    console.log('Running scheduled checks...');
-    await checkOverdueLoans();
-    await checkServerStatus();
+    try {
+        console.log('[NotificationScheduler] Exécution des vérifications planifiées...');
+        await checkOverdueLoans();
+        await checkServerStatus();
+        console.log('[NotificationScheduler] Vérifications terminées avec succès.');
+    } catch (error) {
+        console.error('[NotificationScheduler] Erreur lors de l\'exécution des vérifications:', error);
+    }
 };
 
 const start = (win) => {

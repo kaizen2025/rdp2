@@ -131,13 +131,47 @@ async function checkAllLoansForNotifications(loans, settings) {
     return notificationsCreated;
 }
 
+async function findNotificationByContent(content) {
+    try {
+        // Recherche d'une notification non lue avec le même contenu dans les dernières 24h
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const row = db.get(
+            'SELECT * FROM loan_notifications WHERE details LIKE ? AND date > ? ORDER BY date DESC LIMIT 1',
+            [`%${content}%`, yesterday.toISOString()]
+        );
+        if (!row) return null;
+        return { ...row, read: !!row.read_status, details: parseJSON(row.details, {}) };
+    } catch (error) {
+        console.error("Erreur findNotificationByContent:", error);
+        return null;
+    }
+}
+
+async function createNotification(notification) {
+    try {
+        const id = generateId();
+        const now = new Date().toISOString();
+        db.run(
+            'INSERT INTO loan_notifications (id, loanId, computerName, userName, userDisplayName, type, date, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [id, null, '', '', '', notification.type || 'info', now, stringifyJSON({ title: notification.title, body: notification.body })]
+        );
+        return { id, ...notification, date: now };
+    } catch (error) {
+        console.error("Erreur createNotification:", error);
+        return null;
+    }
+}
+
 module.exports = {
     createLoanNotification,
+    createNotification,
     getNotifications,
     markNotificationAsRead,
     markAllNotificationsAsRead,
     cleanOldNotifications,
     getUnreadNotifications,
     checkAllLoansForNotifications,
+    findNotificationByContent,
     NOTIFICATION_TYPES,
 };
