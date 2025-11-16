@@ -1,0 +1,95 @@
+{
+  "name": "docucortex-enhanced",
+  "version": "2.0.0",
+  "description": "Interface responsive optimisée pour la gestion des prêts DocuCortex",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "demo": "react-scripts start",
+    "lint": "eslint src/",
+    "format": "prettier --write src/"
+  },
+  "keywords": [
+    "react",
+    "mui",
+    "responsive",
+    "mobile",
+    "tablet",
+    "desktop",
+    "loan-management",
+    "touch-interface",
+    "gesture-navigation",
+    "adaptive-design",
+    "artificial-intelligence",
+    "machine-learning",
+    "predictions",
+    "anomaly-detection",
+    "recommendations"
+  ],
+  "author": "DocuCortex Team",
+  "license": "MIT",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
+    "@mui/material": "^5.14.0",
+    "@mui/icons-material": "^5.14.0",
+    "@mui/lab": "^5.0.0-alpha.140",
+    "@mui/x-date-pickers": "^6.15.0",
+    "@mui/x-data-grid": "^6.15.0",
+    "date-fns": "^2.30.0",
+    "framer-motion": "^10.16.0",
+    "react-swipeable": "^6.2.0",
+    "react-swipeable-views": "^0.14.0",
+    "react-window": "^1.8.8",
+    "react-window-infinite-loader": "^1.0.9",
+    "recharts": "^2.8.0",
+    "react-grid-layout": "^1.3.4",
+    "react-resizable": "^3.0.5",
+    "pako": "^2.1.0",
+    "react-toastify": "^9.1.3",
+    "fuse.js": "^6.6.2",
+    "lunr": "^2.3.9",
+    "react-highlight-words": "^0.20.0",
+    "qrcode": "^1.5.3",
+    "@zxing/library": "^0.20.0",
+    "react-qr-code": "^2.0.12"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "eslint": "^8.49.0",
+    "eslint-plugin-react": "^7.33.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "prettier": "^3.0.0",
+    "web-vitals": "^2.1.4"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/docucortex/enhanced-interface.git"
+  },
+  "bugs": {
+    "url": "https://github.com/docucortex/enhanced-interface/issues"
+  },
+  "homepage": "https://github.com/docucortex/enhanced-interface#readme"
+}
