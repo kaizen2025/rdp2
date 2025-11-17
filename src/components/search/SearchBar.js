@@ -12,9 +12,9 @@ import {
     Popover,
     Chip,
     Typography,
-    useMediaQuery,
-    useTheme
+    useMediaQuery
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
     Search as SearchIcon,
     Clear as ClearIcon,
@@ -25,7 +25,7 @@ import {
     Close as CloseIcon,
     Settings as SettingsIcon
 } from '@mui/icons-material';
-import { motion, AnimatePresence } from 'framer-motion';
+// import { motion, AnimatePresence } from 'framer-motion'; // Removed - not installed
 
 const SearchBar = ({
     value,
@@ -339,39 +339,30 @@ const SearchBar = ({
                 />
 
                 {/* Mode plein écran */}
-                <AnimatePresence>
                     {isExpanded && !isMobile && (
-                        <div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.2 }}
+                        <Box
+                            sx={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: 0,
+                                right: 0,
+                                zIndex: 1000,
+                                p: 2,
+                                backgroundColor: 'background.paper',
+                                borderRadius: 1,
+                                boxShadow: theme.shadows[8],
+                                border: `1px solid ${theme.palette.divider}`,
+                                mt: 0.5
+                            }}
                         >
-                            <Box
-                                sx={{
-                                    position: 'absolute',
-                                    top: '100%',
-                                    left: 0,
-                                    right: 0,
-                                    zIndex: 1000,
-                                    p: 2,
-                                    backgroundColor: 'background.paper',
-                                    borderRadius: 1,
-                                    boxShadow: theme.shadows[8],
-                                    border: `1px solid ${theme.palette.divider}`,
-                                    mt: 0.5
-                                }}
-                            >
-                                <Typography variant="body2" color="text.secondary" gutterBottom>
-                                    Recherche intelligente DocuCortex
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                    Utilisez des mots-clés, des filtres avancés ou l'historique pour trouver rapidement vos documents
-                                </Typography>
-                            </Box>
-                        </div>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                                Recherche intelligente DocuCortex
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                Utilisez des mots-clés, des filtres avancés ou l'historique pour trouver rapidement vos documents
+                            </Typography>
+                        </Box>
                     )}
-                </AnimatePresence>
             </Paper>
 
             {/* Menu d'options */}
@@ -428,14 +419,7 @@ const SearchBar = ({
             </Popover>
 
             {/* Suggestions et historique */}
-            <AnimatePresence>
                 {showSuggestions && (suggestions.length > 0 || recentSearches.length > 0) && (
-                    <div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.2 }}
-                    >
                         <Paper
                             elevation={8}
                             sx={{
@@ -514,9 +498,7 @@ const SearchBar = ({
                                 </Box>
                             )}
                         </Paper>
-                    </div>
                 )}
-            </AnimatePresence>
         </Box>
     );
 };

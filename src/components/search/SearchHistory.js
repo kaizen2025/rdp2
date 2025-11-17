@@ -30,10 +30,9 @@ import {
     Grid,
     Card,
     CardContent,
-    Avatar,
-    useTheme,
-    alpha
+    Avatar
 } from '@mui/material';
+import { useTheme, alpha } from '@mui/material/styles';
 import {
     History as HistoryIcon,
     Delete as DeleteIcon,
@@ -53,9 +52,10 @@ import {
     ClearAll as ClearAllIcon,
     GetApp as ExportIcon,
     Add as AddIcon,
-    Close as CloseIcon
+    Close as CloseIcon,
+    FilterList as FilterIcon
 } from '@mui/icons-material';
-import { motion, AnimatePresence } from 'framer-motion';
+// import { motion, AnimatePresence } from 'framer-motion'; // Removed - not installed
 import { format, parseISO, differenceInDays, isToday, isYesterday, startOfWeek, startOfMonth, endOfWeek, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -289,11 +289,6 @@ const SearchHistory = ({
 
     // Composant d'élément d'historique
     const HistoryItem = ({ item, index }) => (
-        <div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.03 }}
-        >
             <ListItem
                 disablePadding
                 secondaryAction={
@@ -397,7 +392,6 @@ const SearchHistory = ({
                     />
                 </ListItemButton>
             </ListItem>
-        </div>
     );
 
     // Composant d'analytics
@@ -583,7 +577,6 @@ const SearchHistory = ({
             ) : (
                 <Paper sx={{ maxHeight: maxHeight, overflow: 'auto' }}>
                     <List>
-                        <AnimatePresence>
                             {history.map((item, index) => (
                                 <HistoryItem
                                     key={item.id || `${item.query}-${item.timestamp}`}
@@ -591,7 +584,6 @@ const SearchHistory = ({
                                     index={index}
                                 />
                             ))}
-                        </AnimatePresence>
                     </List>
                 </Paper>
             )}

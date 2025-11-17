@@ -34,10 +34,9 @@ import {
     Grid,
     Card,
     CardContent,
-    Alert,
-    useTheme,
-    alpha
+    Alert
 } from '@mui/material';
+import { useTheme, alpha } from '@mui/material/styles';
 import {
     ExpandMore as ExpandMoreIcon,
     ExpandLess as ExpandLessIcon,
@@ -60,7 +59,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { fr } from 'date-fns/locale';
-import { motion, AnimatePresence } from 'framer-motion';
+// import { motion, AnimatePresence } from 'framer-motion'; // Removed - not installed
 import { parseISO, format, isValid } from 'date-fns';
 
 const SearchFilters = ({
@@ -690,65 +689,57 @@ const SearchFilters = ({
             )}
 
             {/* Dialogue de sauvegarde */}
-            <AnimatePresence>
                 {saveDialogOpen && (
-                    <div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
+                    <Box
+                        sx={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(0,0,0,0.5)',
+                            zIndex: 1200,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            p: 2
+                        }}
+                        onClick={() => setSaveDialogOpen(false)}
                     >
-                        <Box
+                        <Paper
                             sx={{
-                                position: 'fixed',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                backgroundColor: 'rgba(0,0,0,0.5)',
-                                zIndex: 1200,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                p: 2
+                                p: 3,
+                                maxWidth: 400,
+                                width: '100%'
                             }}
-                            onClick={() => setSaveDialogOpen(false)}
+                            onClick={(e) => e.stopPropagation()}
                         >
-                            <Paper
-                                sx={{
-                                    p: 3,
-                                    maxWidth: 400,
-                                    width: '100%'
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <Typography variant="h6" gutterBottom>
-                                    Sauvegarder le filtre
-                                </Typography>
-                                <TextField
-                                    fullWidth
-                                    label="Nom du filtre"
-                                    value={newFilterName}
-                                    onChange={(e) => setNewFilterName(e.target.value)}
-                                    placeholder="ex: Prêts en retard cette semaine"
-                                    sx={{ mb: 2 }}
-                                />
-                                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                                    <Button onClick={() => setSaveDialogOpen(false)}>
-                                        Annuler
-                                    </Button>
-                                    <Button
-                                        variant="contained"
-                                        onClick={handleSaveFilter}
-                                        disabled={!newFilterName.trim()}
-                                    >
-                                        Sauvegarder
-                                    </Button>
-                                </Box>
-                            </Paper>
-                        </Box>
-                    </div>
+                            <Typography variant="h6" gutterBottom>
+                                Sauvegarder le filtre
+                            </Typography>
+                            <TextField
+                                fullWidth
+                                label="Nom du filtre"
+                                value={newFilterName}
+                                onChange={(e) => setNewFilterName(e.target.value)}
+                                placeholder="ex: Prêts en retard cette semaine"
+                                sx={{ mb: 2 }}
+                            />
+                            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                                <Button onClick={() => setSaveDialogOpen(false)}>
+                                    Annuler
+                                </Button>
+                                <Button
+                                    variant="contained"
+                                    onClick={handleSaveFilter}
+                                    disabled={!newFilterName.trim()}
+                                >
+                                    Sauvegarder
+                                </Button>
+                            </Box>
+                        </Paper>
+                    </Box>
                 )}
-            </AnimatePresence>
 
             {/* Message si aucun filtre */}
             {activeFiltersCount === 0 && (

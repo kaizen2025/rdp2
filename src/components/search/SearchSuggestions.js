@@ -13,13 +13,12 @@ import {
     Typography,
     Chip,
     Divider,
-    Avatar,
-    useTheme,
-    alpha
+    Avatar
 } from '@mui/material';
+import { useTheme, alpha } from '@mui/material/styles';
 import {
     Search as SearchIcon,
-    Document as DocumentIcon,
+    Description as DocumentIcon,
     Person as PersonIcon,
     Category as CategoryIcon,
     Schedule as ScheduleIcon,
@@ -29,7 +28,7 @@ import {
     FilterList as FilterIcon,
     ArrowForward as ArrowIcon
 } from '@mui/icons-material';
-import { motion, AnimatePresence } from 'framer-motion';
+// import { motion, AnimatePresence } from 'framer-motion'; // Removed - not installed
 import { format, parseISO, isToday, isYesterday, differenceInDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -121,11 +120,6 @@ const SearchSuggestions = ({
 
     // Composant d'élément de suggestion
     const SuggestionItem = ({ suggestion, index, showArrow = false }) => (
-        <div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.05 }}
-        >
             <ListItemButton
                 onClick={() => handleSuggestionClick(suggestion)}
                 sx={{
@@ -190,16 +184,10 @@ const SearchSuggestions = ({
                     <ArrowIcon fontSize="small" color="action" />
                 )}
             </ListItemButton>
-        </div>
     );
 
     // Composant d'élément d'historique
     const HistoryItem = ({ searchQuery, index }) => (
-        <div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.05 }}
-        >
             <ListItemButton
                 onClick={() => handleSuggestionClick({ query: searchQuery.query, type: 'history' })}
                 sx={{
@@ -228,7 +216,6 @@ const SearchSuggestions = ({
                     }
                 />
             </ListItemButton>
-        </div>
     );
 
     if (!open) return null;
@@ -251,7 +238,6 @@ const SearchSuggestions = ({
                 borderRadius: 2
             }}
         >
-            <AnimatePresence>
                 <Box sx={{ p: 1 }}>
                     {/* Suggestions de recherche populaires */}
                     {showPopular && popularSearches.length > 0 && (
@@ -432,7 +418,6 @@ const SearchSuggestions = ({
                         </Box>
                     )}
                 </Box>
-            </AnimatePresence>
         </Paper>
     );
 };

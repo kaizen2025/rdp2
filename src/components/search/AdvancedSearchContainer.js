@@ -34,7 +34,7 @@ import {
     Refresh as RefreshIcon,
     Clear as ClearIcon
 } from '@mui/icons-material';
-import { motion, AnimatePresence } from 'framer-motion';
+// import { motion, AnimatePresence } from 'framer-motion'; // Removed - not installed
 
 // Import des composants de recherche
 import useSmartSearch from './SmartSearchEngine';
@@ -371,16 +371,8 @@ const AdvancedSearchContainer = ({
 
             {/* Contenu selon la vue */}
             <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                <AnimatePresence mode="wait">
                     {viewMode === 'results' && (
-                        <div
-                            key="results"
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 20 }}
-                            transition={{ duration: 0.2 }}
-                            style={{ height: '100%' }}
-                        >
+                        <Box sx={{ height: '100%' }}>
                             <SearchResults
                                 results={smartSearch.results}
                                 loading={smartSearch.isSearching}
@@ -394,18 +386,11 @@ const AdvancedSearchContainer = ({
                                 maxHeight="100%"
                                 showStats={showAnalytics}
                             />
-                        </div>
+                        </Box>
                     )}
 
                     {viewMode === 'filters' && (
-                        <div
-                            key="filters"
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 20 }}
-                            transition={{ duration: 0.2 }}
-                            style={{ height: '100%', overflow: 'auto' }}
-                        >
+                        <Box sx={{ height: '100%', overflow: 'auto' }}>
                             <SearchFilters
                                 filters={smartSearch.filters}
                                 facets={smartSearch.facets}
@@ -422,18 +407,11 @@ const AdvancedSearchContainer = ({
                                 savedFilters={smartSearch.savedFilters}
                                 maxHeight="100%"
                             />
-                        </div>
+                        </Box>
                     )}
 
                     {viewMode === 'history' && (
-                        <div
-                            key="history"
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 20 }}
-                            transition={{ duration: 0.2 }}
-                            style={{ height: '100%', overflow: 'auto' }}
-                        >
+                        <Box sx={{ height: '100%', overflow: 'auto' }}>
                             <SearchHistory
                                 history={smartSearch.getSearchHistory(50)}
                                 savedSearches={Object.entries(smartSearch.savedFilters).map(([name, config]) => ({
@@ -453,9 +431,8 @@ const AdvancedSearchContainer = ({
                                 showAnalytics={showAnalytics}
                                 maxHeight="100%"
                             />
-                        </div>
+                        </Box>
                     )}
-                </AnimatePresence>
             </Box>
         </Box>
     );
@@ -523,13 +500,9 @@ const AdvancedSearchContainer = ({
             </Snackbar>
 
             {/* Overlay pour le mode plein écran */}
-            <AnimatePresence>
                 {isFullscreen && (
-                    <div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        style={{
+                    <Box
+                        sx={{
                             position: 'fixed',
                             top: 0,
                             left: 0,
@@ -542,7 +515,6 @@ const AdvancedSearchContainer = ({
                         onClick={handleFullscreenToggle}
                     />
                 )}
-            </AnimatePresence>
         </Box>
     );
 };

@@ -304,20 +304,6 @@ const DashboardPage = ({ onAnalyzeServer }) => {
         return { activeLoans: active, overdueLoans: overdue, stats: statistics };
     }, [loans, computers, loan_history]);
 
-    const handleAnalyzeServer = (server, status) => {
-        const prompt = `J'aimerais une analyse du serveur RDS "${server}". Voici les métriques actuelles :
-- Utilisation CPU : ${status.cpu.usage.toFixed(2)}%
-- Stockage total : ${status.storage.total}
-- Stockage libre : ${status.storage.free}
-
-Peux-tu me donner un diagnostic et des pistes d'optimisation ?`;
-        onAnalyzeServer(prompt);
-    };
-
-    if (isLoading) {
-        return <LoadingScreen type="dashboard" />;
-    }
-
     // Calculer les tendances (comparaison fictive, à remplacer par vraies données historiques)
     const kpiData = useMemo(() => ({
         totalComputers: {
@@ -341,6 +327,20 @@ Peux-tu me donner un diagnostic et des pistes d'optimisation ?`;
             subtitle: 'Total effectués'
         }
     }), [stats]);
+
+    const handleAnalyzeServer = (server, status) => {
+        const prompt = `J'aimerais une analyse du serveur RDS "${server}". Voici les métriques actuelles :
+- Utilisation CPU : ${status.cpu.usage.toFixed(2)}%
+- Stockage total : ${status.storage.total}
+- Stockage libre : ${status.storage.free}
+
+Peux-tu me donner un diagnostic et des pistes d'optimisation ?`;
+        onAnalyzeServer(prompt);
+    };
+
+    if (isLoading) {
+        return <LoadingScreen type="dashboard" />;
+    }
 
     return (
         <Box sx={{ p: { xs: 1, sm: 2 }, maxHeight: '100vh', overflow: 'auto' }}>
