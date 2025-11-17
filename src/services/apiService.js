@@ -67,8 +67,8 @@ class ApiService {
     checkServerHealth = async () => this.request('/health')
 
     // AUTH & TECHNICIENS
-    login = async (technicianData) => {
-        this.setCurrentTechnician(technicianData.id);
+    login = async (username, password) => {
+        const technicianData = { username, password };
         return this.request('/technicians/login', { method: 'POST', body: JSON.stringify(technicianData) });
     }
     logout = () => { this.setCurrentTechnician(null); return Promise.resolve(); }
