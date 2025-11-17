@@ -108,7 +108,9 @@ const ServerStatusWidget = memo(({ onAnalyze }) => {
                                 }
                             >
                                 <Tooltip title={
-                                    status?.online ? `CPU: ${status.cpu?.usage.toFixed(2)}% | Stockage: ${formatBytes(status.storage?.free)} libres sur ${formatBytes(status.storage?.total)}` : status?.message || 'Vérification...'
+                                    status?.online
+                                        ? `CPU: ${status.cpu?.usage ? status.cpu.usage.toFixed(1) + '%' : 'N/A'} | RAM: ${status.ram?.usage ? status.ram.usage.toFixed(1) + '%' : 'N/A'} | Disque: ${status.storage?.used && status.storage?.total ? formatBytes(status.storage.used) + ' / ' + formatBytes(status.storage.total) + ' (' + status.storage.usage.toFixed(1) + '%)' : 'N/A'}`
+                                        : status?.message || 'Vérification...'
                                 } placement="right" arrow>
                                     <Chip
                                         icon={status?.online ? <CheckCircleIcon /> : <CancelIcon />}
