@@ -19,6 +19,7 @@ const UserDialog = ({ open, onClose, user, onSave, servers = [] }) => {
     const [formData, setFormData] = useState({
         identifiant: '', motdepasse: '', office: '', nomcomplet: '',
         service: '', email: '', serveur: servers[0] || 'SRV-RDS-1',
+        portable: '', pukCode: '', dateCreation: '', dateModification: '',
     });
     const [showPassword, setShowPassword] = useState(false);
     const [showOfficePassword, setShowOfficePassword] = useState(false);
@@ -46,11 +47,14 @@ const UserDialog = ({ open, onClose, user, onSave, servers = [] }) => {
                     office: user.officePassword || '', nomcomplet: user.displayName || '',
                     service: user.department || '', email: user.email || '',
                     serveur: user.server || servers[0] || 'SRV-RDS-1',
+                    portable: user.portable || '', pukCode: user.pukCode || '',
+                    dateCreation: user.dateCreation || '', dateModification: user.dateModification || '',
                 });
             } else {
                 setFormData({
                     identifiant: '', motdepasse: '', office: '', nomcomplet: '',
                     service: '', email: '', serveur: servers[0] || 'SRV-RDS-1',
+                    portable: '', pukCode: '', dateCreation: new Date().toISOString().split('T')[0], dateModification: '',
                 });
             }
             setErrors({});
@@ -72,6 +76,12 @@ const UserDialog = ({ open, onClose, user, onSave, servers = [] }) => {
                 break;
             case 'email':
                 if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) error = "Format d'email invalide";
+                break;
+            case 'portable':
+                if (value && !/^(\+33|0)[1-9](\d{8})$/.test(value.replace(/\s/g, ''))) error = "Format de téléphone invalide (ex: 06 12 34 56 78)";
+                break;
+            case 'pukCode':
+                if (value && !/^\d{8}$/.test(value)) error = "Le code PUK doit contenir 8 chiffres";
                 break;
             default:
                 break;
@@ -138,6 +148,53 @@ const UserDialog = ({ open, onClose, user, onSave, servers = [] }) => {
                             </Select>
                         </FormControl>
                     </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            label="Téléphone portable"
+                            fullWidth
+                            value={formData.portable}
+                            onChange={(e) => handleChange('portable', e.target.value)}
+                            error={!!errors.portable}
+                            helperText={errors.portable || "Format: 06 12 34 56 78"}
+                            placeholder="06 12 34 56 78"
+                        />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            label="Code PUK"
+                            fullWidth
+                            value={formData.pukCode}
+                            onChange={(e) => handleChange('pukCode', e.target.value)}
+                            error={!!errors.pukCode}
+                            helperText={errors.pukCode || "8 chiffres"}
+                            placeholder="12345678"
+                            inputProps={{ maxLength: 8 }}
+                        />
+                    </Grid>
+                    {user && (
+                        <>
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    label="Date de création"
+                                    fullWidth
+                                    type="date"
+                                    value={formData.dateCreation}
+                                    disabled
+                                    InputLabelProps={{ shrink: true }}
+                                />
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    label="Date de modification"
+                                    fullWidth
+                                    type="date"
+                                    value={formData.dateModification || new Date().toISOString().split('T')[0]}
+                                    disabled
+                                    InputLabelProps={{ shrink: true }}
+                                />
+                            </Grid>
+                        </>
+                    )}
                 </Grid>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>Les champs marqués * sont obligatoires</Typography>
             </DialogContent>

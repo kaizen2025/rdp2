@@ -2,7 +2,7 @@
 
 import React, { memo, useMemo, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Grid, Paper, Typography, List, ListItem, ListItemText, ListItemAvatar, Tooltip, Chip, Avatar, CircularProgress, IconButton } from '@mui/material';
+import { Box, Grid, Paper, Typography, List, ListItem, ListItemText, ListItemAvatar, Tooltip, Chip, Avatar, CircularProgress, IconButton, LinearProgress } from '@mui/material';
 
 // Icons
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -25,6 +25,7 @@ import apiService from '../services/apiService';
 import PageHeader from '../components/common/PageHeader';
 import StatCard from '../components/common/StatCard';
 import LoadingScreen from '../components/common/LoadingScreen';
+import KPIWidgetMUI from '../components/dashboard/KPIWidgetMUI';
 
 const ServerStatusWidget = memo(({ onAnalyze }) => {
     const { cache } = useCache();
@@ -46,6 +47,7 @@ const ServerStatusWidget = memo(({ onAnalyze }) => {
                     online: res.success,
                     message: res.output,
                     cpu: res.cpu,
+                    ram: res.ram,
                     storage: res.storage
                 };
             } catch (err) {
@@ -57,6 +59,7 @@ const ServerStatusWidget = memo(({ onAnalyze }) => {
                 online: curr.online,
                 message: curr.message,
                 cpu: curr.cpu,
+                ram: curr.ram,
                 storage: curr.storage
             };
             return acc;
@@ -95,30 +98,104 @@ const ServerStatusWidget = memo(({ onAnalyze }) => {
                         return (
                             <ListItem
                                 key={server}
-                                disablePadding
-                                sx={{ mb: 0.3 }}
-                                secondaryAction={
-                                    status?.online && (
-                                        <Tooltip title="Analyser avec DocuCortex">
-                                            <IconButton size="small" onClick={() => onAnalyze(server, status)}>
-                                                <SmartToyIcon fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
-                                    )
-                                }
+                                sx={{ mb: 1.5, flexDirection: 'column', alignItems: 'stretch', p: 0 }}
                             >
-                                <Tooltip title={
-                                    status?.online ? `CPU: ${status.cpu?.usage.toFixed(2)}% | Stockage: ${formatBytes(status.storage?.free)} libres sur ${formatBytes(status.storage?.total)}` : status?.message || 'Vérification...'
-                                } placement="right" arrow>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
                                     <Chip
                                         icon={status?.online ? <CheckCircleIcon /> : <CancelIcon />}
                                         label={server}
                                         color={status?.online ? 'success' : 'error'}
                                         variant={status?.online ? 'filled' : 'outlined'}
                                         size="small"
-                                        sx={{ width: '100%', justifyContent: 'flex-start', fontWeight: 500, fontSize: '0.75rem', height: 28 }}
+                                        sx={{ fontWeight: 600, fontSize: '0.75rem', height: 24 }}
                                     />
-                                </Tooltip>
+                                    {status?.online && (
+                                        <Tooltip title="Analyser avec DocuCortex IA">
+                                            <IconButton size="small" onClick={() => onAnalyze(server, status)} sx={{ p: 0.5 }}>
+                                                <SmartToyIcon fontSize="small" />
+                                            </IconButton>
+                                        </Tooltip>
+                                    )}
+                                </Box>
+                                {status?.online ? (
+                                    <Box sx={{ width: '100%', mt: 0.5 }}>
+                                        {/* CPU */}
+                                        <Box sx={{ mb: 0.5 }}>
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
+                                                <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 500 }}>
+                                                    CPU
+                                                </Typography>
+                                                <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 600 }}>
+                                                    {status.cpu?.usage ? status.cpu.usage.toFixed(1) + '%' : 'N/A'}
+                                                </Typography>
+                                            </Box>
+                                            <LinearProgress
+                                                variant="determinate"
+                                                value={status.cpu?.usage || 0}
+                                                sx={{
+                                                    height: 4,
+                                                    borderRadius: 2,
+                                                    backgroundColor: 'grey.200',
+                                                    '& .MuiLinearProgress-bar': {
+                                                        backgroundColor: status.cpu?.usage > 80 ? 'error.main' : status.cpu?.usage > 60 ? 'warning.main' : 'success.main'
+                                                    }
+                                                }}
+                                            />
+                                        </Box>
+                                        {/* RAM */}
+                                        <Box sx={{ mb: 0.5 }}>
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
+                                                <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 500 }}>
+                                                    RAM
+                                                </Typography>
+                                                <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 600 }}>
+                                                    {status.ram?.usage ? status.ram.usage.toFixed(1) + '%' : 'N/A'}
+                                                </Typography>
+                                            </Box>
+                                            <LinearProgress
+                                                variant="determinate"
+                                                value={status.ram?.usage || 0}
+                                                sx={{
+                                                    height: 4,
+                                                    borderRadius: 2,
+                                                    backgroundColor: 'grey.200',
+                                                    '& .MuiLinearProgress-bar': {
+                                                        backgroundColor: status.ram?.usage > 80 ? 'error.main' : status.ram?.usage > 60 ? 'warning.main' : 'info.main'
+                                                    }
+                                                }}
+                                            />
+                                        </Box>
+                                        {/* Disk */}
+                                        <Box>
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
+                                                <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 500 }}>
+                                                    Disque
+                                                </Typography>
+                                                <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 600 }}>
+                                                    {status.storage?.used && status.storage?.total
+                                                        ? `${formatBytes(status.storage.used)} / ${formatBytes(status.storage.total)}`
+                                                        : 'N/A'}
+                                                </Typography>
+                                            </Box>
+                                            <LinearProgress
+                                                variant="determinate"
+                                                value={status.storage?.usage || 0}
+                                                sx={{
+                                                    height: 4,
+                                                    borderRadius: 2,
+                                                    backgroundColor: 'grey.200',
+                                                    '& .MuiLinearProgress-bar': {
+                                                        backgroundColor: status.storage?.usage > 80 ? 'error.main' : status.storage?.usage > 60 ? 'warning.main' : 'primary.main'
+                                                    }
+                                                }}
+                                            />
+                                        </Box>
+                                    </Box>
+                                ) : (
+                                    <Typography variant="caption" color="error.main" sx={{ fontSize: '0.65rem', mt: 0.5 }}>
+                                        {status?.message || 'Hors ligne'}
+                                    </Typography>
+                                )}
                             </ListItem>
                         );
                     })}
@@ -241,6 +318,30 @@ Peux-tu me donner un diagnostic et des pistes d'optimisation ?`;
         return <LoadingScreen type="dashboard" />;
     }
 
+    // Calculer les tendances (comparaison fictive, à remplacer par vraies données historiques)
+    const kpiData = useMemo(() => ({
+        totalComputers: {
+            value: stats.computers.total,
+            trend: 2.5,
+            subtitle: `${stats.computers.available} disponibles`
+        },
+        activeLoans: {
+            value: stats.loans.active,
+            trend: -3.2,
+            subtitle: `${stats.loans.reserved} réservés`
+        },
+        overdueLoans: {
+            value: stats.loans.overdue + stats.loans.critical,
+            trend: -12.5,
+            subtitle: `${stats.loans.critical} critiques`
+        },
+        totalHistory: {
+            value: stats.history.totalLoans,
+            trend: 8.3,
+            subtitle: 'Total effectués'
+        }
+    }), [stats]);
+
     return (
         <Box sx={{ p: { xs: 1, sm: 2 }, maxHeight: '100vh', overflow: 'auto' }}>
             <PageHeader
@@ -248,6 +349,50 @@ Peux-tu me donner un diagnostic et des pistes d'optimisation ?`;
                 subtitle="Vue d'ensemble de l'activité RDS et gestion des prêts"
                 icon={DashboardIcon}
             />
+
+            {/* KPI Widgets Modernes */}
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6} md={3}>
+                    <KPIWidgetMUI
+                        title="Matériel Total"
+                        value={kpiData.totalComputers.value}
+                        subtitle={kpiData.totalComputers.subtitle}
+                        trend={kpiData.totalComputers.trend}
+                        icon={LaptopChromebookIcon}
+                        color="primary"
+                    />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                    <KPIWidgetMUI
+                        title="Prêts Actifs"
+                        value={kpiData.activeLoans.value}
+                        subtitle={kpiData.activeLoans.subtitle}
+                        trend={kpiData.activeLoans.trend}
+                        icon={AssignmentIcon}
+                        color="info"
+                    />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                    <KPIWidgetMUI
+                        title="En Retard"
+                        value={kpiData.overdueLoans.value}
+                        subtitle={kpiData.overdueLoans.subtitle}
+                        trend={kpiData.overdueLoans.trend}
+                        icon={WarningIcon}
+                        color="error"
+                    />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                    <KPIWidgetMUI
+                        title="Historique Total"
+                        value={kpiData.totalHistory.value}
+                        subtitle={kpiData.totalHistory.subtitle}
+                        trend={kpiData.totalHistory.trend}
+                        icon={HistoryIcon}
+                        color="success"
+                    />
+                </Grid>
+            </Grid>
 
             <Grid container spacing={{ xs: 1.5, sm: 2 }}>
                 <Grid item xs={12} sm={6} md={3}>

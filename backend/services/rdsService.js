@@ -151,26 +151,34 @@ async function getStoredRdsSessions() {
 
 async function pingServer(server) {
     const getSystemDetails = () => new Promise((resolve, reject) => {
-        const command = `powershell.exe -Command "Get-WmiObject -ComputerName ${server} -Class Win32_Processor | Measure-Object -Property LoadPercentage -Average | Select-Object Average; Get-CimInstance -ClassName Win32_LogicalDisk -ComputerName ${server} -Filter 'DriveType=3' | Select-Object Size, FreeSpace"`;
+        // Récupérer CPU, RAM et Disque en une seule commande PowerShell
+        const command = `powershell.exe -Command "$cpu = Get-WmiObject -ComputerName ${server} -Class Win32_Processor | Measure-Object -Property LoadPercentage -Average | Select-Object -ExpandProperty Average; $os = Get-WmiObject -ComputerName ${server} -Class Win32_OperatingSystem; $ram = [math]::Round((($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / $os.TotalVisibleMemorySize) * 100, 2); $disk = Get-CimInstance -ClassName Win32_LogicalDisk -ComputerName ${server} -Filter 'DriveType=3'; Write-Output \\"CPU:$cpu|RAM:$ram|DISK:\\"; $disk | ForEach-Object { Write-Output \\"$($_.Size)|$($_.FreeSpace)\\" }"`;
 
-        exec(command, (error, stdout) => {
+        exec(command, { timeout: 5000 }, (error, stdout) => {
             if (error) {
                 return reject(error);
             }
 
-            const sections = stdout.trim().split(/\r\n\s*Size\s+FreeSpace/);
-            const cpuInfoLines = sections[0].trim().split('\r\n').slice(2);
-            const diskInfoLines = sections.length > 1 ? sections[1].trim().split('\r\n') : [];
-
-            const cpuUsage = parseFloat(cpuInfoLines[0].trim());
-
+            const lines = stdout.trim().split('\r\n');
+            let cpuUsage = 0;
+            let ramUsage = 0;
             let totalDiskSize = 0;
             let totalDiskFreeSpace = 0;
-            diskInfoLines.forEach(line => {
-                const parts = line.trim().split(/\s+/);
-                if (parts.length === 2) {
-                    totalDiskSize += parseInt(parts[0], 10);
-                    totalDiskFreeSpace += parseInt(parts[1], 10);
+
+            // Parser la sortie
+            lines.forEach(line => {
+                if (line.startsWith('CPU:')) {
+                    const parts = line.split('|');
+                    cpuUsage = parseFloat(parts[0].split(':')[1]) || 0;
+                    ramUsage = parseFloat(parts[1].split(':')[1]) || 0;
+                } else if (line.includes('|') && !line.startsWith('CPU:')) {
+                    const parts = line.split('|');
+                    if (parts.length === 2) {
+                        const size = parseInt(parts[0], 10) || 0;
+                        const free = parseInt(parts[1], 10) || 0;
+                        totalDiskSize += size;
+                        totalDiskFreeSpace += free;
+                    }
                 }
             });
 
@@ -178,10 +186,14 @@ async function pingServer(server) {
                 cpu: {
                     usage: cpuUsage
                 },
+                ram: {
+                    usage: ramUsage
+                },
                 storage: {
                     total: totalDiskSize,
                     free: totalDiskFreeSpace,
-                    usage: ((totalDiskSize - totalDiskFreeSpace) / totalDiskSize) * 100
+                    used: totalDiskSize - totalDiskFreeSpace,
+                    usage: totalDiskSize > 0 ? ((totalDiskSize - totalDiskFreeSpace) / totalDiskSize) * 100 : 0
                 }
             });
         });
