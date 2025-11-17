@@ -36,7 +36,7 @@ import {
     ExpandMore as ExpandMoreIcon,
     CheckCircle as CheckIcon
 } from '@mui/icons-material';
-import { motion } from 'framer-motion';
+// framer-motion removed for compatibility;
 
 // Import des composants de recherche
 import { 
