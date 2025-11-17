@@ -68,8 +68,23 @@ class ApiService {
 
     // AUTH & TECHNICIENS
     login = async (username, password) => {
-        const technicianData = { username, password };
-        return this.request('/technicians/login', { method: 'POST', body: JSON.stringify(technicianData) });
+        const credentials = { username, password };
+        const result = await this.request('/auth/login', { method: 'POST', body: JSON.stringify(credentials) });
+
+        // Si login réussi, enregistrer la présence du technicien
+        if (result.success && result.user) {
+            this.setCurrentTechnician(result.user.id);
+            // Enregistrer la présence
+            await this.request('/technicians/login', {
+                method: 'POST',
+                body: JSON.stringify({
+                    id: result.user.id,
+                    name: result.user.username
+                })
+            }).catch(err => console.warn('Erreur présence technicien:', err));
+        }
+
+        return result;
     }
     logout = () => { this.setCurrentTechnician(null); return Promise.resolve(); }
     getConnectedTechnicians = async () => this.request('/technicians/connected')
