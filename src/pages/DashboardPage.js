@@ -25,6 +25,7 @@ import apiService from '../services/apiService';
 import PageHeader from '../components/common/PageHeader';
 import StatCard from '../components/common/StatCard';
 import LoadingScreen from '../components/common/LoadingScreen';
+import KPIWidgetMUI from '../components/dashboard/KPIWidgetMUI';
 
 const ServerStatusWidget = memo(({ onAnalyze }) => {
     const { cache } = useCache();
@@ -317,6 +318,30 @@ Peux-tu me donner un diagnostic et des pistes d'optimisation ?`;
         return <LoadingScreen type="dashboard" />;
     }
 
+    // Calculer les tendances (comparaison fictive, à remplacer par vraies données historiques)
+    const kpiData = useMemo(() => ({
+        totalComputers: {
+            value: stats.computers.total,
+            trend: 2.5,
+            subtitle: `${stats.computers.available} disponibles`
+        },
+        activeLoans: {
+            value: stats.loans.active,
+            trend: -3.2,
+            subtitle: `${stats.loans.reserved} réservés`
+        },
+        overdueLoans: {
+            value: stats.loans.overdue + stats.loans.critical,
+            trend: -12.5,
+            subtitle: `${stats.loans.critical} critiques`
+        },
+        totalHistory: {
+            value: stats.history.totalLoans,
+            trend: 8.3,
+            subtitle: 'Total effectués'
+        }
+    }), [stats]);
+
     return (
         <Box sx={{ p: { xs: 1, sm: 2 }, maxHeight: '100vh', overflow: 'auto' }}>
             <PageHeader
@@ -324,6 +349,50 @@ Peux-tu me donner un diagnostic et des pistes d'optimisation ?`;
                 subtitle="Vue d'ensemble de l'activité RDS et gestion des prêts"
                 icon={DashboardIcon}
             />
+
+            {/* KPI Widgets Modernes */}
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6} md={3}>
+                    <KPIWidgetMUI
+                        title="Matériel Total"
+                        value={kpiData.totalComputers.value}
+                        subtitle={kpiData.totalComputers.subtitle}
+                        trend={kpiData.totalComputers.trend}
+                        icon={LaptopChromebookIcon}
+                        color="primary"
+                    />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                    <KPIWidgetMUI
+                        title="Prêts Actifs"
+                        value={kpiData.activeLoans.value}
+                        subtitle={kpiData.activeLoans.subtitle}
+                        trend={kpiData.activeLoans.trend}
+                        icon={AssignmentIcon}
+                        color="info"
+                    />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                    <KPIWidgetMUI
+                        title="En Retard"
+                        value={kpiData.overdueLoans.value}
+                        subtitle={kpiData.overdueLoans.subtitle}
+                        trend={kpiData.overdueLoans.trend}
+                        icon={WarningIcon}
+                        color="error"
+                    />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                    <KPIWidgetMUI
+                        title="Historique Total"
+                        value={kpiData.totalHistory.value}
+                        subtitle={kpiData.totalHistory.subtitle}
+                        trend={kpiData.totalHistory.trend}
+                        icon={HistoryIcon}
+                        color="success"
+                    />
+                </Grid>
+            </Grid>
 
             <Grid container spacing={{ xs: 1.5, sm: 2 }}>
                 <Grid item xs={12} sm={6} md={3}>
