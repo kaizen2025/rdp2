@@ -2,7 +2,7 @@
 
 import React, { memo, useMemo, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Grid, Paper, Typography, List, ListItem, ListItemText, ListItemAvatar, Tooltip, Chip, Avatar, CircularProgress, IconButton } from '@mui/material';
+import { Box, Grid, Paper, Typography, List, ListItem, ListItemText, ListItemAvatar, Tooltip, Chip, Avatar, CircularProgress, IconButton, LinearProgress } from '@mui/material';
 
 // Icons
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -46,6 +46,7 @@ const ServerStatusWidget = memo(({ onAnalyze }) => {
                     online: res.success,
                     message: res.output,
                     cpu: res.cpu,
+                    ram: res.ram,
                     storage: res.storage
                 };
             } catch (err) {
@@ -57,6 +58,7 @@ const ServerStatusWidget = memo(({ onAnalyze }) => {
                 online: curr.online,
                 message: curr.message,
                 cpu: curr.cpu,
+                ram: curr.ram,
                 storage: curr.storage
             };
             return acc;
@@ -95,32 +97,104 @@ const ServerStatusWidget = memo(({ onAnalyze }) => {
                         return (
                             <ListItem
                                 key={server}
-                                disablePadding
-                                sx={{ mb: 0.3 }}
-                                secondaryAction={
-                                    status?.online && (
-                                        <Tooltip title="Analyser avec DocuCortex">
-                                            <IconButton size="small" onClick={() => onAnalyze(server, status)}>
-                                                <SmartToyIcon fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
-                                    )
-                                }
+                                sx={{ mb: 1.5, flexDirection: 'column', alignItems: 'stretch', p: 0 }}
                             >
-                                <Tooltip title={
-                                    status?.online
-                                        ? `CPU: ${status.cpu?.usage ? status.cpu.usage.toFixed(1) + '%' : 'N/A'} | RAM: ${status.ram?.usage ? status.ram.usage.toFixed(1) + '%' : 'N/A'} | Disque: ${status.storage?.used && status.storage?.total ? formatBytes(status.storage.used) + ' / ' + formatBytes(status.storage.total) + ' (' + status.storage.usage.toFixed(1) + '%)' : 'N/A'}`
-                                        : status?.message || 'Vérification...'
-                                } placement="right" arrow>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
                                     <Chip
                                         icon={status?.online ? <CheckCircleIcon /> : <CancelIcon />}
                                         label={server}
                                         color={status?.online ? 'success' : 'error'}
                                         variant={status?.online ? 'filled' : 'outlined'}
                                         size="small"
-                                        sx={{ width: '100%', justifyContent: 'flex-start', fontWeight: 500, fontSize: '0.75rem', height: 28 }}
+                                        sx={{ fontWeight: 600, fontSize: '0.75rem', height: 24 }}
                                     />
-                                </Tooltip>
+                                    {status?.online && (
+                                        <Tooltip title="Analyser avec DocuCortex IA">
+                                            <IconButton size="small" onClick={() => onAnalyze(server, status)} sx={{ p: 0.5 }}>
+                                                <SmartToyIcon fontSize="small" />
+                                            </IconButton>
+                                        </Tooltip>
+                                    )}
+                                </Box>
+                                {status?.online ? (
+                                    <Box sx={{ width: '100%', mt: 0.5 }}>
+                                        {/* CPU */}
+                                        <Box sx={{ mb: 0.5 }}>
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
+                                                <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 500 }}>
+                                                    CPU
+                                                </Typography>
+                                                <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 600 }}>
+                                                    {status.cpu?.usage ? status.cpu.usage.toFixed(1) + '%' : 'N/A'}
+                                                </Typography>
+                                            </Box>
+                                            <LinearProgress
+                                                variant="determinate"
+                                                value={status.cpu?.usage || 0}
+                                                sx={{
+                                                    height: 4,
+                                                    borderRadius: 2,
+                                                    backgroundColor: 'grey.200',
+                                                    '& .MuiLinearProgress-bar': {
+                                                        backgroundColor: status.cpu?.usage > 80 ? 'error.main' : status.cpu?.usage > 60 ? 'warning.main' : 'success.main'
+                                                    }
+                                                }}
+                                            />
+                                        </Box>
+                                        {/* RAM */}
+                                        <Box sx={{ mb: 0.5 }}>
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
+                                                <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 500 }}>
+                                                    RAM
+                                                </Typography>
+                                                <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 600 }}>
+                                                    {status.ram?.usage ? status.ram.usage.toFixed(1) + '%' : 'N/A'}
+                                                </Typography>
+                                            </Box>
+                                            <LinearProgress
+                                                variant="determinate"
+                                                value={status.ram?.usage || 0}
+                                                sx={{
+                                                    height: 4,
+                                                    borderRadius: 2,
+                                                    backgroundColor: 'grey.200',
+                                                    '& .MuiLinearProgress-bar': {
+                                                        backgroundColor: status.ram?.usage > 80 ? 'error.main' : status.ram?.usage > 60 ? 'warning.main' : 'info.main'
+                                                    }
+                                                }}
+                                            />
+                                        </Box>
+                                        {/* Disk */}
+                                        <Box>
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
+                                                <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 500 }}>
+                                                    Disque
+                                                </Typography>
+                                                <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 600 }}>
+                                                    {status.storage?.used && status.storage?.total
+                                                        ? `${formatBytes(status.storage.used)} / ${formatBytes(status.storage.total)}`
+                                                        : 'N/A'}
+                                                </Typography>
+                                            </Box>
+                                            <LinearProgress
+                                                variant="determinate"
+                                                value={status.storage?.usage || 0}
+                                                sx={{
+                                                    height: 4,
+                                                    borderRadius: 2,
+                                                    backgroundColor: 'grey.200',
+                                                    '& .MuiLinearProgress-bar': {
+                                                        backgroundColor: status.storage?.usage > 80 ? 'error.main' : status.storage?.usage > 60 ? 'warning.main' : 'primary.main'
+                                                    }
+                                                }}
+                                            />
+                                        </Box>
+                                    </Box>
+                                ) : (
+                                    <Typography variant="caption" color="error.main" sx={{ fontSize: '0.65rem', mt: 0.5 }}>
+                                        {status?.message || 'Hors ligne'}
+                                    </Typography>
+                                )}
                             </ListItem>
                         );
                     })}
