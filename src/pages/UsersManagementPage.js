@@ -17,6 +17,7 @@ import PageHeader from '../components/common/PageHeader';
 import SearchInput from '../components/common/SearchInput';
 import EmptyState from '../components/common/EmptyState';
 import LoadingScreen from '../components/common/LoadingScreen';
+import UsersBulkActionBar from '../components/users/UsersBulkActionBar';
 import { debounceAsyncLeading } from '../utils/debounce';
 
 const AdGroupBadge = memo(({ groupName, isMember, onToggle, isLoading }) => {
@@ -369,6 +370,63 @@ const UsersManagementPage = () => {
         }
     };
 
+    // 📦 Actions en lot
+    const handleBulkExport = useCallback(() => {
+        const selectedUsers = users.filter(u => selectedUsernames.has(u.username));
+        const csv = [
+            ['Nom complet', 'Identifiant', 'Email', 'Service', 'Serveur', 'Téléphone', 'Code PUK'].join(';'),
+            ...selectedUsers.map(u => [
+                u.displayName, u.username, u.email, u.department, u.server, u.portable || '', u.pukCode || ''
+            ].join(';'))
+        ].join('\n');
+
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `utilisateurs_${selectedUsernames.size}_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+
+        showNotification('success', `${selectedUsernames.size} utilisateurs exportés`);
+    }, [selectedUsernames, users, showNotification]);
+
+    const handleBulkPrint = useCallback(() => {
+        const selectedUsers = users.filter(u => selectedUsernames.has(u.username));
+        setDialog({ type: 'print', data: selectedUsers });
+    }, [selectedUsernames, users]);
+
+    const handleBulkDelete = useCallback(async () => {
+        if (!window.confirm(`Supprimer ${selectedUsernames.size} utilisateurs du fichier Excel ?`)) return;
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const username of selectedUsernames) {
+            try {
+                await apiService.deleteUserFromExcel(username);
+                successCount++;
+            } catch (error) {
+                errorCount++;
+                console.error(`Erreur suppression ${username}:`, error);
+            }
+        }
+
+        if (successCount > 0) {
+            showNotification('success', `${successCount} utilisateur(s) supprimé(s)`);
+            await invalidate('excel_users');
+            setSelectedUsernames(new Set());
+        }
+
+        if (errorCount > 0) {
+            showNotification('error', `${errorCount} erreur(s) lors de la suppression`);
+        }
+    }, [selectedUsernames, invalidate, showNotification]);
+
+    const handleClearSelection = useCallback(() => {
+        setSelectedUsernames(new Set());
+    }, []);
+
     // 🎯 VÉRIFICATION SIMPLIFIÉE
     const isDataReady = useMemo(() => {
         if (isCacheLoading || !cache || typeof cache !== 'object') return false;
@@ -429,6 +487,16 @@ const UsersManagementPage = () => {
                     </Grid>
                 </Grid>
             </Paper>
+
+            {/* Barre d'actions en lot */}
+            <UsersBulkActionBar
+                selectedCount={selectedUsernames.size}
+                totalCount={Array.isArray(filteredUsers) ? filteredUsers.length : 0}
+                onClearSelection={handleClearSelection}
+                onBulkExport={handleBulkExport}
+                onBulkPrint={handleBulkPrint}
+                onBulkDelete={handleBulkDelete}
+            />
 
             <Grid container spacing={2}>
                 <Grid item xs={12}>

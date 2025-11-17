@@ -10,6 +10,12 @@ let mainWindow = null;
 
 const checkOverdueLoans = async () => {
     try {
+        // Vérifier que la config est chargée avant de continuer
+        if (!configService.appConfig || !configService.appConfig.databasePath) {
+            // En mode dev Electron, la config est dans le processus backend séparé
+            return;
+        }
+
         const loans = await dataService.getLoans();
         const overdueLoans = loans.filter(loan => loan.status === 'overdue' || loan.status === 'critical');
 
@@ -35,6 +41,12 @@ const checkOverdueLoans = async () => {
 
 const checkServerStatus = async () => {
     try {
+        // Vérifier que la config est chargée avant de continuer
+        if (!configService.appConfig || !configService.appConfig.databasePath) {
+            // En mode dev Electron, la config est dans le processus backend séparé
+            return;
+        }
+
         const servers = configService.appConfig?.rds_servers || [];
         if (servers.length === 0) return;
 
