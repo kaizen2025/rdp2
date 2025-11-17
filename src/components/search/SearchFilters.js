@@ -692,7 +692,7 @@ const SearchFilters = ({
             {/* Dialogue de sauvegarde */}
             <AnimatePresence>
                 {saveDialogOpen && (
-                    <motion.div
+                    <div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -746,7 +746,7 @@ const SearchFilters = ({
                                 </Box>
                             </Paper>
                         </Box>
-                    </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
 

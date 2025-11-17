@@ -121,7 +121,7 @@ const SearchSuggestions = ({
 
     // Composant d'élément de suggestion
     const SuggestionItem = ({ suggestion, index, showArrow = false }) => (
-        <motion.div
+        <div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.05 }}
@@ -190,12 +190,12 @@ const SearchSuggestions = ({
                     <ArrowIcon fontSize="small" color="action" />
                 )}
             </ListItemButton>
-        </motion.div>
+        </div>
     );
 
     // Composant d'élément d'historique
     const HistoryItem = ({ searchQuery, index }) => (
-        <motion.div
+        <div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.05 }}
@@ -228,7 +228,7 @@ const SearchSuggestions = ({
                     }
                 />
             </ListItemButton>
-        </motion.div>
+        </div>
     );
 
     if (!open) return null;

@@ -289,7 +289,7 @@ const SearchHistory = ({
 
     // Composant d'élément d'historique
     const HistoryItem = ({ item, index }) => (
-        <motion.div
+        <div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.03 }}
@@ -397,7 +397,7 @@ const SearchHistory = ({
                     />
                 </ListItemButton>
             </ListItem>
-        </motion.div>
+        </div>
     );
 
     // Composant d'analytics

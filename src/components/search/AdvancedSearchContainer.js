@@ -373,7 +373,7 @@ const AdvancedSearchContainer = ({
             <Box sx={{ flex: 1, overflow: 'hidden' }}>
                 <AnimatePresence mode="wait">
                     {viewMode === 'results' && (
-                        <motion.div
+                        <div
                             key="results"
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -394,11 +394,11 @@ const AdvancedSearchContainer = ({
                                 maxHeight="100%"
                                 showStats={showAnalytics}
                             />
-                        </motion.div>
+                        </div>
                     )}
 
                     {viewMode === 'filters' && (
-                        <motion.div
+                        <div
                             key="filters"
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -422,11 +422,11 @@ const AdvancedSearchContainer = ({
                                 savedFilters={smartSearch.savedFilters}
                                 maxHeight="100%"
                             />
-                        </motion.div>
+                        </div>
                     )}
 
                     {viewMode === 'history' && (
-                        <motion.div
+                        <div
                             key="history"
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -453,7 +453,7 @@ const AdvancedSearchContainer = ({
                                 showAnalytics={showAnalytics}
                                 maxHeight="100%"
                             />
-                        </motion.div>
+                        </div>
                     )}
                 </AnimatePresence>
             </Box>
@@ -525,7 +525,7 @@ const AdvancedSearchContainer = ({
             {/* Overlay pour le mode plein écran */}
             <AnimatePresence>
                 {isFullscreen && (
-                    <motion.div
+                    <div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}

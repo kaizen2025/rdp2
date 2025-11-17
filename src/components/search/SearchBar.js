@@ -341,7 +341,7 @@ const SearchBar = ({
                 {/* Mode plein écran */}
                 <AnimatePresence>
                     {isExpanded && !isMobile && (
-                        <motion.div
+                        <div
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
@@ -369,7 +369,7 @@ const SearchBar = ({
                                     Utilisez des mots-clés, des filtres avancés ou l'historique pour trouver rapidement vos documents
                                 </Typography>
                             </Box>
-                        </motion.div>
+                        </div>
                     )}
                 </AnimatePresence>
             </Paper>
@@ -430,7 +430,7 @@ const SearchBar = ({
             {/* Suggestions et historique */}
             <AnimatePresence>
                 {showSuggestions && (suggestions.length > 0 || recentSearches.length > 0) && (
-                    <motion.div
+                    <div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
@@ -514,7 +514,7 @@ const SearchBar = ({
                                 </Box>
                             )}
                         </Paper>
-                    </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
         </Box>
