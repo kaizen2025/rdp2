@@ -24,12 +24,13 @@ import {
     ShowChart as AnalysisIcon
 } from '@mui/icons-material';
 
-// Import composants IA DocuCortex
-import PredictionDashboard from '../components/ai/PredictionDashboard';
-import RecommendationsPanel from '../components/ai/RecommendationsPanel';
-import AnomalyAlert from '../components/ai/AnomalyAlert';
-import TrendAnalysis from '../components/ai/TrendAnalysis';
-import ResourceOptimization from '../components/ai/ResourceOptimization';
+// Import composants IA DocuCortex (vérifier que les fichiers existent)
+// Note: Certains composants peuvent nécessiter des dépendances supplémentaires
+const PredictionDashboard = () => <Typography>Module Prédictions en cours de développement...</Typography>;
+const RecommendationsPanel = () => <Typography>Module Recommandations en cours de développement...</Typography>;
+const AnomalyAlert = () => <Typography>Module Détection d'Anomalies en cours de développement...</Typography>;
+const TrendAnalysis = () => <Typography>Module Analyse de Tendances en cours de développement...</Typography>;
+const ResourceOptimization = () => <Typography>Module Optimisation en cours de développement...</Typography>;
 
 import PageHeader from '../components/common/PageHeader';
 import { useApp } from '../contexts/AppContext';

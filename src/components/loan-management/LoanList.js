@@ -49,8 +49,7 @@ import {
     ViewModule as ViewModuleIcon,
     Sort as SortIcon,
     Refresh as RefreshIcon,
-    Settings as SettingsIcon,
-    FilterList as FilterIcon
+    Settings as SettingsIcon
 } from '@mui/icons-material';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
