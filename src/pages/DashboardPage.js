@@ -276,7 +276,7 @@ const DashboardPage = ({ onAnalyzeServer }) => {
                                             primary={<Typography variant="body2">{act.computerName}</Typography>}
                                             secondary={<Typography variant="caption">{act.eventType === 'created' ? 'Prêté à' : 'Retourné par'} {act.userDisplayName || 'Utilisateur'}</Typography>}
                                         />
-                                        <Typography variant="caption" color="text.secondary">{new Date(act.timestamp).toLocaleDateString()}</Typography>
+                                        <Typography variant="caption" color="text.secondary">{new Date(act.timestamp || act.date).toLocaleDateString()}</Typography>
                                     </ListItem>
                                 )}
                             />

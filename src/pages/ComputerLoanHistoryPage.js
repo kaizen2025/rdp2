@@ -162,6 +162,7 @@ const ComputerLoanHistoryPage = () => {
         const end = actualReturnDate ? parseISO(actualReturnDate) : new Date();
         const days = differenceInDays(end, start);
 
+        if (days < 0) return '-'; // Cas d'erreur ou date future bizarre
         if (days === 0) return '< 1 jour';
         return `${days} ${days > 1 ? 'jours' : 'jour'}`;
     };

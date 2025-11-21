@@ -91,7 +91,7 @@ const ComputerListItem = ({ computer, onEdit, onLoan, onSelect, isSelected }) =>
 
     return (
         <ListItem
-            hover
+            button
             onClick={(event) => onSelect(event, computer.id)}
             role="checkbox"
             aria-checked={isSelected}
@@ -112,6 +112,7 @@ const ComputerListItem = ({ computer, onEdit, onLoan, onSelect, isSelected }) =>
         >
             <ListItemIcon>
                 <Checkbox
+                    edge="start"
                     color="primary"
                     checked={isSelected}
                     inputProps={{ 'aria-labelledby': labelId }}
