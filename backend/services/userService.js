@@ -1,6 +1,9 @@
 // backend/services/userService.js - SERVICE DE GESTION DES UTILISATEURS RDS (SQLITE ONLY)
 
 const db = require('./databaseService');
+const xlsx = require('xlsx');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * Récupère tous les utilisateurs depuis la base SQLite
@@ -141,11 +144,111 @@ async function getUserStats() {
     }
 }
 
+/**
+ * Synchronise les utilisateurs depuis le fichier Excel
+ * @param {boolean} force Force la synchronisation même si le fichier n'a pas changé
+ * @returns {Promise<Object>} Résultat de la synchronisation
+ */
+async function syncUsersFromExcel(force = false) {
+    try {
+        // Chercher le fichier Excel à la racine du projet
+        // On remonte de deux niveaux car on est dans backend/services/
+        const excelPath = path.resolve(__dirname, '../../Data_utilisateur_partage.xlsx');
+
+        if (!fs.existsSync(excelPath)) {
+            console.log(`⚠️ Fichier Excel non trouvé à ${excelPath}, synchronisation ignorée.`);
+            return { success: false, error: 'Fichier Excel introuvable' };
+        }
+
+        const stats = fs.statSync(excelPath);
+        const lastModified = stats.mtime.toISOString();
+
+        // Vérifier si une synchro est nécessaire (via un flag stocké en DB ou juste faire à chaque fois si force=true)
+        // Pour l'instant on lit toujours si le fichier existe.
+
+        console.log(`📊 Lecture du fichier Excel: ${excelPath}`);
+        const workbook = xlsx.readFile(excelPath);
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+
+        // Convertir en JSON
+        const rows = xlsx.utils.sheet_to_json(sheet);
+
+        if (!rows || rows.length === 0) {
+            return { success: false, error: 'Fichier Excel vide ou format invalide' };
+        }
+
+        console.log(`📊 ${rows.length} lignes trouvées dans le fichier Excel.`);
+
+        let updatedCount = 0;
+        let createdCount = 0;
+        const now = new Date().toISOString();
+
+        // Transaction pour la rapidité
+        const transaction = db.transaction(() => {
+            rows.forEach(row => {
+                // Mapping intelligent des colonnes
+                // On cherche des noms de colonnes probables
+                const username = row['Identifiant'] || row['Login'] || row['User'] || row['Username'] || row['Utilisateur'];
+                const displayName = row['Nom complet'] || row['Nom Prénom'] || row['Display Name'] || row['Nom'];
+                const email = row['Email'] || row['Courriel'] || row['Mail'] || row['Adresse Mail'];
+                const department = row['Service'] || row['Département'] || row['Department'] || row['Bureau'];
+                const server = row['Serveur'] || row['Server'] || row['RDS'];
+                const password = row['Mot de passe'] || row['Password'] || row['Mdp'];
+                const officePassword = row['Mot de passe Office'] || row['Office Password'] || row['Mdp Office'];
+                const notes = row['Notes'] || row['Commentaire'] || '';
+
+                if (!username || !displayName) {
+                    // Ignorer les lignes sans username ou nom
+                    return;
+                }
+
+                const existing = db.get('SELECT id FROM users WHERE username = ?', [username]);
+
+                if (existing) {
+                    db.run(`UPDATE users SET
+                        displayName = ?, email = ?, department = ?, server = ?,
+                        password = ?, officePassword = ?, notes = ?,
+                        lastModified = ?, modifiedBy = ?, lastSyncFromExcel = ?
+                        WHERE username = ?`,
+                        [displayName, email || '', department || '', server || '',
+                        password || '', officePassword || '', notes,
+                        now, 'system_excel_sync', now, username]
+                    );
+                    updatedCount++;
+                } else {
+                    const id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+                    db.run(`INSERT INTO users (
+                        id, username, displayName, email, department, server,
+                        password, officePassword, notes, createdAt, createdBy,
+                        lastModified, modifiedBy, lastSyncFromExcel
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [id, username, displayName, email || '', department || '', server || '',
+                        password || '', officePassword || '', notes, now, 'system_excel_sync',
+                        now, 'system_excel_sync', now]
+                    );
+                    createdCount++;
+                }
+            });
+        });
+
+        transaction();
+
+        console.log(`✅ Synchronisation Excel terminée: ${createdCount} créés, ${updatedCount} mis à jour.`);
+        return { success: true, usersCount: rows.length, created: createdCount, updated: updatedCount };
+
+    } catch (error) {
+        console.error('❌ Erreur lors de la synchronisation Excel:', error);
+        return { success: false, error: error.message };
+    }
+}
+
 module.exports = {
     getUsers,
     getUserByUsername,
     getUsersByServer,
     saveUser,
     deleteUser,
-    getUserStats
+    getUserStats,
+    syncUsersFromExcel
 };

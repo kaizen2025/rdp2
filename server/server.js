@@ -123,13 +123,16 @@ function startBackgroundTasks() {
         setInterval(run, interval);
     };
 
-    // ✅ NOUVEAU : Synchronisation Excel en tâche de fond
+    // ✅ MODIFICATION : Synchro Excel supprimée du background task
+    // Elle est exécutée une seule fois au démarrage pour l'import initial.
+    /*
     runAsyncTask('Excel Sync', async () => {
         const syncResult = await userService.syncUsersFromExcel(false);
         if (syncResult.success && syncResult.usersCount > 0) {
             broadcast({ type: 'data_updated', payload: { entity: 'excel_users' } });
         }
-    }, 10 * 60 * 1000, 5000); // Toutes les 10 min, premier lancement après 5s
+    }, 10 * 60 * 1000, 5000);
+    */
 
     runAsyncTask('RDS Sessions', async () => {
         const result = await rdsService.refreshAndStoreRdsSessions();
@@ -205,7 +208,18 @@ async function startServer() {
             console.error('   Certaines fonctionnalités seront limitées.');
         }
         
-        // ✅ SUPPRESSION de la synchro bloquante ici
+        // ✅ IMPORT EXCEL UNIQUE AU DÉMARRAGE
+        try {
+            console.log('📥 Importation unique des utilisateurs depuis Excel (Migration)...');
+            const syncResult = await userService.syncUsersFromExcel(false);
+            if (syncResult.success) {
+                console.log(`✅ Import Excel terminé: ${syncResult.created} créés, ${syncResult.updated} mis à jour.`);
+            } else {
+                console.warn(`⚠️ Import Excel ignoré: ${syncResult.error}`);
+            }
+        } catch (excelError) {
+            console.error('❌ Erreur critique lors de l\'import Excel:', excelError);
+        }
 
         initializeWebSocket();
 
