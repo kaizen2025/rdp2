@@ -24,10 +24,10 @@ class GeminiService {
      */
     async initialize(apiKey, config = {}) {
         try {
-            if (!apiKey || apiKey.trim() === '') {
-                console.log('[GeminiService] ⚠️ Aucune clé API fournie - Mode désactivé');
+            if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
+                console.log('[GeminiService] ⚠️ Aucune clé API fournie (ou format invalide) - Mode désactivé');
                 this.initialized = false;
-                return { success: false, error: 'API Key manquante' };
+                return { success: false, error: 'API Key manquante ou invalide' };
             }
 
             this.config = {
