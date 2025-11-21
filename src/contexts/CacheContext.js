@@ -10,13 +10,15 @@ export const useCache = () => useContext(CacheContext);
 
 // Définition des priorités de chargement
 const CRITICAL_ENTITIES = ['config', 'technicians']; // Chargé immédiatement
-const SECONDARY_ENTITIES = ['loans', 'computers'];    // Chargé après court délai
+const SECONDARY_ENTITIES = ['loans', 'computers', 'loan_history'];    // Chargé après court délai
 const LAZY_ENTITIES = ['users', 'rds_sessions', 'ad_groups:VPN', 'ad_groups:Sortants_responsables']; // On-demand
 const ALL_ENTITIES = [...CRITICAL_ENTITIES, ...SECONDARY_ENTITIES, ...LAZY_ENTITIES];
 
 export const CacheProvider = ({ children }) => {
     const { events, showNotification } = useApp();
-    const [cache, setCache] = useState({});
+    const [cache, setCache] = useState({
+        loan_history: [] // Initial state
+    });
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -40,6 +42,7 @@ export const CacheProvider = ({ children }) => {
                 switch (entity) {
                     case 'loans': data = await apiService.getLoans(); break;
                     case 'computers': data = await apiService.getComputers(); break;
+                    case 'loan_history': data = await apiService.getLoanHistory({ limit: 20 }); break; // Fetch recent history
                     case 'users': {
                         const result = await apiService.getUsers();
                         data = result?.users || [];
@@ -94,7 +97,7 @@ export const CacheProvider = ({ children }) => {
             let updated;
             switch (action) {
                 case 'create':
-                    updated = [...current, data];
+                    updated = [data, ...current]; // Add new items to start of list
                     break;
                 case 'update':
                     updated = current.map(item => item.id === data.id ? data : item);
@@ -172,7 +175,7 @@ export const CacheProvider = ({ children }) => {
 
     // Fonction pour charger une entité lazy on-demand
     const loadLazyEntity = useCallback(async (entity) => {
-        if (!cache[entity]) {
+        if (!cache[entity] || (Array.isArray(cache[entity]) && cache[entity].length === 0)) {
             return await fetchDataForEntity(entity);
         }
         return cache[entity];
