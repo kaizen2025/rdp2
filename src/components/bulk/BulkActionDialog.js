@@ -17,50 +17,27 @@ import {
     Box,
     Typography,
     Alert,
-    Divider,
     Grid,
-    IconButton,
-    Tooltip,
     Checkbox,
     FormControlLabel,
     Autocomplete,
     Paper,
     List,
     ListItem,
-    ListItemIcon,
     ListItemText,
-    ListItemSecondaryAction,
     Stepper,
     Step,
     StepLabel,
-    StepContent,
-    Accordion,
-    AccordionSummary,
-    AccordionDetails,
-    LinearProgress,
     Skeleton,
-    InputAdornment
+    InputAdornment,
+    CircularProgress
 } from '@mui/material';
 import {
-    Help as HelpIcon,
-    Info as InfoIcon,
-    Warning as WarningIcon,
-    CheckCircle as CheckIcon,
-    Error as ErrorIcon,
-    Extension as ExtendIcon,
-    Email as EmailIcon,
-    SwapHoriz as TransferIcon,
-    Flag as StatusIcon,
-    Download as ExportIcon,
-    Delete as DeleteIcon,
-    ExpandMore as ExpandMoreIcon,
-    Visibility as ViewIcon,
-    VisibilityOff as HideIcon,
-    Add as AddIcon,
-    Remove as RemoveIcon
+    Delete as DeleteIcon
 } from '@mui/icons-material';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import apiService from '../../services/apiService';
 
 const ACTION_STEPS = {
     EXTEND: ['Période de prolongation', 'Confirmation', 'Exécution'],
@@ -86,7 +63,6 @@ const BulkActionDialog = ({
     const [currentStep, setCurrentStep] = useState(0);
     const [localParameters, setLocalParameters] = useState(parameters);
     const [localValidationErrors, setLocalValidationErrors] = useState({});
-    const [showAdvanced, setShowAdvanced] = useState(false);
     const [previewData, setPreviewData] = useState(null);
     const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
@@ -98,7 +74,6 @@ const BulkActionDialog = ({
             setCurrentStep(0);
             setLocalParameters({});
             setLocalValidationErrors({});
-            setShowAdvanced(false);
             setPreviewData(null);
             setTypedConfirmation('');
             if (action?.id === 'DELETE') {
@@ -145,8 +120,8 @@ const BulkActionDialog = ({
         if (action?.id === 'DELETE') {
             const requiredConfirmation = `SUPPRIMER ${selectedCount}`;
             if (typedConfirmation !== requiredConfirmation) {
-                setLocalValidationErrors({ 
-                    confirmation: `Veuillez taper exactement: ${requiredConfirmation}` 
+                setLocalValidationErrors({
+                    confirmation: `Veuillez taper exactement: ${requiredConfirmation}`
                 });
                 return;
             }
@@ -164,58 +139,25 @@ const BulkActionDialog = ({
     // Génération de prévisualisation
     const generatePreview = async () => {
         if (!action || action.id !== 'EXPORT') return;
-        
+
         setIsGeneratingPreview(true);
-        
+
         // Simulation de génération de données de prévisualisation
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const sampleData = generateSampleExportData(localParameters.fields);
+
+        const sampleData = generateSampleExportData(localParameters.fields, selectedCount);
         setPreviewData(sampleData);
         setIsGeneratingPreview(false);
-    };
-
-    const generateSampleExportData = (fields) => {
-        const sampleRecords = [];
-        for (let i = 0; i < Math.min(selectedCount, 5); i++) {
-            const record = {};
-            fields.forEach(field => {
-                switch (field) {
-                    case 'id':
-                        record[field] = `PRÊT-${String(i + 1).padStart(3, '0')}`;
-                        break;
-                    case 'documentTitle':
-                        record[field] = `Document exemple ${i + 1}`;
-                        break;
-                    case 'borrowerName':
-                        record[field] = `Utilisateur ${i + 1}`;
-                        break;
-                    case 'loanDate':
-                        record[field] = format(new Date(2024, 0, 1 + i), 'dd/MM/yyyy HH:mm', { locale: fr });
-                        break;
-                    case 'returnDate':
-                        record[field] = format(new Date(2024, 0, 15 + i), 'dd/MM/yyyy HH:mm', { locale: fr });
-                        break;
-                    case 'status':
-                        record[field] = ['Actif', 'En retard', 'Réservé'][i % 3];
-                        break;
-                    default:
-                        record[field] = `Valeur ${field} ${i + 1}`;
-                }
-            });
-            sampleRecords.push(record);
-        }
-        return sampleRecords;
     };
 
     if (!action) return null;
 
     const steps = getSteps(action.id);
-    const canProceed = Object.keys(localValidationErrors).length === 0 && 
-                      Object.values(localParameters).some(value => 
-                          value !== undefined && value !== '' && 
-                          (!Array.isArray(value) || value.length > 0)
-                      );
+    const canProceed = Object.keys(localValidationErrors).length === 0 &&
+        Object.values(localParameters).some(value =>
+            value !== undefined && value !== '' &&
+            (!Array.isArray(value) || value.length > 0)
+        );
 
     return (
         <Dialog
@@ -238,7 +180,7 @@ const BulkActionDialog = ({
                             {action.description}
                         </Typography>
                     </Box>
-                    <Chip 
+                    <Chip
                         label={`${selectedCount} prêt${selectedCount > 1 ? 's' : ''}`}
                         color="primary"
                         variant="outlined"
@@ -325,7 +267,7 @@ const BulkActionDialog = ({
                 {action.dangerous && (
                     <Alert severity="warning" sx={{ mt: 2 }}>
                         <Typography variant="body2">
-                            <strong>Action irréversible:</strong> Cette action ne peut pas être annulée. 
+                            <strong>Action irréversible:</strong> Cette action ne peut pas être annulée.
                             Assurez-vous d'avoir vérifié votre sélection avant de continuer.
                         </Typography>
                     </Alert>
@@ -336,7 +278,7 @@ const BulkActionDialog = ({
                 <Button onClick={handleClose}>
                     Annuler
                 </Button>
-                
+
                 {currentStep > 0 && (
                     <Button onClick={handleBack}>
                         Précédent
@@ -379,19 +321,19 @@ const StepExtendContent = ({ parameters, onChange, errors, selectedCount }) => (
                 onChange={(e) => onChange('days', parseInt(e.target.value) || 0)}
                 error={!!errors.days}
                 helperText={errors.days || `${selectedCount} prêt${selectedCount > 1 ? 's' : ''} sera${selectedCount > 1 ? 'ont' : ''} prolongé${selectedCount > 1 ? 's' : ''}`}
-                InputProps={{ 
+                InputProps={{
                     inputProps: { min: 1, max: 365 },
                     endAdornment: <InputAdornment position="end">jours</InputAdornment>
                 }}
             />
         </Grid>
-        
+
         <Grid item xs={12} md={6}>
             <TextField
                 fullWidth
                 label="Nouvelle date de retour (aperçu)"
-                value={parameters.days ? 
-                    format(addDays(new Date(), parameters.days), 'dd/MM/yyyy', { locale: fr }) : 
+                value={parameters.days ?
+                    format(addDays(new Date(), parameters.days), 'dd/MM/yyyy', { locale: fr }) :
                     'Sélectionnez une durée'
                 }
                 InputProps={{ readOnly: true }}
@@ -414,48 +356,80 @@ const StepRecallContent = ({ parameters, onChange, errors, selectedCount }) => (
             helperText={errors.message || `Message qui sera envoyé aux ${selectedCount} emprunteur${selectedCount > 1 ? 's' : ''}`}
             placeholder="Bonjour, nous vous rappelons que le document... (laisser vide pour le message par défaut)"
         />
-        
+
         <Alert severity="info" sx={{ mt: 2 }}>
             <Typography variant="body2">
-                Un email de rappel sera envoyé automatiquement à chaque emprunteur. 
+                Un email de rappel sera envoyé automatiquement à chaque emprunteur.
                 Le message par défaut sera utilisé si aucun message personnalisé n'est spécifié.
             </Typography>
         </Alert>
     </Box>
 );
 
-const StepTransferContent = ({ parameters, onChange, errors, selectedCount }) => (
-    <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-            <Autocomplete
-                fullWidth
-                options={[]} // TODO: Charger depuis l'API
-                getOptionLabel={(option) => option.name || option.email || option.id}
-                onChange={(e, value) => onChange('targetUser', value?.id || '')}
-                renderInput={(params) => (
-                    <TextField
-                        {...params}
-                        label="Utilisateur cible"
-                        error={!!errors.targetUser}
-                        helperText={errors.targetUser || 'Sélectionnez l\'utilisateur qui recevra les prêts'}
-                    />
-                )}
-            />
+const StepTransferContent = ({ parameters, onChange, errors, selectedCount }) => {
+    const [users, setUsers] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        const loadUsers = async () => {
+            setLoading(true);
+            try {
+                const result = await apiService.getAllAppUsers();
+                if (result.success) {
+                    setUsers(result.users);
+                }
+            } catch (error) {
+                console.error('Erreur chargement utilisateurs:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadUsers();
+    }, []);
+
+    return (
+        <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+                <Autocomplete
+                    fullWidth
+                    options={users}
+                    loading={loading}
+                    getOptionLabel={(option) => option.display_name || option.username || ''}
+                    onChange={(e, value) => onChange('targetUser', value?.id || '')}
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            label="Utilisateur cible"
+                            error={!!errors.targetUser}
+                            helperText={errors.targetUser || 'Sélectionnez l\'utilisateur qui recevra les prêts'}
+                            InputProps={{
+                                ...params.InputProps,
+                                endAdornment: (
+                                    <React.Fragment>
+                                        {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                                        {params.InputProps.endAdornment}
+                                    </React.Fragment>
+                                ),
+                            }}
+                        />
+                    )}
+                />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+                <TextField
+                    fullWidth
+                    label="Motif de transfert (optionnel)"
+                    value={parameters.reason || ''}
+                    onChange={(e) => onChange('reason', e.target.value)}
+                    error={!!errors.reason}
+                    helperText={errors.reason}
+                    placeholder="Raison du transfert..."
+                />
+            </Grid>
         </Grid>
-        
-        <Grid item xs={12} md={6}>
-            <TextField
-                fullWidth
-                label="Motif de transfert (optionnel)"
-                value={parameters.reason || ''}
-                onChange={(e) => onChange('reason', e.target.value)}
-                error={!!errors.reason}
-                helperText={errors.reason}
-                placeholder="Raison du transfert..."
-            />
-        </Grid>
-    </Grid>
-);
+    );
+};
 
 const StepStatusChangeContent = ({ parameters, onChange, errors, selectedCount }) => (
     <Grid container spacing={3}>
@@ -479,7 +453,7 @@ const StepStatusChangeContent = ({ parameters, onChange, errors, selectedCount }
                 )}
             </FormControl>
         </Grid>
-        
+
         <Grid item xs={12} md={6}>
             <TextField
                 fullWidth
@@ -516,7 +490,7 @@ const StepExportContent = ({ parameters, onChange, errors, previewData, isGenera
                 )}
             </FormControl>
         </Grid>
-        
+
         <Grid item xs={12}>
             <FormControl fullWidth error={!!errors.fields}>
                 <InputLabel>Champs à inclure</InputLabel>
@@ -547,13 +521,13 @@ const StepExportContent = ({ parameters, onChange, errors, previewData, isGenera
                 )}
             </FormControl>
         </Grid>
-        
+
         {/* Prévisualisation */}
         <Grid item xs={12}>
             <Typography variant="subtitle2" gutterBottom>
                 Aperçu des données ({Math.min(selectedCount, 5)} enregistrements sur {selectedCount})
             </Typography>
-            
+
             {isGeneratingPreview ? (
                 <Box>
                     <Skeleton variant="rectangular" height={120} sx={{ mb: 1 }} />
@@ -582,11 +556,11 @@ const StepExportContent = ({ parameters, onChange, errors, previewData, isGenera
     </Grid>
 );
 
-const StepDeleteContent = ({ 
-    parameters, 
-    onChange, 
-    errors, 
-    selectedCount, 
+const StepDeleteContent = ({
+    parameters,
+    onChange,
+    errors,
+    selectedCount,
     showConfirmation,
     onToggleConfirmation,
     typedConfirmation,
@@ -598,7 +572,7 @@ const StepDeleteContent = ({
                 ATTENTION: Action irréversible
             </Typography>
             <Typography variant="body2">
-                Cette action supprimera définitivement {selectedCount} prêt${selectedCount > 1 ? 's' : ''} 
+                Cette action supprimera définitivement {selectedCount} prêt${selectedCount > 1 ? 's' : ''}
                 de la base de données. Cette opération ne peut pas être annulée.
             </Typography>
         </Alert>
@@ -656,13 +630,46 @@ function addDays(date, days) {
     return result;
 }
 
+function generateSampleExportData(fields, selectedCount) {
+    const sampleRecords = [];
+    for (let i = 0; i < Math.min(selectedCount, 5); i++) {
+        const record = {};
+        fields.forEach(field => {
+            switch (field) {
+                case 'id':
+                    record[field] = `PRÊT-${String(i + 1).padStart(3, '0')}`;
+                    break;
+                case 'documentTitle':
+                    record[field] = `Document exemple ${i + 1}`;
+                    break;
+                case 'borrowerName':
+                    record[field] = `Utilisateur ${i + 1}`;
+                    break;
+                case 'loanDate':
+                    record[field] = format(new Date(2024, 0, 1 + i), 'dd/MM/yyyy HH:mm', { locale: fr });
+                    break;
+                case 'returnDate':
+                    record[field] = format(new Date(2024, 0, 15 + i), 'dd/MM/yyyy HH:mm', { locale: fr });
+                    break;
+                case 'status':
+                    record[field] = ['Actif', 'En retard', 'Réservé'][i % 3];
+                    break;
+                default:
+                    record[field] = `Valeur ${field} ${i + 1}`;
+            }
+        });
+        sampleRecords.push(record);
+    }
+    return sampleRecords;
+}
+
 function validateParameters(action, parameters) {
     const errors = {};
-    
-    if (action.requiresParameters) {
+
+    if (action.requiresParameters && action.parameterSchema) {
         Object.entries(action.parameterSchema).forEach(([key, schema]) => {
             const value = parameters[key];
-            
+
             if (schema.required && (!value || value === '' || (Array.isArray(value) && value.length === 0))) {
                 errors[key] = `${schema.label} est requis`;
                 return;
@@ -679,19 +686,19 @@ function validateParameters(action, parameters) {
                             errors[key] = `${schema.label} doit être ≤ ${schema.max}`;
                         }
                         break;
-                    
+
                     case 'select':
                         if (!schema.options.find(option => option.value === value)) {
                             errors[key] = `Valeur invalide pour ${schema.label}`;
                         }
                         break;
-                    
+
                     case 'multiselect':
                         if (!Array.isArray(value) || value.length === 0) {
                             errors[key] = `Sélectionnez au moins une option pour ${schema.label}`;
                         }
                         break;
-                    
+
                     case 'checkbox':
                         if (!value) {
                             errors[key] = `Veuillez confirmer pour ${schema.label}`;

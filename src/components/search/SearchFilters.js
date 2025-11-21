@@ -34,10 +34,9 @@ import {
     Grid,
     Card,
     CardContent,
-    Alert,
-    useTheme,
-    alpha
+    Alert
 } from '@mui/material';
+import { useTheme, alpha } from '@mui/material/styles';
 import {
     ExpandMore as ExpandMoreIcon,
     ExpandLess as ExpandLessIcon,
@@ -101,7 +100,7 @@ const SearchFilters = ({
     const handleFilterChange = (key, value) => {
         const updatedFilters = { ...localFilters, [key]: value };
         setLocalFilters(updatedFilters);
-        
+
         if (onFiltersChange) {
             onFiltersChange(updatedFilters);
         }
@@ -118,7 +117,7 @@ const SearchFilters = ({
             ...localFilters,
             [`date${type.charAt(0).toUpperCase() + type.slice(1)}`]: date ? date.toISOString() : null
         };
-        
+
         setLocalFilters(updatedFilters);
         if (onFiltersChange) {
             onFiltersChange(updatedFilters);
@@ -226,10 +225,10 @@ const SearchFilters = ({
                             {filterOptions.status.map((option) => (
                                 <MenuItem key={option.value} value={option.value}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <Chip 
-                                            label={option.label} 
-                                            color={option.color} 
-                                            size="small" 
+                                        <Chip
+                                            label={option.label}
+                                            color={option.color}
+                                            size="small"
                                         />
                                     </Box>
                                 </MenuItem>
@@ -250,10 +249,10 @@ const SearchFilters = ({
                             <MenuItem value="">Tous</MenuItem>
                             {filterOptions.alertLevel.map((option) => (
                                 <MenuItem key={option.value} value={option.value}>
-                                    <Chip 
-                                        label={option.label} 
-                                        color={option.color} 
-                                        size="small" 
+                                    <Chip
+                                        label={option.label}
+                                        color={option.color}
+                                        size="small"
                                     />
                                 </MenuItem>
                             ))}
@@ -336,7 +335,7 @@ const SearchFilters = ({
                             }}
                         />
                     </Grid>
-                    
+
                     <Grid item xs={12} sm={6}>
                         <DatePicker
                             label="Date d'emprunt (fin)"
@@ -364,7 +363,7 @@ const SearchFilters = ({
                             }}
                         />
                     </Grid>
-                    
+
                     <Grid item xs={12} sm={6}>
                         <DatePicker
                             label="Date de retour (fin)"
@@ -468,7 +467,7 @@ const SearchFilters = ({
             <Typography variant="subtitle2" gutterBottom>
                 Filtres sauvegardés
             </Typography>
-            
+
             {Object.keys(savedFilters).length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
                     Aucun filtre sauvegardé
@@ -516,7 +515,7 @@ const SearchFilters = ({
 
     // Compter les filtres actifs
     const activeFiltersCount = useMemo(() => {
-        return Object.values(localFilters).filter(value => 
+        return Object.values(localFilters).filter(value =>
             value !== null && value !== undefined && value !== '' &&
             (Array.isArray(value) ? value.length > 0 : true)
         ).length;
@@ -548,7 +547,7 @@ const SearchFilters = ({
                             />
                         )}
                     </Box>
-                    
+
                     <Box sx={{ display: 'flex', gap: 1 }}>
                         <Button
                             size="small"
@@ -558,7 +557,7 @@ const SearchFilters = ({
                         >
                             Effacer
                         </Button>
-                        
+
                         {showSaveOptions && (
                             <Button
                                 size="small"

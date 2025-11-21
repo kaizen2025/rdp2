@@ -1,27 +1,51 @@
-import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle,
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
+import {
+  Card,
+  CardContent,
   Button,
-  Select,
+  IconButton,
+  Typography,
   Badge,
-  Progress,
-  Alert,
-  Spinner,
+  Select,
+  MenuItem,
+  LinearProgress,
   Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent
-} from '../ui';
-import { AlertCircle, TrendingUp, TrendingDown, Download, Settings, Zap } from 'lucide-react';
-
-// Lazy loading des composants Chart.js pour optimiser les performances
-const LineChart = lazy(() => import('../ui/charts/LineChart'));
-const BarChart = lazy(() => import('../ui/charts/BarChart'));
-const PieChart = lazy(() => import('../ui/charts/PieChart'));
-const DoughnutChart = lazy(() => import('../ui/charts/DoughnutChart'));
+  Tab,
+  Alert,
+  CircularProgress,
+  Box,
+  Grid,
+  Tooltip
+} from '@mui/material';
+import {
+  Settings,
+  Download,
+  TrendingUp,
+  TrendingDown,
+  ErrorOutline as AlertCircle,
+  Bolt as Zap,
+  CheckCircle,
+  Warning,
+  Info,
+  Close
+} from '@mui/icons-material';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Doughnut
+} from 'recharts';
+import apiService from '../../services/apiService';
 
 // Configuration intelligente du cache (<50MB)
 class SmartCache {
@@ -34,13 +58,13 @@ class SmartCache {
 
   set(key, value, size) {
     if (size > this.maxSize) return false;
-    
+
     // Éviction LRU si nécessaire
     while (this.currentSize + size > this.maxSize && this.cache.size > 0) {
       const oldestKey = this.getOldestKey();
       this.delete(oldestKey);
     }
-    
+
     this.cache.set(key, value);
     this.lastAccess.set(key, Date.now());
     this.currentSize += size;
@@ -58,7 +82,7 @@ class SmartCache {
   getOldestKey() {
     let oldestKey = null;
     let oldestTime = Infinity;
-    
+
     for (const [key, time] of this.lastAccess) {
       if (time < oldestTime) {
         oldestTime = time;
@@ -102,7 +126,7 @@ const useStreamingAnalytics = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const cacheRef = useMemo(() => new SmartCache(), []);
-  
+
   const fetchData = useCallback(async (cacheKey = 'analytics_data') => {
     try {
       // Vérification du cache
@@ -114,69 +138,99 @@ const useStreamingAnalytics = () => {
       }
 
       setLoading(true);
-      
-      // Simulation de données streaming optimisées
-      const response = await new Promise(resolve => {
-        setTimeout(() => {
-          resolve({
-            kpis: {
-              satisfaction: {
-                current: 4.2,
-                previous: 3.9,
-                trend: 'up',
-                target: 4.5,
-                history: [3.8, 3.9, 4.0, 4.1, 4.2]
-              },
-              tempsTraitement: {
-                current: 2.3,
-                previous: 2.8,
-                trend: 'down',
-                target: 2.0,
-                unit: 'heures',
-                history: [3.2, 3.0, 2.8, 2.5, 2.3]
-              },
-              retoursDelais: {
-                current: 8.5,
-                previous: 12.3,
-                trend: 'down',
-                target: 5.0,
-                unit: '%',
-                history: [15.2, 13.8, 12.3, 10.1, 8.5]
-              }
-            },
-            charts: {
-              utilisateursActifs: {
-                labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun'],
-                data: [120, 145, 180, 165, 195, 210]
-              },
-              satisfactionMensuelle: {
-                labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun'],
-                data: [3.8, 3.9, 4.0, 4.1, 4.2, 4.2]
-              },
-              performanceDepartements: {
-                labels: ['IT', 'RH', 'Finance', 'Marketing', 'Ventes'],
-                data: [85, 78, 92, 88, 81]
-              },
-              typesUtilisateurs: {
-                labels: ['Utilisateurs', 'Administrateurs', 'Superviseurs', 'Guests'],
-                data: [65, 15, 12, 8]
-              }
-            },
-            alerts: [
-              { id: 1, type: 'warning', message: 'Temps de traitement en hausse pour le département IT' },
-              { id: 2, type: 'success', message: 'Objectif de satisfaction atteint pour mai' }
-            ],
-            lastUpdate: new Date().toISOString()
-          });
-        }, 500);
-      });
+
+      // Récupération des données réelles
+      const [loginStats, allUsers] = await Promise.all([
+        apiService.getLoginStats(),
+        apiService.getAllAppUsers()
+      ]);
+
+      // Calcul des statistiques utilisateurs
+      const userTypes = allUsers.reduce((acc, user) => {
+        const type = user.role || 'Utilisateur';
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      }, {});
+
+      const activeUsersCount = allUsers.filter(u => u.isActive !== false).length;
+
+      const response = {
+        kpis: {
+          utilisateursActifs: {
+            current: activeUsersCount,
+            previous: Math.round(activeUsersCount * 0.9), // Simulation variation
+            trend: 'up',
+            target: allUsers.length,
+            unit: 'utilisateurs',
+            history: [Math.round(activeUsersCount * 0.8), Math.round(activeUsersCount * 0.85), Math.round(activeUsersCount * 0.9), activeUsersCount]
+          },
+          satisfaction: {
+            current: 4.2, // Donnée non disponible via API pour l'instant
+            previous: 3.9,
+            trend: 'up',
+            target: 4.5,
+            history: [3.8, 3.9, 4.0, 4.1, 4.2]
+          },
+          tempsTraitement: {
+            current: 2.3, // Donnée non disponible via API pour l'instant
+            previous: 2.8,
+            trend: 'down',
+            target: 2.0,
+            unit: 'heures',
+            history: [3.2, 3.0, 2.8, 2.5, 2.3]
+          },
+          retoursDelais: {
+            current: loginStats.averageSessionDuration ? Math.round(loginStats.averageSessionDuration / 60) : 0,
+            previous: 0,
+            trend: 'neutral',
+            target: 60,
+            unit: 'min (moy)',
+            history: []
+          }
+        },
+        charts: {
+          utilisateursActifs: {
+            labels: ['Total', 'Actifs', 'Inactifs'],
+            data: [
+              { name: 'Total', value: allUsers.length },
+              { name: 'Actifs', value: activeUsersCount },
+              { name: 'Inactifs', value: allUsers.length - activeUsersCount }
+            ]
+          },
+          satisfactionMensuelle: {
+            labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun'],
+            data: [
+              { name: 'Jan', value: 3.8 },
+              { name: 'Fév', value: 3.9 },
+              { name: 'Mar', value: 4.0 },
+              { name: 'Avr', value: 4.1 },
+              { name: 'Mai', value: 4.2 },
+              { name: 'Jun', value: 4.2 }
+            ]
+          },
+          performanceDepartements: {
+            labels: Object.keys(userTypes),
+            data: Object.entries(userTypes).map(([key, value]) => ({ name: key, value }))
+          },
+          typesUtilisateurs: {
+            labels: Object.keys(userTypes),
+            data: Object.entries(userTypes).map(([key, value]) => ({ name: key, value }))
+          }
+        },
+        alerts: [
+          { id: 1, type: 'info', message: `${activeUsersCount} utilisateurs actifs sur ${allUsers.length} total` },
+          { id: 2, type: 'success', message: 'Données synchronisées avec le serveur' }
+        ],
+        lastUpdate: new Date().toISOString()
+      };
 
       // Stockage dans le cache
       cacheRef.set(cacheKey, response, JSON.stringify(response).length * 2);
-      
+
       setData(response);
       setError(null);
     } catch (err) {
+      console.error('Erreur analytics:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -190,80 +244,70 @@ const useStreamingAnalytics = () => {
 const KPICard = React.memo(({ title, value, trend, target, unit, previous }) => {
   const isPositive = trend === 'up';
   const isAboveTarget = value >= target;
-  
+
   const TrendIcon = isPositive ? TrendingUp : TrendingDown;
-  const trendColor = isPositive ? 'text-green-500' : 'text-red-500';
-  
+  const trendColor = isPositive ? 'success.main' : 'error.main';
+
   const progressValue = Math.min((value / target) * 100, 100);
-  
+
   return (
-    <Card className="p-4 hover:shadow-lg transition-shadow">
-      <div className="flex justify-between items-start mb-2">
-        <h3 className="text-sm font-medium text-gray-600">{title}</h3>
-        <Badge variant={isAboveTarget ? 'default' : 'destructive'} className="text-xs">
-          {unit}
-        </Badge>
-      </div>
-      
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-2xl font-bold text-gray-900">
-          {value.toFixed(1)}
-        </span>
-        <div className={`flex items-center ${trendColor}`}>
-          <TrendIcon className="h-4 w-4 mr-1" />
-          <span className="text-sm font-medium">
-            {isPositive ? '+' : ''}{((value - previous) / previous * 100).toFixed(1)}%
-          </span>
-        </div>
-      </div>
-      
-      <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-        <div 
-          className={`h-2 rounded-full ${isAboveTarget ? 'bg-green-500' : 'bg-yellow-500'}`}
-          style={{ width: `${Math.min(progressValue, 100)}%` }}
-        />
-      </div>
-      
-      <div className="text-xs text-gray-500">
+    <Card sx={{ p: 2, height: '100%', transition: 'box-shadow 0.3s', '&:hover': { boxShadow: 6 } }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+        <Typography variant="subtitle2" color="text.secondary">{title}</Typography>
+        <Badge badgeContent={unit} color={isAboveTarget ? 'primary' : 'error'} />
+      </Box>
+
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+        <Typography variant="h4" fontWeight="bold">
+          {typeof value === 'number' ? value.toFixed(1) : value}
+        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', color: trendColor }}>
+          <TrendIcon fontSize="small" sx={{ mr: 0.5 }} />
+          <Typography variant="body2" fontWeight="medium">
+            {isPositive ? '+' : ''}{previous ? ((value - previous) / previous * 100).toFixed(1) : 0}%
+          </Typography>
+        </Box>
+      </Box>
+
+      <LinearProgress
+        variant="determinate"
+        value={progressValue}
+        color={isAboveTarget ? 'success' : 'warning'}
+        sx={{ height: 8, borderRadius: 4, mb: 1 }}
+      />
+
+      <Typography variant="caption" color="text.secondary">
         Objectif: {target.toFixed(1)} {unit}
-      </div>
+      </Typography>
     </Card>
   );
 });
 
 // Composant de Widget configurable avec drag & drop
-const ConfigurableWidget = React.memo(({ 
-  id, 
-  title, 
-  children, 
-  onRemove, 
+const ConfigurableWidget = React.memo(({
+  id,
+  title,
+  children,
+  onRemove,
   onConfigure,
-  isDragging = false 
+  isDragging = false
 }) => {
   return (
-    <Card className={`p-4 ${isDragging ? 'shadow-xl scale-105' : 'hover:shadow-lg'} transition-all duration-200`}>
-      <div className="flex justify-between items-center mb-3">
-        <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-        <div className="flex space-x-2">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={onConfigure}
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => onRemove(id)}
-          >
-            ×
-          </Button>
-        </div>
-      </div>
-      <div className="min-h-[200px]">
+    <Card sx={{ p: 2, height: '100%', transition: 'all 0.2s', transform: isDragging ? 'scale(1.05)' : 'none', boxShadow: isDragging ? 10 : 1 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h6">{title}</Typography>
+        <Box>
+          <IconButton size="small" onClick={onConfigure}>
+            <Settings fontSize="small" />
+          </IconButton>
+          <IconButton size="small" onClick={() => onRemove(id)}>
+            <Close fontSize="small" />
+          </IconButton>
+        </Box>
+      </Box>
+      <Box sx={{ minHeight: 200 }}>
         {children}
-      </div>
+      </Box>
     </Card>
   );
 });
@@ -283,49 +327,46 @@ const ExportReport = React.memo(({ data, onExport }) => {
   }, [exportFormat, data, onExport]);
 
   return (
-    <div className="flex items-center space-x-2">
-      <Select 
-        value={exportFormat} 
-        onValueChange={setExportFormat}
-        className="w-24"
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      <Select
+        value={exportFormat}
+        onChange={(e) => setExportFormat(e.target.value)}
+        size="small"
+        sx={{ width: 100 }}
       >
-        <option value="pdf">PDF</option>
-        <option value="excel">Excel</option>
-        <option value="csv">CSV</option>
+        <MenuItem value="pdf">PDF</MenuItem>
+        <MenuItem value="excel">Excel</MenuItem>
+        <MenuItem value="csv">CSV</MenuItem>
       </Select>
-      <Button 
-        onClick={handleExport} 
+      <Button
+        variant="contained"
+        onClick={handleExport}
         disabled={isExporting}
-        className="flex items-center space-x-2"
+        startIcon={isExporting ? <CircularProgress size={16} color="inherit" /> : <Download />}
       >
-        {isExporting ? (
-          <Spinner className="h-4 w-4 animate-spin" />
-        ) : (
-          <Download className="h-4 w-4" />
-        )}
-        <span>Exporter</span>
+        Exporter
       </Button>
-    </div>
+    </Box>
   );
 });
 
 // Composant principal optimisé
 const UserAnalyticsDashboard = React.memo(() => {
   const { data, loading, error, fetchData, cacheStats } = useStreamingAnalytics();
-  const [activeTab, setActiveTab] = useState('kpis');
+  const [activeTab, setActiveTab] = useState(0);
   const [widgets, setWidgets] = useState([
     { id: 'satisfaction', title: 'Satisfaction Client', component: 'kpi' },
     { id: 'performance', title: 'Performance Temps Réel', component: 'chart' },
     { id: 'utilisateurs', title: 'Utilisateurs Actifs', component: 'chart' },
     { id: 'alerts', title: 'Alertes & Notifications', component: 'alert' }
   ]);
-  
+
   // Auto-refresh toutes les 30 secondes pour les données temps réel
   useEffect(() => {
     const interval = setInterval(() => {
       fetchData();
     }, 30000);
-    
+
     return () => clearInterval(interval);
   }, [fetchData]);
 
@@ -345,7 +386,7 @@ const UserAnalyticsDashboard = React.memo(() => {
 
   const handleExport = useCallback(async (format, data) => {
     const timestamp = new Date().toISOString().split('T')[0];
-    
+
     switch (format) {
       case 'pdf':
         // Simulation export PDF
@@ -357,15 +398,15 @@ const UserAnalyticsDashboard = React.memo(() => {
         a.click();
         URL.revokeObjectURL(url);
         break;
-        
+
       case 'excel':
         // Simulation export Excel
-        const csvContent = "data:text/csv;charset=utf-8," + 
+        const csvContent = "data:text/csv;charset=utf-8," +
           "KPI,Valeur,Objectif,Tendance\n" +
           `Satisfaction,${data.kpis.satisfaction.current},${data.kpis.satisfaction.target},${data.kpis.satisfaction.trend}\n` +
           `Temps Traitement,${data.kpis.tempsTraitement.current}h,${data.kpis.tempsTraitement.target}h,${data.kpis.tempsTraitement.trend}\n` +
           `Retours Délais,${data.kpis.retoursDelais.current}%,${data.kpis.retoursDelais.target}%,${data.kpis.retoursDelais.trend}`;
-        
+
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
@@ -374,7 +415,7 @@ const UserAnalyticsDashboard = React.memo(() => {
         link.click();
         document.body.removeChild(link);
         break;
-        
+
       default:
         console.log('Format non supporté:', format);
     }
@@ -383,7 +424,7 @@ const UserAnalyticsDashboard = React.memo(() => {
   // Memo des KPIs pour éviter les re-rendus inutiles
   const kpiData = useMemo(() => {
     if (!data) return null;
-    
+
     return [
       {
         title: 'Satisfaction Client',
@@ -414,238 +455,284 @@ const UserAnalyticsDashboard = React.memo(() => {
 
   if (loading && !data) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Spinner className="h-8 w-8 animate-spin" />
-        <span className="ml-2 text-gray-600">Chargement des analytics...</span>
-      </div>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+        <CircularProgress size={32} sx={{ mr: 2 }} />
+        <Typography color="text.secondary">Chargement des analytics...</Typography>
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <Alert className="m-4">
-        <AlertCircle className="h-4 w-4" />
-        <div>
-          <h4 className="font-medium">Erreur de chargement</h4>
-          <p className="text-sm text-gray-600">{error}</p>
-        </div>
+      <Alert severity="error" sx={{ m: 4 }}>
+        <Typography variant="subtitle1" fontWeight="bold">Erreur de chargement</Typography>
+        <Typography variant="body2">{error}</Typography>
       </Alert>
     );
   }
 
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <Box sx={{ p: 4, maxWidth: '100%', margin: '0 auto' }}>
       {/* En-tête avec métadonnées */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        <Box>
+          <Typography variant="h4" fontWeight="bold" gutterBottom>
             Analytics Utilisateurs - Dashboard Temps Réel
-          </h1>
-          <div className="flex items-center space-x-4 text-sm text-gray-600">
-            <span>Dernière mise à jour: {data?.lastUpdate ? new Date(data.lastUpdate).toLocaleTimeString() : 'N/A'}</span>
-            <Badge variant="outline" className="flex items-center">
-              <Zap className="h-3 w-3 mr-1" />
-              Cache: {Math.round(cacheStats.memoryUsage / 1024)}KB
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Dernière mise à jour: {data?.lastUpdate ? new Date(data.lastUpdate).toLocaleTimeString() : 'N/A'}
+            </Typography>
+            <Badge variant="dot" color="success">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, border: '1px solid #e0e0e0', borderRadius: 1, px: 1, py: 0.5 }}>
+                <Zap fontSize="small" color="warning" />
+                <Typography variant="caption">Cache: {Math.round(cacheStats.memoryUsage / 1024)}KB</Typography>
+              </Box>
             </Badge>
             {isRDPActive && (
-              <Badge variant="secondary">
-                Mode RDP Optimisé
-              </Badge>
+              <Badge color="secondary" badgeContent="Mode RDP" />
             )}
-          </div>
-        </div>
-        
-        <div className="flex items-center space-x-3">
+          </Box>
+        </Box>
+
+        <Box sx={{ display: 'flex', gap: 2 }}>
           <ExportReport data={data} onExport={handleExport} />
-          <Button onClick={() => fetchData()} variant="outline">
+          <Button onClick={() => fetchData()} variant="outlined">
             Actualiser
           </Button>
-        </div>
-      </div>
+        </Box>
+      </Box>
 
       {/* Indicateurs de cache et performance */}
       {cacheStats.memoryUsage > 40 * 1024 * 1024 && ( // 40MB
-        <Alert className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <div>
-            <h4 className="font-medium">Cache quasi plein</h4>
-            <p className="text-sm text-gray-600">
-              Usage: {Math.round(cacheStats.memoryUsage / 1024 / 1024 * 100) / 100}MB / 50MB
-            </p>
-          </div>
+        <Alert severity="warning" sx={{ mb: 4 }}>
+          <Typography variant="subtitle2">Cache quasi plein</Typography>
+          <Typography variant="body2">
+            Usage: {Math.round(cacheStats.memoryUsage / 1024 / 1024 * 100) / 100}MB / 50MB
+          </Typography>
         </Alert>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="kpis">KPIs Temps Réel</TabsTrigger>
-          <TabsTrigger value="charts">Graphiques</TabsTrigger>
-          <TabsTrigger value="widgets">Widgets</TabsTrigger>
-          <TabsTrigger value="export">Export</TabsTrigger>
-        </TabsList>
+      <Box sx={{ width: '100%' }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+          <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)}>
+            <Tab label="KPIs Temps Réel" />
+            <Tab label="Graphiques" />
+            <Tab label="Widgets" />
+            <Tab label="Export" />
+          </Tabs>
+        </Box>
 
         {/* Onglet KPIs */}
-        <TabsContent value="kpis" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {kpiData?.map((kpi, index) => (
-              <KPICard key={index} {...kpi} />
-            ))}
-          </div>
-          
-          {/* Alertes en temps réel */}
-          {data?.alerts && data.alerts.length > 0 && (
-            <Card className="p-4">
-              <h3 className="text-lg font-semibold mb-4">Alertes Temps Réel</h3>
-              <div className="space-y-3">
-                {data.alerts.map(alert => (
-                  <Alert key={alert.id} className={
-                    alert.type === 'warning' ? 'border-yellow-200 bg-yellow-50' : 'border-green-200 bg-green-50'
-                  }>
-                    <AlertCircle className="h-4 w-4" />
-                    <div>
-                      <h4 className="font-medium">{alert.type === 'warning' ? 'Attention' : 'Succès'}</h4>
-                      <p className="text-sm text-gray-600">{alert.message}</p>
-                    </div>
-                  </Alert>
+        <Box role="tabpanel" hidden={activeTab !== 0}>
+          {activeTab === 0 && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <Grid container spacing={3}>
+                {kpiData?.map((kpi, index) => (
+                  <Grid item xs={12} md={4} key={index}>
+                    <KPICard {...kpi} />
+                  </Grid>
                 ))}
-              </div>
-            </Card>
+              </Grid>
+
+              {/* Alertes en temps réel */}
+              {data?.alerts && data.alerts.length > 0 && (
+                <Card sx={{ p: 2 }}>
+                  <Typography variant="h6" gutterBottom>Alertes Temps Réel</Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {data.alerts.map(alert => (
+                      <Alert key={alert.id} severity={alert.type === 'warning' ? 'warning' : 'success'}>
+                        {alert.message}
+                      </Alert>
+                    ))}
+                  </Box>
+                </Card>
+              )}
+            </Box>
           )}
-        </TabsContent>
+        </Box>
 
         {/* Onglet Graphiques */}
-        <TabsContent value="charts" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Suspense fallback={<div className="h-[300px] flex items-center justify-center"><Spinner className="h-6 w-6 animate-spin" /></div>}>
-              <Card className="p-4">
-                <h3 className="text-lg font-semibold mb-4">Utilisateurs Actifs (6 derniers mois)</h3>
-                <LineChart 
-                  data={data?.charts.utilisateursActifs}
-                  options={{ responsive: true, maintainAspectRatio: false }}
-                />
-              </Card>
-            </Suspense>
-            
-            <Suspense fallback={<div className="h-[300px] flex items-center justify-center"><Spinner className="h-6 w-6 animate-spin" /></div>}>
-              <Card className="p-4">
-                <h3 className="text-lg font-semibold mb-4">Satisfaction Mensuelle</h3>
-                <BarChart 
-                  data={data?.charts.satisfactionMensuelle}
-                  options={{ responsive: true, maintainAspectRatio: false }}
-                />
-              </Card>
-            </Suspense>
-            
-            <Suspense fallback={<div className="h-[300px] flex items-center justify-center"><Spinner className="h-6 w-6 animate-spin" /></div>}>
-              <Card className="p-4">
-                <h3 className="text-lg font-semibold mb-4">Performance Départements</h3>
-                <BarChart 
-                  data={data?.charts.performanceDepartements}
-                  options={{ responsive: true, maintainAspectRatio: false }}
-                />
-              </Card>
-            </Suspense>
-            
-            <Suspense fallback={<div className="h-[300px] flex items-center justify-center"><Spinner className="h-6 w-6 animate-spin" /></div>}>
-              <Card className="p-4">
-                <h3 className="text-lg font-semibold mb-4">Répartition Utilisateurs</h3>
-                <DoughnutChart 
-                  data={data?.charts.typesUtilisateurs}
-                  options={{ responsive: true, maintainAspectRatio: false }}
-                />
-              </Card>
-            </Suspense>
-          </div>
-        </TabsContent>
+        <Box role="tabpanel" hidden={activeTab !== 1}>
+          {activeTab === 1 && (
+            <Grid container spacing={3}>
+              <Grid item xs={12} lg={6}>
+                <Card sx={{ p: 2, height: 400 }}>
+                  <Typography variant="h6" gutterBottom>Utilisateurs Actifs</Typography>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={data?.charts.utilisateursActifs.data}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {data?.charts.utilisateursActifs.data.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} lg={6}>
+                <Card sx={{ p: 2, height: 400 }}>
+                  <Typography variant="h6" gutterBottom>Satisfaction Mensuelle</Typography>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={data?.charts.satisfactionMensuelle.data}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <RechartsTooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="value" stroke="#8884d8" activeDot={{ r: 8 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} lg={6}>
+                <Card sx={{ p: 2, height: 400 }}>
+                  <Typography variant="h6" gutterBottom>Performance Départements</Typography>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data?.charts.performanceDepartements.data}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <RechartsTooltip />
+                      <Legend />
+                      <Bar dataKey="value" fill="#82ca9d" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} lg={6}>
+                <Card sx={{ p: 2, height: 400 }}>
+                  <Typography variant="h6" gutterBottom>Répartition Utilisateurs</Typography>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data?.charts.typesUtilisateurs.data} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis type="number" />
+                      <YAxis dataKey="name" type="category" width={100} />
+                      <RechartsTooltip />
+                      <Legend />
+                      <Bar dataKey="value" fill="#8884d8" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Card>
+              </Grid>
+            </Grid>
+          )}
+        </Box>
 
         {/* Onglet Widgets configurables */}
-        <TabsContent value="widgets" className="space-y-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Widgets Configurables</h3>
-            <Badge variant="outline">
-              {widgets.length} widgets actifs
-            </Badge>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {widgets.map(widget => (
-              <ConfigurableWidget
-                key={widget.id}
-                id={widget.id}
-                title={widget.title}
-                onRemove={removeWidget}
-                onConfigure={configureWidget}
-              >
-                {widget.component === 'kpi' && (
-                  <div className="text-center p-4">
-                    <Progress value={80} className="mb-2" />
-                    <p className="text-sm text-gray-600">Widget KPI en temps réel</p>
-                  </div>
-                )}
-                
-                {widget.component === 'chart' && (
-                  <Suspense fallback={<Spinner className="h-6 w-6 animate-spin" />}>
-                    <LineChart 
-                      data={{
-                        labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun'],
-                        datasets: [{ data: [10, 20, 30, 25, 35, 40] }]
-                      }}
-                      height={200}
-                    />
-                  </Suspense>
-                )}
-                
-                {widget.component === 'alert' && (
-                  <div className="space-y-2">
-                    <Alert className="border-green-200 bg-green-50">
-                      <AlertCircle className="h-4 w-4" />
-                      <div>
-                        <p className="text-sm">Système opérationnel</p>
-                      </div>
-                    </Alert>
-                  </div>
-                )}
-              </ConfigurableWidget>
-            ))}
-          </div>
-        </TabsContent>
+        <Box role="tabpanel" hidden={activeTab !== 2}>
+          {activeTab === 2 && (
+            <Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h6">Widgets Configurables</Typography>
+                <Badge badgeContent={widgets.length} color="primary">
+                  <Typography variant="body2">widgets actifs</Typography>
+                </Badge>
+              </Box>
+
+              <Grid container spacing={3}>
+                {widgets.map(widget => (
+                  <Grid item xs={12} lg={6} key={widget.id}>
+                    <ConfigurableWidget
+                      id={widget.id}
+                      title={widget.title}
+                      onRemove={removeWidget}
+                      onConfigure={configureWidget}
+                    >
+                      {widget.component === 'kpi' && (
+                        <Box sx={{ textAlign: 'center', p: 2 }}>
+                          <LinearProgress value={80} variant="determinate" sx={{ mb: 1 }} />
+                          <Typography variant="body2" color="text.secondary">Widget KPI en temps réel</Typography>
+                        </Box>
+                      )}
+
+                      {widget.component === 'chart' && (
+                        <ResponsiveContainer width="100%" height={200}>
+                          <LineChart data={[
+                            { name: 'Jan', value: 10 },
+                            { name: 'Fév', value: 20 },
+                            { name: 'Mar', value: 30 },
+                            { name: 'Avr', value: 25 },
+                            { name: 'Mai', value: 35 },
+                            { name: 'Jun', value: 40 }
+                          ]}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" />
+                            <YAxis />
+                            <RechartsTooltip />
+                            <Line type="monotone" dataKey="value" stroke="#82ca9d" />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      )}
+
+                      {widget.component === 'alert' && (
+                        <Alert severity="success">
+                          Système opérationnel
+                        </Alert>
+                      )}
+                    </ConfigurableWidget>
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
+          )}
+        </Box>
 
         {/* Onglet Export */}
-        <TabsContent value="export" className="space-y-6">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Configuration Export Automatisé</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h4 className="font-medium mb-2">Formats Disponibles</h4>
-                <ul className="text-sm text-gray-600 space-y-1">
-                  <li>• PDF - Rapport complet avec graphiques</li>
-                  <li>• Excel - Données tabulaires exportables</li>
-                  <li>• CSV - Données brutes pour analyse</li>
-                  <li>• JSON - API format pour intégration</li>
-                </ul>
-              </div>
-              
-              <div>
-                <h4 className="font-medium mb-2">Configuration Cache</h4>
-                <div className="text-sm text-gray-600 space-y-1">
-                  <p>Taille: {cacheStats.size} entrées</p>
-                  <p>Usage mémoire: {Math.round(cacheStats.memoryUsage / 1024)}KB</p>
-                  <p>Limite: 50MB</p>
-                  <Progress 
-                    value={(cacheStats.memoryUsage / (50 * 1024 * 1024)) * 100} 
-                    className="mt-2" 
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <div className="mt-6">
-              <ExportReport data={data} onExport={handleExport} />
-            </div>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+        <Box role="tabpanel" hidden={activeTab !== 3}>
+          {activeTab === 3 && (
+            <Card sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>Configuration Export Automatisé</Typography>
+              <Grid container spacing={4}>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" gutterBottom>Formats Disponibles</Typography>
+                  <Box component="ul" sx={{ pl: 2, color: 'text.secondary', typography: 'body2' }}>
+                    <li>• PDF - Rapport complet avec graphiques</li>
+                    <li>• Excel - Données tabulaires exportables</li>
+                    <li>• CSV - Données brutes pour analyse</li>
+                    <li>• JSON - API format pour intégration</li>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" gutterBottom>Configuration Cache</Typography>
+                  <Box sx={{ color: 'text.secondary', typography: 'body2' }}>
+                    <Typography variant="body2">Taille: {cacheStats.size} entrées</Typography>
+                    <Typography variant="body2">Usage mémoire: {Math.round(cacheStats.memoryUsage / 1024)}KB</Typography>
+                    <Typography variant="body2">Limite: 50MB</Typography>
+                    <LinearProgress
+                      variant="determinate"
+                      value={(cacheStats.memoryUsage / (50 * 1024 * 1024)) * 100}
+                      sx={{ mt: 1 }}
+                    />
+                  </Box>
+                </Grid>
+              </Grid>
+
+              <Box sx={{ mt: 4 }}>
+                <ExportReport data={data} onExport={handleExport} />
+              </Box>
+            </Card>
+          )}
+        </Box>
+      </Box>
+    </Box>
   );
 });
 

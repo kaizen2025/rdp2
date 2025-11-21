@@ -11,7 +11,6 @@ import {
     Button,
     Divider,
     useMediaQuery,
-    useTheme,
     Grid,
     Card,
     CardContent,
@@ -21,6 +20,7 @@ import {
     Tooltip,
     Badge
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
     Search as SearchIcon,
     FilterList as FilterIcon,
@@ -124,11 +124,11 @@ const AdvancedSearchContainer = ({
                             minScore: 0.3
                         }
                     );
-                    
+
                     if (result.error) {
                         showSnackbar(result.error, 'error');
                     }
-                    
+
                     setLastSearchQuery(smartSearch.searchQuery);
                     setSearchStats(result.stats);
                 } catch (error) {
@@ -249,10 +249,10 @@ const AdvancedSearchContainer = ({
     const SearchContent = () => (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* En-tête */}
-            <Paper 
-                elevation={2} 
-                sx={{ 
-                    p: 2, 
+            <Paper
+                elevation={2}
+                sx={{
+                    p: 2,
                     borderRadius: 0,
                     borderBottom: `1px solid ${theme.palette.divider}`
                 }}
@@ -271,14 +271,14 @@ const AdvancedSearchContainer = ({
                             </Tooltip>
                         )}
                     </Box>
-                    
+
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Tooltip title="Plein écran">
                             <IconButton onClick={handleFullscreenToggle}>
                                 {isFullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
                             </IconButton>
                         </Tooltip>
-                        
+
                         {!persistent && (
                             <Tooltip title="Fermer">
                                 <IconButton onClick={handleDrawerToggle}>
@@ -302,7 +302,7 @@ const AdvancedSearchContainer = ({
                         suggestions={smartSearch.suggestions}
                         onSuggestionSelect={(suggestion) => smartSearch.search(suggestion)}
                         recentSearches={smartSearch.recentSearches}
-                        filtersCount={Object.keys(smartSearch.filters).filter(key => 
+                        filtersCount={Object.keys(smartSearch.filters).filter(key =>
                             smartSearch.filters[key] && smartSearch.filters[key] !== ''
                         ).length}
                         loading={isSearching}
@@ -320,7 +320,7 @@ const AdvancedSearchContainer = ({
                     >
                         Résultats
                     </Button>
-                    
+
                     {showFilters && (
                         <Button
                             variant={viewMode === 'filters' ? 'contained' : 'outlined'}
@@ -331,7 +331,7 @@ const AdvancedSearchContainer = ({
                             Filtres
                         </Button>
                     )}
-                    
+
                     {showHistory && (
                         <Button
                             variant={viewMode === 'history' ? 'contained' : 'outlined'}
@@ -342,10 +342,10 @@ const AdvancedSearchContainer = ({
                             Historique
                         </Button>
                     )}
-                    
+
                     <Box sx={{ ml: 'auto' }}>
                         <Tooltip title="Actualiser l'index">
-                            <IconButton 
+                            <IconButton
                                 size="small"
                                 onClick={() => {
                                     searchService.rebuildIndex(data);
@@ -355,9 +355,9 @@ const AdvancedSearchContainer = ({
                                 <RefreshIcon />
                             </IconButton>
                         </Tooltip>
-                        
+
                         <Tooltip title="Effacer tous les filtres">
-                            <IconButton 
+                            <IconButton
                                 size="small"
                                 onClick={handleClearAll}
                                 disabled={Object.keys(smartSearch.filters).length === 0}
@@ -512,8 +512,8 @@ const AdvancedSearchContainer = ({
                 TransitionComponent={Fade}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
             >
-                <Alert 
-                    onClose={hideSnackbar} 
+                <Alert
+                    onClose={hideSnackbar}
                     severity={snackbar.severity}
                     variant="filled"
                     sx={{ width: '100%' }}

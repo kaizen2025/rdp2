@@ -13,13 +13,12 @@ import {
     Typography,
     Chip,
     Divider,
-    Avatar,
-    useTheme,
-    alpha
+    Avatar
 } from '@mui/material';
+import { useTheme, alpha } from '@mui/material/styles';
 import {
     Search as SearchIcon,
-    Document as DocumentIcon,
+    Description as DocumentIcon,
     Person as PersonIcon,
     Category as CategoryIcon,
     Schedule as ScheduleIcon,
@@ -108,11 +107,11 @@ const SearchSuggestions = ({
             const date = parseISO(dateString);
             if (isToday(date)) return 'Aujourd\'hui';
             if (isYesterday(date)) return 'Hier';
-            
+
             const daysAgo = differenceInDays(new Date(), date);
             if (daysAgo < 7) return `Il y a ${daysAgo} jour${daysAgo > 1 ? 's' : ''}`;
             if (daysAgo < 30) return `Il y a ${Math.floor(daysAgo / 7)} semaine${Math.floor(daysAgo / 7) > 1 ? 's' : ''}`;
-            
+
             return format(date, 'dd/MM/yyyy', { locale: fr });
         } catch {
             return '';
@@ -152,7 +151,7 @@ const SearchSuggestions = ({
                         {getSuggestionIcon(suggestion)}
                     </Avatar>
                 </ListItemIcon>
-                
+
                 <ListItemText
                     primary={
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -185,7 +184,7 @@ const SearchSuggestions = ({
                         )
                     }
                 />
-                
+
                 {showArrow && (
                     <ArrowIcon fontSize="small" color="action" />
                 )}
@@ -214,7 +213,7 @@ const SearchSuggestions = ({
                 <ListItemIcon sx={{ minWidth: 40 }}>
                     {getHistoryIcon(searchQuery.query)}
                 </ListItemIcon>
-                
+
                 <ListItemText
                     primary={
                         <Typography variant="body2">

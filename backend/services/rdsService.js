@@ -3,6 +3,7 @@
 const { exec } = require('child_process');
 const iconv = require('iconv-lite');
 const net = require('net'); // AJOUT: Module natif pour les connexions TCP
+const path = require('path'); // AJOUT: Pour le script PowerShell externe
 const configService = require('./configService');
 const db = require('./databaseService');
 
@@ -49,12 +50,12 @@ function parseQuserOutput(output, serverName) {
             }
 
             sessions.push({
-                server: serverName, 
-                username: user, 
-                sessionName, 
-                sessionId: id, 
-                state, 
-                idle, 
+                server: serverName,
+                username: user,
+                sessionName,
+                sessionId: id,
+                state,
+                idle,
                 logonTime,
                 isActive: state && (state.toLowerCase() === 'actif' || state.toLowerCase() === 'active'),
             });
@@ -63,6 +64,27 @@ function parseQuserOutput(output, serverName) {
         }
     }
     return sessions;
+}
+
+// Fonction utilitaire pour vérifier la connexion TCP
+function checkTcpConnection(host, port, timeout = 2000) {
+    return new Promise((resolve) => {
+        const socket = new net.Socket();
+        socket.setTimeout(timeout);
+        socket.on('connect', () => {
+            socket.destroy();
+            resolve(true);
+        });
+        socket.on('timeout', () => {
+            socket.destroy();
+            resolve(false);
+        });
+        socket.on('error', () => {
+            socket.destroy();
+            resolve(false);
+        });
+        socket.connect(port, host);
+    });
 }
 
 async function refreshAndStoreRdsSessions() {
@@ -75,13 +97,24 @@ async function refreshAndStoreRdsSessions() {
     console.log(`🔍 Interrogation de ${servers.length} serveurs RDS...`);
 
     const promises = servers.map(server =>
-        new Promise((resolve) => {
+        new Promise(async (resolve) => {
+            // Étape 1: Vérification TCP rapide (Port 3389)
+            const isOnline = await checkTcpConnection(server, 3389, 2000);
+            if (!isOnline) {
+                console.log(`   ⚠️ ${server} n'est pas accessible via TCP (3389). Ignoré.`);
+                resolve([]);
+                return;
+            }
+
             console.log(`   → Tentative quser sur ${server}...`);
-            exec(`quser /server:${server}`, { encoding: 'buffer', timeout: 8000 }, (error, stdout, stderr) => {
+            // Étape 2: Exécution sécurisée de quser avec echo . | pour éviter les prompts
+            exec(`echo . | quser /server:${server}`, { encoding: 'buffer', timeout: 8000 }, (error, stdout, stderr) => {
                 const stderrStr = iconv.decode(stderr, 'cp850').trim();
 
                 if (error && !stderrStr.includes('Aucun utilisateur')) {
-                    console.warn(`   ⚠️ Erreur quser pour ${server}:`, stderrStr || error.message);
+                    if (!stderrStr.includes('Accès refusé') && !stderrStr.includes('Access is denied')) {
+                        console.warn(`   ⚠️ Erreur quser pour ${server}:`, stderrStr || error.message);
+                    }
                     resolve([]);
                     return;
                 }
@@ -139,9 +172,9 @@ async function refreshAndStoreRdsSessions() {
 async function getStoredRdsSessions() {
     try {
         const rows = db.all('SELECT * FROM rds_sessions ORDER BY server, username');
-        return rows.map(s => ({ 
-            ...s, 
-            isActive: !!s.isActive 
+        return rows.map(s => ({
+            ...s,
+            isActive: !!s.isActive
         }));
     } catch (error) {
         console.error("❌ Erreur lecture sessions RDS:", error);
@@ -150,98 +183,63 @@ async function getStoredRdsSessions() {
 }
 
 async function pingServer(server) {
-    const getSystemDetails = () => new Promise((resolve, reject) => {
-        // Récupérer CPU, RAM et Disque en une seule commande PowerShell
-        const command = `powershell.exe -Command "$cpu = Get-WmiObject -ComputerName ${server} -Class Win32_Processor | Measure-Object -Property LoadPercentage -Average | Select-Object -ExpandProperty Average; $os = Get-WmiObject -ComputerName ${server} -Class Win32_OperatingSystem; $ram = [math]::Round((($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / $os.TotalVisibleMemorySize) * 100, 2); $disk = Get-CimInstance -ClassName Win32_LogicalDisk -ComputerName ${server} -Filter 'DriveType=3'; Write-Output \\"CPU:$cpu|RAM:$ram|DISK:\\"; $disk | ForEach-Object { Write-Output \\"$($_.Size)|$($_.FreeSpace)\\" }"`;
-
-        exec(command, { timeout: 5000 }, (error, stdout) => {
-            if (error) {
-                return reject(error);
-            }
-
-            const lines = stdout.trim().split('\r\n');
-            let cpuUsage = 0;
-            let ramUsage = 0;
-            let totalDiskSize = 0;
-            let totalDiskFreeSpace = 0;
-
-            // Parser la sortie
-            lines.forEach(line => {
-                if (line.startsWith('CPU:')) {
-                    const parts = line.split('|');
-                    cpuUsage = parseFloat(parts[0].split(':')[1]) || 0;
-                    ramUsage = parseFloat(parts[1].split(':')[1]) || 0;
-                } else if (line.includes('|') && !line.startsWith('CPU:')) {
-                    const parts = line.split('|');
-                    if (parts.length === 2) {
-                        const size = parseInt(parts[0], 10) || 0;
-                        const free = parseInt(parts[1], 10) || 0;
-                        totalDiskSize += size;
-                        totalDiskFreeSpace += free;
-                    }
-                }
-            });
-
-            resolve({
-                cpu: {
-                    usage: cpuUsage
-                },
-                ram: {
-                    usage: ramUsage
-                },
-                storage: {
-                    total: totalDiskSize,
-                    free: totalDiskFreeSpace,
-                    used: totalDiskSize - totalDiskFreeSpace,
-                    usage: totalDiskSize > 0 ? ((totalDiskSize - totalDiskFreeSpace) / totalDiskSize) * 100 : 0
-                }
-            });
-        });
-    });
-
     return new Promise((resolve) => {
-        const socket = new net.Socket();
-        socket.setTimeout(3000);
+        const scriptPath = path.join(__dirname, '..', 'scripts', 'get-rds-metrics.ps1');
+        const command = `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}" -serverName "${server}"`;
 
-        socket.on('connect', async () => {
-            socket.destroy();
-            try {
-                const details = await getSystemDetails();
-                resolve({
-                    success: true,
-                    output: `Le serveur ${server} est en ligne.`,
-                    ...details
+        exec(command, { timeout: 15000 }, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`❌ Erreur pingServer ${server}:`, error.message);
+                // Fallback: check TCP if PowerShell fails
+                checkTcpConnection(server, 3389).then(isOnline => {
+                    resolve({
+                        success: isOnline,
+                        output: isOnline ? "En ligne (WMI inaccessible)" : "Hors ligne",
+                        cpu: { usage: 0 },
+                        ram: { usage: 0, total: 0, free: 0, used: 0 },
+                        storage: { usage: 0, total: 0, free: 0, used: 0 }
+                    });
                 });
-            } catch (error) {
+                return;
+            }
+
+            const trimmedOutput = stdout.trim();
+            if (!trimmedOutput) {
+                console.warn(`⚠️ Réponse vide de pingServer pour ${server}. Stderr: ${stderr}`);
                 resolve({
-                    success: true,
-                    output: `Le serveur ${server} est en ligne, mais les détails système n'ont pu être récupérés.`,
-                    error: error.message
+                    success: false,
+                    output: "Pas de données reçues",
+                    cpu: { usage: 0 },
+                    ram: { usage: 0, total: 0, free: 0, used: 0 },
+                    storage: { usage: 0, total: 0, free: 0, used: 0 }
+                });
+                return;
+            }
+
+            try {
+                const result = JSON.parse(trimmedOutput);
+                resolve(result);
+            } catch (parseError) {
+                console.error(`❌ Erreur parsing JSON pingServer ${server}:`, parseError.message);
+                console.debug(`   Contenu brut reçu: "${trimmedOutput}"`);
+                resolve({
+                    success: false,
+                    output: "Erreur de lecture des données",
+                    cpu: { usage: 0 },
+                    ram: { usage: 0, total: 0, free: 0, used: 0 },
+                    storage: { usage: 0, total: 0, free: 0, used: 0 }
                 });
             }
         });
-
-        socket.on('timeout', () => {
-            socket.destroy();
-            resolve({ success: false, output: `Timeout: ${server} ne répond pas.` });
-        });
-
-        socket.on('error', (err) => {
-            socket.destroy();
-            resolve({ success: false, output: `Erreur de connexion à ${server}: ${err.message}` });
-        });
-
-        socket.connect(3389, server);
     });
 }
 
-
 async function sendMessage(server, sessionId, message) {
     return new Promise((resolve) => {
-        const command = sessionId === '*' 
+        const command = sessionId === '*'
             ? `msg * /server:${server} "${message.replace(/"/g, '""')}"`
             : `msg ${sessionId} /server:${server} "${message.replace(/"/g, '""')}"`;
-            
+
         exec(command, (error) => {
             if (error) {
                 console.error(`❌ Erreur envoi message vers ${server}:${sessionId}:`, error.message);
@@ -259,4 +257,5 @@ module.exports = {
     getStoredRdsSessions,
     pingServer,
     sendMessage,
+    checkTcpConnection
 };

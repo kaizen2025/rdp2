@@ -30,10 +30,9 @@ import {
     Grid,
     Card,
     CardContent,
-    Avatar,
-    useTheme,
-    alpha
+    Avatar
 } from '@mui/material';
+import { useTheme, alpha } from '@mui/material/styles';
 import {
     History as HistoryIcon,
     Delete as DeleteIcon,
@@ -53,7 +52,8 @@ import {
     ClearAll as ClearAllIcon,
     GetApp as ExportIcon,
     Add as AddIcon,
-    Close as CloseIcon
+    Close as CloseIcon,
+    FilterList as FilterIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO, differenceInDays, isToday, isYesterday, startOfWeek, startOfMonth, endOfWeek, endOfMonth } from 'date-fns';
@@ -164,8 +164,8 @@ const SearchHistory = ({
 
     // Gestion de la sélection multiple
     const handleSelectToggle = (itemId) => {
-        setSelectedHistory(prev => 
-            prev.includes(itemId) 
+        setSelectedHistory(prev =>
+            prev.includes(itemId)
                 ? prev.filter(id => id !== itemId)
                 : [...prev, itemId]
         );
@@ -254,11 +254,11 @@ const SearchHistory = ({
             const date = parseISO(dateString);
             if (isToday(date)) return 'Aujourd\'hui';
             if (isYesterday(date)) return 'Hier';
-            
+
             const daysAgo = differenceInDays(new Date(), date);
             if (daysAgo < 7) return `Il y a ${daysAgo} jour${daysAgo > 1 ? 's' : ''}`;
             if (daysAgo < 30) return `Il y a ${Math.floor(daysAgo / 7)} semaine${Math.floor(daysAgo / 7) > 1 ? 's' : ''}`;
-            
+
             return format(date, 'dd/MM/yyyy', { locale: fr });
         } catch {
             return '';
@@ -325,18 +325,18 @@ const SearchHistory = ({
                             {getSearchTypeIcon(item)}
                         </Avatar>
                     </ListItemIcon>
-                    
+
                     <ListItemText
                         primary={
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                                 <Typography variant="body2" noWrap sx={{ fontWeight: item.bookmarked ? 'bold' : 'normal' }}>
                                     {item.name || item.query}
                                 </Typography>
-                                
+
                                 {item.bookmarked && (
                                     <BookmarkIcon fontSize="small" color="warning" />
                                 )}
-                                
+
                                 {item.frequency && item.frequency > 1 && (
                                     <Chip
                                         label={`x${item.frequency}`}
@@ -345,7 +345,7 @@ const SearchHistory = ({
                                         variant="outlined"
                                     />
                                 )}
-                                
+
                                 {item.tags && item.tags.length > 0 && (
                                     <Box sx={{ display: 'flex', gap: 0.5 }}>
                                         {item.tags.slice(0, 2).map((tag, tagIndex) => (
@@ -374,18 +374,18 @@ const SearchHistory = ({
                                 <Typography variant="caption" color="text.secondary">
                                     {item.query}
                                 </Typography>
-                                
+
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                     <Typography variant="caption" color="text.secondary">
                                         {formatRelativeDate(item.timestamp)}
                                     </Typography>
-                                    
+
                                     {item.resultCount && (
                                         <Typography variant="caption" color="text.secondary">
                                             • {item.resultCount} résultat{item.resultCount > 1 ? 's' : ''}
                                         </Typography>
                                     )}
-                                    
+
                                     {item.searchTime && (
                                         <Typography variant="caption" color="text.secondary">
                                             • {item.searchTime}ms
@@ -413,7 +413,7 @@ const SearchHistory = ({
                             Statistiques d'historique
                         </Typography>
                     </Box>
-                    
+
                     <Grid container spacing={2}>
                         <Grid item xs={6} sm={3}>
                             <Box sx={{ textAlign: 'center' }}>
@@ -425,7 +425,7 @@ const SearchHistory = ({
                                 </Typography>
                             </Box>
                         </Grid>
-                        
+
                         <Grid item xs={6} sm={3}>
                             <Box sx={{ textAlign: 'center' }}>
                                 <Typography variant="h4" color="secondary">
@@ -436,7 +436,7 @@ const SearchHistory = ({
                                 </Typography>
                             </Box>
                         </Grid>
-                        
+
                         <Grid item xs={6} sm={3}>
                             <Box sx={{ textAlign: 'center' }}>
                                 <Typography variant="h4" color="info">
@@ -447,7 +447,7 @@ const SearchHistory = ({
                                 </Typography>
                             </Box>
                         </Grid>
-                        
+
                         <Grid item xs={6} sm={3}>
                             <Box sx={{ textAlign: 'center' }}>
                                 <Typography variant="h4" color="success">
@@ -459,7 +459,7 @@ const SearchHistory = ({
                             </Box>
                         </Grid>
                     </Grid>
-                    
+
                     {/* Top des requêtes */}
                     {analytics.topQueries.length > 0 && (
                         <Box sx={{ mt: 2 }}>
@@ -516,7 +516,7 @@ const SearchHistory = ({
                             />
                         )}
                     </Box>
-                    
+
                     <Box sx={{ display: 'flex', gap: 1 }}>
                         {selectedHistory.length > 0 && (
                             <Button
@@ -527,7 +527,7 @@ const SearchHistory = ({
                                 Effacer sélection ({selectedHistory.length})
                             </Button>
                         )}
-                        
+
                         <Button
                             size="small"
                             startIcon={<ClearAllIcon />}
@@ -538,7 +538,7 @@ const SearchHistory = ({
                         </Button>
                     </Box>
                 </Box>
-                
+
                 {selectedHistory.length > 0 && (
                     <Box sx={{ mt: 1 }}>
                         <FormControl size="small">
@@ -609,7 +609,7 @@ const SearchHistory = ({
                     <SearchIcon sx={{ mr: 1 }} />
                     Rechercher
                 </MenuItem>
-                
+
                 {onSearchBookmark && (
                     <MenuItem onClick={() => {
                         onSearchBookmark(selectedItem);
@@ -619,7 +619,7 @@ const SearchHistory = ({
                         {selectedItem?.bookmarked ? 'Retirer des favoris' : 'Ajouter aux favoris'}
                     </MenuItem>
                 )}
-                
+
                 <MenuItem onClick={() => {
                     handleEditClick(selectedItem);
                     handleMenuClose();
@@ -627,7 +627,7 @@ const SearchHistory = ({
                     <EditIcon sx={{ mr: 1 }} />
                     Modifier
                 </MenuItem>
-                
+
                 {showExport && onSearchExport && (
                     <MenuItem onClick={() => {
                         onSearchExport([selectedItem]);
@@ -637,10 +637,10 @@ const SearchHistory = ({
                         Exporter
                     </MenuItem>
                 )}
-                
+
                 <Divider />
-                
-                <MenuItem 
+
+                <MenuItem
                     onClick={() => {
                         handleDeleteClick(selectedItem);
                         handleMenuClose();
@@ -667,8 +667,8 @@ const SearchHistory = ({
                     <Button onClick={() => setDeleteDialogOpen(false)}>
                         Annuler
                     </Button>
-                    <Button 
-                        onClick={handleDeleteConfirm} 
+                    <Button
+                        onClick={handleDeleteConfirm}
                         color="error"
                         variant="contained"
                     >
@@ -703,8 +703,8 @@ const SearchHistory = ({
                     <Button onClick={() => setEditDialogOpen(false)}>
                         Annuler
                     </Button>
-                    <Button 
-                        onClick={handleEditConfirm} 
+                    <Button
+                        onClick={handleEditConfirm}
                         variant="contained"
                         disabled={!editForm.name.trim()}
                     >

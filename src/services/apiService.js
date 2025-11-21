@@ -1,4 +1,4 @@
-// src/services/apiService.js - VERSION FINALE, COMPLÈTE ET NETTOYÉE
+// src/services/apiService.js - VERSION CORRIGÉE POUR SQLITE
 
 class ApiService {
     constructor() {
@@ -24,7 +24,7 @@ class ApiService {
     request = async (endpoint, options = {}) => {
         const url = `${this.baseURL}${endpoint}`;
         const techId = this.currentTechnicianId;
-        
+
         // ✅ CORRECTION: Ne pas forcer Content-Type si le body est FormData
         // Le navigateur définit automatiquement multipart/form-data avec boundary
         const headers = { ...options.headers };
@@ -152,23 +152,24 @@ class ApiService {
     getAdUserDetails = async (username) => this.request(`/ad/users/${encodeURIComponent(username)}/details`)
     enableAdUser = async (username) => this.request(`/ad/users/${encodeURIComponent(username)}/enable`, { method: 'POST' })
     disableAdUser = async (username) => this.request(`/ad/users/${encodeURIComponent(username)}/disable`, { method: 'POST' })
-    resetAdUserPassword = async (username, newPassword, mustChange = true) => this.request(`/ad/users/${encodeURIComponent(username)}/reset-password`, { method: 'POST', body: JSON.stringify({ newPassword, mustChange }) })
-    createAdUser = async (userData) => this.request(`/ad/users`, { method: 'POST', body: JSON.stringify(userData) })
-    getAdOUs = async (parentId = null) => this.request(parentId ? `/ad/ous?parentId=${encodeURIComponent(parentId)}` : '/ad/ous')
-    getAdUsersInOU = async (ouDN) => this.request(`/ad/ou-users?ouDN=${encodeURIComponent(ouDN)}`)
-    searchAdUsers = async (searchTerm) => this.request(`/ad/users/search?term=${encodeURIComponent(searchTerm)}`)
 
-    // UTILISATEURS EXCEL
-    getExcelUsers = async () => this.request('/excel/users')
-    refreshExcelUsers = async () => this.request('/excel/users/refresh', { method: 'POST' })
-    saveUserToExcel = async (userData) => this.request('/excel/users', { method: 'POST', body: JSON.stringify(userData) })
-    deleteUserFromExcel = async (username) => this.request(`/excel/users/${encodeURIComponent(username)}`, { method: 'DELETE' })
+    // UTILISATEURS RDS (SQLite)
+    getUsers = async () => this.request('/users')
+    saveRdsUser = async (userData) => this.request('/users', { method: 'POST', body: JSON.stringify(userData) })
+    deleteRdsUser = async (username) => this.request(`/users/${encodeURIComponent(username)}`, { method: 'DELETE' })
+    getUsersByServer = async () => this.request('/users/by-server')
+    getUserStats = async () => this.request('/users/stats')
+    importExcelUsers = async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return this.request('/users/import-excel', { method: 'POST', body: formData });
+    }
 
-    // CHAT
+    // CHAT (Canaux et Messages)
     getChatChannels = async () => this.request('/chat/channels')
-    addChatChannel = async (name, description) => this.request('/chat/channels', { method: 'POST', body: JSON.stringify({ name, description }) })
-    getChatMessages = async (channelId) => this.request(`/chat/messages/${channelId}`)
-    sendChatMessage = async (channelId, messageText, fileInfo = null) => this.request('/chat/messages', { method: 'POST', body: JSON.stringify({ channelId, messageText, fileInfo }) })
+    createChatChannel = async (channelData) => this.request('/chat/channels', { method: 'POST', body: JSON.stringify(channelData) })
+    getChatMessages = async (channelId) => this.request(`/chat/channels/${channelId}/messages`)
+    sendChatMessage = async (channelId, message) => this.request('/chat/messages', { method: 'POST', body: JSON.stringify({ channelId, message }) })
     editChatMessage = async (messageId, channelId, newText) => this.request(`/chat/messages/${messageId}`, { method: 'PUT', body: JSON.stringify({ channelId, newText }) })
     deleteChatMessage = async (messageId, channelId) => this.request(`/chat/messages/${messageId}`, { method: 'DELETE', body: JSON.stringify({ channelId }) })
     toggleChatReaction = async (messageId, channelId, emoji) => this.request('/chat/reactions', { method: 'POST', body: JSON.stringify({ messageId, channelId, emoji }) })
@@ -177,7 +178,7 @@ class ApiService {
     // Health & Initialization
     getAIHealth = async () => this.request('/ai/health')
     initializeAI = async () => this.request('/ai/initialize', { method: 'POST' })
-    
+
     // Documents
     uploadAIDocument = async (file) => {
         const formData = new FormData();
@@ -191,7 +192,7 @@ class ApiService {
     getAIDocument = async (id) => this.request(`/ai/documents/${id}`)
     deleteAIDocument = async (id) => this.request(`/ai/documents/${id}`, { method: 'DELETE' })
     searchAIDocuments = async (query, maxResults = 5, minScore = 0.1) => this.request('/ai/documents/search', { method: 'POST', body: JSON.stringify({ query, maxResults, minScore }) })
-    
+
     // Conversations - ✅ Using enhanced endpoint with OpenRouter support
     sendAIMessage = async (sessionId, message, userId = null, aiProvider = 'openrouter') => this.request('/ai/chat/enhanced', { method: 'POST', body: JSON.stringify({ sessionId, message, userId, aiProvider }) })
     sendGeminiMessage = async (sessionId, message, fileText, userId = null) => this.request('/ai/chat/enhanced', { method: 'POST', body: JSON.stringify({ sessionId, message, fileText, userId, aiProvider: 'gemini' }) })
@@ -227,7 +228,7 @@ class ApiService {
     getAIStatistics = async () => this.request('/ai/statistics')
     getAIDailyStatistics = async (days = 7) => this.request(`/ai/statistics/daily?days=${days}`)
     getAIStatsOverview = async () => this.request('/ai/stats/overview')
-    
+
     // Administration
     resetAI = async () => this.request('/ai/reset', { method: 'POST' })
     cleanupAI = async () => this.request('/ai/cleanup', { method: 'POST' })
@@ -269,9 +270,14 @@ class ApiService {
         body: JSON.stringify({ text })
     })
 
-    // ✅ Préférences utilisateur
-    getUserPreferences = async () => this.request('/ai/preferences')
-    saveUserPreferences = async (preferences) => this.request('/ai/preferences', {
+    // ✅ Préférences utilisateur (AI et Alertes)
+    getUserPreferences = async () => this.request('/preferences')
+    saveUserPreferences = async (preferences) => this.request('/preferences', {
+        method: 'POST',
+        body: JSON.stringify(preferences)
+    })
+    getAIPreferences = async () => this.request('/ai/preferences')
+    saveAIPreferences = async (preferences) => this.request('/ai/preferences', {
         method: 'POST',
         body: JSON.stringify(preferences)
     })

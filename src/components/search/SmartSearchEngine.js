@@ -1,6 +1,6 @@
 // src/components/search/SmartSearchEngine.js - Moteur de recherche simplifié
+import React from 'react';
 
-// Simple search implementation without external dependencies
 export class SmartSearchEngine {
     constructor(options = {}) {
         this.options = options;
@@ -13,7 +13,7 @@ export class SmartSearchEngine {
 
     search(query) {
         if (!query || !query.trim()) return [];
-        
+
         const term = query.toLowerCase();
         return this.index.filter(doc => {
             const searchText = Object.values(doc)

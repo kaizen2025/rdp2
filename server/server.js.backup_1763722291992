@@ -230,20 +230,10 @@ async function startServer() {
         app.use('/api/auth', authRoutes);
         app.use('/api/notifications', notificationRoutes);
 
-        // ✅ Routes utilisateurs RDS (SQLite)
-        app.use('/api/users', require('../backend/routes/userRoutes'));
-
-        // ✅ Routes chat
-        app.use('/api/chat', require('../backend/routes/chatRoutes'));
-
-        // ✅ Routes préférences
-        app.use('/api/preferences', require('../backend/routes/preferencesRoutes'));
-
-
         app.use('/api', apiRoutes(broadcast));
         app.use('/api/ai', aiRoutes(broadcast));
         app.use('/api/ai', aiMultimodalRoutes); // Routes multimodales (chat, upload, files)
-        console.log('✅ Routes API configurées (standard + multimodal + auth + notifications + users + chat + preferences).');
+        console.log('✅ Routes API configurées (standard + multimodal + auth + notifications).');
         
         // Démarrage des tâches de fond APRÈS que le serveur soit prêt
         startBackgroundTasks();

@@ -12,9 +12,9 @@ import {
     Popover,
     Chip,
     Typography,
-    useMediaQuery,
-    useTheme
+    useMediaQuery
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
     Search as SearchIcon,
     Clear as ClearIcon,
@@ -54,10 +54,10 @@ const SearchBar = ({
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [anchorEl, setAnchorEl] = useState(null);
     const [focusedSuggestion, setFocusedSuggestion] = useState(-1);
-    
+
     const inputRef = useRef(null);
     const containerRef = useRef(null);
-    
+
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -86,7 +86,7 @@ const SearchBar = ({
         if (event.key === 'ArrowDown') {
             event.preventDefault();
             setShowSuggestions(true);
-            setFocusedSuggestion(prev => 
+            setFocusedSuggestion(prev =>
                 prev < suggestions.length - 1 ? prev + 1 : prev
             );
             return;
@@ -224,15 +224,15 @@ const SearchBar = ({
                     InputProps={{
                         startAdornment: (
                             <InputAdornment position="start">
-                                <SearchIcon 
-                                    color={loading ? "action" : "action"} 
-                                    sx={{ 
+                                <SearchIcon
+                                    color={loading ? "action" : "action"}
+                                    sx={{
                                         animation: loading ? 'spin 1s linear infinite' : 'none',
                                         '@keyframes spin': {
                                             '0%': { transform: 'rotate(0deg)' },
                                             '100%': { transform: 'rotate(360deg)' }
                                         }
-                                    }} 
+                                    }}
                                 />
                             </InputAdornment>
                         ),
@@ -386,7 +386,7 @@ const SearchBar = ({
                     <Typography variant="subtitle2" sx={{ p: 1, pb: 0.5 }}>
                         Options de recherche
                     </Typography>
-                    
+
                     <Tooltip title="Filtres avancés">
                         <IconButton
                             fullWidth

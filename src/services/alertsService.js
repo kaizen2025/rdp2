@@ -15,6 +15,97 @@ export const ALERT_TYPES = {
 };
 
 class AlertsService {
+    constructor() {
+        this.notifications = [];
+        this.preferences = this.loadPreferences();
+    }
+
+    loadPreferences() {
+        const stored = localStorage.getItem('docucortex_alert_preferences');
+        return stored ? JSON.parse(stored) : {
+            enableBrowserNotifications: true,
+            enableInAppNotifications: true,
+            enableEmailNotifications: false,
+            criticalThreshold: 2,
+            warningThreshold: 7
+        };
+    }
+
+    getUserPreferences() {
+        return this.preferences;
+    }
+
+    updateUserPreferences(newPreferences) {
+        this.preferences = { ...this.preferences, ...newPreferences };
+        localStorage.setItem('docucortex_alert_preferences', JSON.stringify(this.preferences));
+        return this.preferences;
+    }
+
+    getStoredNotifications() {
+        const stored = localStorage.getItem('docucortex_notifications');
+        return stored ? JSON.parse(stored) : [];
+    }
+
+    markAsRead(notificationId) {
+        const notifications = this.getStoredNotifications();
+        const updated = notifications.map(n =>
+            n.id === notificationId ? { ...n, read: true } : n
+        );
+        localStorage.setItem('docucortex_notifications', JSON.stringify(updated));
+        window.dispatchEvent(new CustomEvent('docucortex-alert-read', { detail: notificationId }));
+    }
+
+    deleteNotification(notificationId) {
+        const notifications = this.getStoredNotifications();
+        const updated = notifications.filter(n => n.id !== notificationId);
+        localStorage.setItem('docucortex_notifications', JSON.stringify(updated));
+        window.dispatchEvent(new CustomEvent('docucortex-alert-deleted', { detail: notificationId }));
+    }
+
+    getNotificationHistory() {
+        const stored = localStorage.getItem('docucortex_notification_history');
+        return stored ? JSON.parse(stored) : [];
+    }
+
+    processLoansForAlerts(loans) {
+        // Process loans and create alerts if necessary
+        const alerts = this.getAlerts(loans);
+        alerts.forEach(alert => {
+            this.createNotification({
+                id: `alert_${alert.id}_${Date.now()}`,
+                title: `Alerte prêt: ${alert.borrowerName}`,
+                message: `Ordinateur ${alert.computerSerial} - ${alert.alertStatus.type}`,
+                priority: alert.alertStatus.level.level,
+                timestamp: new Date().toISOString(),
+                read: false,
+                loanId: alert.id,
+                actions: [
+                    { action: 'view', label: 'Voir le prêt', icon: 'visibility' },
+                    { action: 'extend', label: 'Prolonger', icon: 'schedule' }
+                ]
+            });
+        });
+    }
+
+    createNotification(notification) {
+        const notifications = this.getStoredNotifications();
+        const exists = notifications.find(n => n.id === notification.id);
+        if (!exists) {
+            notifications.unshift(notification);
+            localStorage.setItem('docucortex_notifications', JSON.stringify(notifications));
+            window.dispatchEvent(new CustomEvent('docucortex-new-alert', { detail: notification }));
+        }
+    }
+
+    getAlertStatistics() {
+        const notifications = this.getStoredNotifications();
+        return {
+            total: notifications.length,
+            unread: notifications.filter(n => !n.read).length,
+            urgent: notifications.filter(n => n.priority >= 3).length
+        };
+    }
+
     calculateAlertStatus(loan) {
         if (!loan || !loan.expectedReturnDate) {
             return {

@@ -58,9 +58,6 @@ import { fr } from 'date-fns/locale';
 import alertsService, { ALERT_LEVELS, ALERT_TYPES } from '../../services/alertsService';
 import AlertSystem from '../alerts/AlertSystem';
 
-// Import du système de recherche intelligente
-import { AdvancedSearchContainer, useSmartSearch } from '../search';
-
 // Configuration des statuts (compatible avec LoanListVirtualized)
 const STATUS_CONFIG = {
     active: { label: 'Actif', color: 'success', priority: 1 },
@@ -169,7 +166,7 @@ const AlertIndicator = React.memo(({ loan, size = 'small' }) => {
                     <Typography variant="subtitle2" gutterBottom>
                         Détails de l'alerte
                     </Typography>
-                    
+
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                         <Typography variant="body2">
                             <strong>Type:</strong> {alertStatus.type}
@@ -180,7 +177,7 @@ const AlertIndicator = React.memo(({ loan, size = 'small' }) => {
                         <Typography variant="body2">
                             <strong>Échéance:</strong> {format(parseISO(loan.returnDate), 'dd/MM/yyyy à HH:mm', { locale: fr })}
                         </Typography>
-                        
+
                         {alertStatus.isOverdue && (
                             <Alert severity="error" sx={{ mt: 1 }}>
                                 Ce prêt est en retard !
@@ -271,7 +268,7 @@ const LoanRow = React.memo(({
         <TableRow
             hover
             selected={isSelected}
-            sx={{ 
+            sx={{
                 cursor: 'pointer',
                 '&:last-child td, &:last-child th': { border: 0 },
                 backgroundColor: isSelected ? 'action.selected' : 'inherit'
@@ -290,8 +287,8 @@ const LoanRow = React.memo(({
             <TableCell>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Avatar
-                        sx={{ 
-                            width: compact ? 32 : 40, 
+                        sx={{
+                            width: compact ? 32 : 40,
                             height: compact ? 32 : 40,
                             bgcolor: getUserColor(loan.borrowerId)
                         }}
@@ -315,8 +312,8 @@ const LoanRow = React.memo(({
             <TableCell>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Avatar
-                        sx={{ 
-                            width: compact ? 28 : 32, 
+                        sx={{
+                            width: compact ? 28 : 32,
                             height: compact ? 28 : 32,
                             bgcolor: getUserColor(loan.borrowerId)
                         }}
@@ -432,12 +429,12 @@ const LoanRow = React.memo(({
 // 📊 COMPOSANT DE STATUT D'ALERTE GLOBALE
 const GlobalAlertStatus = React.memo(({ loans }) => {
     const alertStats = useMemo(() => {
-        const stats = { 
-            total: 0, 
-            overdue: 0, 
-            critical: 0, 
-            upcoming24h: 0, 
-            upcoming48h: 0 
+        const stats = {
+            total: 0,
+            overdue: 0,
+            critical: 0,
+            upcoming24h: 0,
+            upcoming48h: 0
         };
 
         loans.forEach(loan => {
@@ -473,12 +470,12 @@ const GlobalAlertStatus = React.memo(({ loans }) => {
     }
 
     return (
-        <Alert 
+        <Alert
             severity={alertStats.overdue > 0 ? 'error' : alertStats.critical > 0 ? 'warning' : 'info'}
             sx={{ mb: 2 }}
             action={
-                <Button 
-                    color="inherit" 
+                <Button
+                    color="inherit"
                     size="small"
                     onClick={() => alertsService.processLoansForAlerts(loans)}
                 >
@@ -515,7 +512,6 @@ const LoanList = ({
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [alertFilter, setAlertFilter] = useState('');
-    const [alertSystemOpen, setAlertSystemOpen] = useState(false);
     const [alertsData, setAlertsData] = useState([]);
 
     // Chargement des alertes
@@ -538,31 +534,31 @@ const LoanList = ({
         };
     }, []);
 
-    // Système de recherche intelligente
-    const smartSearch = useSmartSearch(loans, {
-        enableFuzzySearch: true,
-        enableAutoComplete: true,
-        enableHistory: true,
-        enableFacets: true,
-        debounceMs: 300,
-        maxResults: 500
-    });
-
-    // Filtrage et recherche avec le système intelligent
+    // Filtrage standard (sans SmartSearch)
     const filteredLoans = useMemo(() => {
-        // Utiliser les résultats de recherche intelligente
-        let filtered = smartSearch.results.length > 0 ? smartSearch.results : loans;
+        let filtered = loans;
 
-        // Appliquer les filtres legacy pour la compatibilité
+        // Filtre texte simple
+        if (searchTerm) {
+            const lowerTerm = searchTerm.toLowerCase();
+            filtered = filtered.filter(loan =>
+                (loan.documentTitle && loan.documentTitle.toLowerCase().includes(lowerTerm)) ||
+                (loan.borrowerName && loan.borrowerName.toLowerCase().includes(lowerTerm)) ||
+                (loan.documentType && loan.documentType.toLowerCase().includes(lowerTerm))
+            );
+        }
+
+        // Filtre statut
         if (statusFilter) {
             filtered = filtered.filter(loan => loan.status === statusFilter);
         }
 
+        // Filtre alertes
         if (alertFilter) {
             filtered = filtered.filter(loan => {
                 const alertStatus = alertsService.calculateAlertStatus(loan);
                 if (!alertStatus) return alertFilter === 'none';
-                
+
                 switch (alertFilter) {
                     case 'overdue':
                         return alertStatus.isOverdue;
@@ -581,14 +577,11 @@ const LoanList = ({
         }
 
         return filtered;
-    }, [loans, smartSearch.results, smartSearch.filters, statusFilter, alertFilter]);
+    }, [loans, searchTerm, statusFilter, alertFilter]);
 
     // Gestionnaires d'événements
     const handleSearchChange = (event) => {
-        const value = event.target.value;
-        setSearchTerm(value);
-        // Synchroniser avec le système de recherche intelligente
-        smartSearch.search(value);
+        setSearchTerm(event.target.value);
     };
 
     const handleStatusFilterChange = (event) => {
@@ -597,16 +590,6 @@ const LoanList = ({
 
     const handleAlertFilterChange = (event) => {
         setAlertFilter(event.target.value);
-    };
-
-    // Gestionnaire pour les filtres de recherche intelligente
-    const handleSmartFilterChange = (filters) => {
-        smartSearch.updateFilters(filters);
-    };
-
-    const handleSmartSearch = (query) => {
-        setSearchTerm(query);
-        smartSearch.search(query);
     };
 
     const handleSelectAll = (event) => {
@@ -642,11 +625,17 @@ const LoanList = ({
         setAlertFilter('');
     };
 
-    // Statistiques d'alertes
-    const alertStatistics = useMemo(() => {
-        const stats = alertsService.getAlertStatistics();
-        return stats;
-    }, [alertsData]);
+    // Helper pour hashCode (manquant dans le code original mais utilisé)
+    const hashCode = (str) => {
+        let hash = 0;
+        if (!str) return hash;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return hash;
+    };
 
     return (
         <Box sx={{ width: '100%' }}>
@@ -681,40 +670,7 @@ const LoanList = ({
             {/* Statut global des alertes */}
             {showStatistics && <GlobalAlertStatus loans={loans} />}
 
-            {/* Système de recherche intelligente intégré */}
-            <AdvancedSearchContainer
-                data={loans}
-                onResultSelect={(result) => {
-                    // Sélectionner le prêt trouvé dans la liste
-                    const newSelected = new Set(selectedLoans);
-                    newSelected.add(result.id);
-                    onSelectLoan(newSelected);
-                }}
-                onResultAction={(action, result) => {
-                    // Gérer les actions sur les résultats de recherche
-                    switch (action) {
-                        case 'edit':
-                            onEdit(result);
-                            break;
-                        case 'extend':
-                            onExtend(result);
-                            break;
-                        case 'return':
-                            onReturn(result);
-                            break;
-                        default:
-                            console.log('Action non gérée:', action);
-                    }
-                }}
-                drawerPosition="right"
-                drawerWidth={500}
-                showHistory={true}
-                showFilters={true}
-                showAnalytics={true}
-                persistent={false}
-            />
-
-            {/* Contrôles et filtres legacy (compatibilité) */}
+            {/* Contrôles et filtres */}
             <Paper sx={{ p: 2, mb: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
                     <TextField
@@ -765,103 +721,21 @@ const LoanList = ({
                         </Select>
                     </FormControl>
 
-                    {(searchTerm || statusFilter || alertFilter || Object.keys(smartSearch.filters).length > 0) && (
+                    {(searchTerm || statusFilter || alertFilter) && (
                         <Button
                             size="small"
                             startIcon={<ClearIcon />}
-                            onClick={() => {
-                                clearFilters();
-                                smartSearch.clearFilters();
-                                smartSearch.search('');
-                            }}
+                            onClick={clearFilters}
                         >
                             Effacer filtres
                         </Button>
                     )}
-
-                    <Box sx={{ ml: 'auto', display: 'flex', gap: 1 }}>
-                        {/* Indicateur de recherche intelligente */}
-                        {smartSearch.searchQuery && (
-                            <Chip
-                                label={`Recherche: "${smartSearch.searchQuery}"`}
-                                color="primary"
-                                variant="outlined"
-                                size="small"
-                            />
-                        )}
-                        
-                        <Tooltip title="Recherche avancée (Ctrl+K)">
-                            <IconButton
-                                color="primary"
-                                onClick={() => {/* Trigger search container */}}
-                            >
-                                <SearchIcon />
-                            </IconButton>
-                        </Tooltip>
-
-                        <Tooltip title="Système d'alertes complet">
-                            <IconButton
-                                color="primary"
-                                onClick={() => setAlertSystemOpen(true)}
-                            >
-                                <Badge badgeContent={alertStatistics.unread} color="error">
-                                    <NotificationsIcon />
-                                </Badge>
-                            </IconButton>
-                        </Tooltip>
-
-                        <Tooltip title="Actualiser">
-                            <IconButton onClick={() => alertsService.processLoansForAlerts(loans)}>
-                                <RefreshIcon />
-                            </IconButton>
-                        </Tooltip>
-                    </Box>
                 </Box>
-
-                {/* Statistiques rapides */}
-                {showStatistics && (
-                    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                        <Chip
-                            label={`${filteredLoans.length} prêt${filteredLoans.length > 1 ? 's' : ''}`}
-                            color="primary"
-                            variant="outlined"
-                        />
-                        <Chip
-                            label={`${selectedLoans.size} sélectionné${selectedLoans.size > 1 ? 's' : ''}`}
-                            color="secondary"
-                            variant="outlined"
-                        />
-                        <Chip
-                            label={`${alertStatistics.urgent} urgentes`}
-                            color="error"
-                            variant="outlined"
-                        />
-                        
-                        {/* Statistiques de recherche intelligente */}
-                        {smartSearch.searchQuery && (
-                            <>
-                                <Chip
-                                    label={`${smartSearch.totalResults} résultat${smartSearch.totalResults > 1 ? 's' : ''}`}
-                                    color="info"
-                                    variant="outlined"
-                                />
-                                {smartSearch.searchTime > 0 && (
-                                    <Chip
-                                        label={`${smartSearch.searchTime.toFixed(1)}ms`}
-                                        color="success"
-                                        variant="outlined"
-                                        size="small"
-                                    />
-                                )}
-                            </>
-                        )}
-                    </Box>
-                )}
             </Paper>
 
             {/* Tableau des prêts */}
             <TableContainer component={Paper}>
-                <Table>
+                <Table size={compact ? 'small' : 'medium'}>
                     <TableHead>
                         <TableRow>
                             <TableCell padding="checkbox">
@@ -869,66 +743,55 @@ const LoanList = ({
                                     indeterminate={selectedLoans.size > 0 && selectedLoans.size < filteredLoans.length}
                                     checked={filteredLoans.length > 0 && selectedLoans.size === filteredLoans.length}
                                     onChange={handleSelectAll}
-                                    inputProps={{ 'aria-label': 'select all loans' }}
                                 />
                             </TableCell>
-
-                            <TableCell sortDirection={sortConfig.field === 'documentTitle' ? sortConfig.direction : false}>
+                            <TableCell>
                                 <TableSortLabel
                                     active={sortConfig.field === 'documentTitle'}
-                                    direction={sortConfig.direction}
+                                    direction={sortConfig.field === 'documentTitle' ? sortConfig.direction : 'asc'}
                                     onClick={() => handleSort('documentTitle')}
                                 >
                                     Document
                                 </TableSortLabel>
                             </TableCell>
-
-                            <TableCell sortDirection={sortConfig.field === 'borrowerName' ? sortConfig.direction : false}>
+                            <TableCell>
                                 <TableSortLabel
                                     active={sortConfig.field === 'borrowerName'}
-                                    direction={sortConfig.direction}
+                                    direction={sortConfig.field === 'borrowerName' ? sortConfig.direction : 'asc'}
                                     onClick={() => handleSort('borrowerName')}
                                 >
                                     Emprunteur
                                 </TableSortLabel>
                             </TableCell>
-
-                            <TableCell sortDirection={sortConfig.field === 'loanDate' ? sortConfig.direction : false}>
+                            <TableCell>
                                 <TableSortLabel
                                     active={sortConfig.field === 'loanDate'}
-                                    direction={sortConfig.direction}
+                                    direction={sortConfig.field === 'loanDate' ? sortConfig.direction : 'asc'}
                                     onClick={() => handleSort('loanDate')}
                                 >
-                                    Date d'emprunt
+                                    Date Prêt
                                 </TableSortLabel>
                             </TableCell>
-
-                            <TableCell sortDirection={sortConfig.field === 'returnDate' ? sortConfig.direction : false}>
+                            <TableCell>
                                 <TableSortLabel
                                     active={sortConfig.field === 'returnDate'}
-                                    direction={sortConfig.direction}
+                                    direction={sortConfig.field === 'returnDate' ? sortConfig.direction : 'asc'}
                                     onClick={() => handleSort('returnDate')}
                                 >
-                                    Date de retour
+                                    Retour Prévu
                                 </TableSortLabel>
                             </TableCell>
-
                             <TableCell>Statut</TableCell>
                             <TableCell>Alerte</TableCell>
-
                             <TableCell align="right">Actions</TableCell>
                         </TableRow>
                     </TableHead>
-
                     <TableBody>
                         {filteredLoans.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
-                                    <Typography color="text.secondary">
-                                        {loans.length === 0 
-                                            ? 'Aucun prêt trouvé'
-                                            : 'Aucun prêt ne correspond aux filtres actuels'
-                                        }
+                                <TableCell colSpan={8} align="center" sx={{ py: 3 }}>
+                                    <Typography variant="body1" color="text.secondary">
+                                        Aucun prêt trouvé
                                     </Typography>
                                 </TableCell>
                             </TableRow>
@@ -938,7 +801,7 @@ const LoanList = ({
                                     key={loan.id}
                                     loan={loan}
                                     isSelected={selectedLoans.has(loan.id)}
-                                    onSelect={(loan, isSelected) => handleSelectLoan(loan, isSelected)}
+                                    onSelect={handleSelectLoan}
                                     onReturn={onReturn}
                                     onEdit={onEdit}
                                     onExtend={onExtend}
@@ -954,45 +817,8 @@ const LoanList = ({
                     </TableBody>
                 </Table>
             </TableContainer>
-
-            {/* Système d'alertes complet en modal */}
-            <AlertSystem
-                open={alertSystemOpen}
-                onClose={() => setAlertSystemOpen(false)}
-                loans={loans}
-                embedded={false}
-                showStatistics={true}
-                onLoanAction={(action, loanId) => {
-                    const loan = loans.find(l => l.id === loanId);
-                    if (loan) {
-                        switch (action) {
-                            case 'extend':
-                                onExtend(loan);
-                                break;
-                            case 'recall':
-                                // Action de rappel
-                                console.log('Rappel envoyé pour', loanId);
-                                break;
-                            case 'view':
-                                onEdit(loan);
-                                break;
-                        }
-                    }
-                }}
-            />
         </Box>
     );
 };
 
-// Fonction utilitaire pour générer des couleurs cohérentes
-function hashCode(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-    }
-    return hash;
-}
-
-export default React.memo(LoanList);
+export default LoanList;

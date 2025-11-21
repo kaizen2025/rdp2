@@ -2,7 +2,7 @@
 // Export centralisé de tous les composants et services de recherche DocuCortex
 
 // Hook principal et engine
-export { default as useSmartSearch, SmartSearchEngine } from './SmartSearchEngine';
+export { default as SmartSearchEngine, useSmartSearch } from './SmartSearchEngine';
 
 // Composants principaux
 export { default as AdvancedSearchContainer } from './AdvancedSearchContainer';
@@ -20,28 +20,28 @@ export const SEARCH_CONSTANTS = {
     // Types de recherche
     SEARCH_TYPES: {
         TEXT: 'text',
-        FILTER: 'filter', 
+        FILTER: 'filter',
         ADVANCED: 'advanced',
         SAVED: 'saved'
     },
-    
+
     // Modes d'affichage
     VIEW_MODES: {
         LIST: 'list',
         GRID: 'grid',
         COMPACT: 'compact'
     },
-    
+
     // Options de tri
     SORT_OPTIONS: {
         RELEVANCE: 'relevance',
         DATE_DESC: 'dateDesc',
-        DATE_ASC: 'dateAsc', 
+        DATE_ASC: 'dateAsc',
         BORROWER_NAME: 'borrowerName',
         DOCUMENT_TITLE: 'documentTitle',
         RETURN_DATE: 'returnDate'
     },
-    
+
     // Groupements
     GROUPING_OPTIONS: {
         NONE: 'none',
@@ -51,14 +51,14 @@ export const SEARCH_CONSTANTS = {
         DATE: 'date',
         ALERT_LEVEL: 'alertLevel'
     },
-    
+
     // Positions du drawer
     DRAWER_POSITIONS: {
         LEFT: 'left',
         RIGHT: 'right',
         BOTTOM: 'bottom'
     },
-    
+
     // Configuration des filtres par défaut
     DEFAULT_FILTERS: {
         status: '',
@@ -72,7 +72,7 @@ export const SEARCH_CONSTANTS = {
         fuzzySearch: true,
         caseSensitive: false
     },
-    
+
     // Configuration de recherche par défaut
     DEFAULT_SEARCH_OPTIONS: {
         enableFuzzySearch: true,
@@ -95,12 +95,12 @@ export const searchUtils = {
             .replace(/[^\w\s-]/g, '')
             .trim() || '';
     },
-    
+
     // Tokeniser une requête
     tokenizeQuery: (query) => {
         return searchUtils.normalizeText(query).split(/\s+/).filter(token => token.length > 1);
     },
-    
+
     // Calculer le score de pertinence
     calculateRelevanceScore: (item, searchTerms) => {
         let score = 0;
@@ -113,7 +113,7 @@ export const searchUtils = {
         });
         return score;
     },
-    
+
     // Générer des suggestions de recherche
     generateSuggestions: (data, query, limit = 5) => {
         const normalizedQuery = searchUtils.normalizeText(query);
@@ -134,7 +134,7 @@ export const searchUtils = {
 
         return Array.from(suggestions).slice(0, limit);
     },
-    
+
     // Formater la date relative
     formatRelativeDate: (dateString) => {
         try {
@@ -142,7 +142,7 @@ export const searchUtils = {
             const now = new Date();
             const diffTime = Math.abs(now - date);
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
+
             if (diffDays === 0) return 'Aujourd\'hui';
             if (diffDays === 1) return 'Hier';
             if (diffDays < 7) return `Il y a ${diffDays} jours`;
@@ -152,25 +152,25 @@ export const searchUtils = {
             return '';
         }
     },
-    
+
     // Valider une requête de recherche
     validateSearchQuery: (query) => {
         const errors = [];
-        
+
         if (!query || query.trim().length === 0) {
             errors.push('La requête de recherche ne peut pas être vide');
         }
-        
+
         if (query.length > 200) {
             errors.push('La requête de recherche est trop longue (max 200 caractères)');
         }
-        
+
         // Vérifier les caractères interdits
         const forbiddenChars = /[<>\/"'\\]/;
         if (forbiddenChars.test(query)) {
             errors.push('La requête contient des caractères interdits');
         }
-        
+
         return {
             isValid: errors.length === 0,
             errors
@@ -188,7 +188,7 @@ export const useSearchHistory = () => {
             return [];
         }
     };
-    
+
     const addToHistory = (query, filters = {}) => {
         try {
             const history = getHistory();
@@ -198,19 +198,19 @@ export const useSearchHistory = () => {
                 filters,
                 timestamp: new Date().toISOString()
             };
-            
+
             history.unshift(newItem);
             // Limiter à 50 éléments
             const limitedHistory = history.slice(0, 50);
             localStorage.setItem('docucortex_search_history', JSON.stringify(limitedHistory));
-            
+
             return newItem;
         } catch (error) {
             console.warn('Impossible de sauvegarder dans l\'historique:', error);
             return null;
         }
     };
-    
+
     const clearHistory = () => {
         try {
             localStorage.removeItem('docucortex_search_history');
@@ -219,7 +219,7 @@ export const useSearchHistory = () => {
             return false;
         }
     };
-    
+
     return {
         getHistory,
         addToHistory,
@@ -236,7 +236,7 @@ export const useSavedSearches = () => {
             return [];
         }
     };
-    
+
     const saveSearch = (name, query, filters = {}, options = {}) => {
         try {
             const saved = getSavedSearches();
@@ -248,17 +248,17 @@ export const useSavedSearches = () => {
                 options,
                 timestamp: new Date().toISOString()
             };
-            
+
             saved.push(newSaved);
             localStorage.setItem('docucortex_saved_searches', JSON.stringify(saved));
-            
+
             return newSaved;
         } catch (error) {
             console.warn('Impossible de sauvegarder la recherche:', error);
             return null;
         }
     };
-    
+
     const deleteSavedSearch = (id) => {
         try {
             const saved = getSavedSearches();
@@ -269,7 +269,7 @@ export const useSavedSearches = () => {
             return false;
         }
     };
-    
+
     return {
         getSavedSearches,
         saveSearch,
@@ -326,7 +326,7 @@ export default {
     useSmartSearch,
     useSearchHistory,
     useSavedSearches,
-    
+
     // Composants
     AdvancedSearchContainer,
     SearchBar,
@@ -334,14 +334,14 @@ export default {
     SearchFilters,
     SearchResults,
     SearchHistory,
-    
+
     // Services
     searchService,
-    
+
     // Utilitaires
     searchUtils,
     SEARCH_CONSTANTS,
-    
+
     // Démonstration
     SearchDemo
 };

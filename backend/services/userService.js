@@ -1,7 +1,6 @@
-// backend/services/userService.js - SERVICE DE GESTION DES UTILISATEURS RDS AVEC SQLITE
+// backend/services/userService.js - SERVICE DE GESTION DES UTILISATEURS RDS (SQLITE ONLY)
 
 const db = require('./databaseService');
-const excelService = require('./excelService');
 
 /**
  * Récupère tous les utilisateurs depuis la base SQLite
@@ -56,7 +55,7 @@ async function getUsersByServer() {
 }
 
 /**
- * Sauvegarde ou met à jour un utilisateur dans SQLite ET dans Excel
+ * Sauvegarde ou met à jour un utilisateur dans SQLite
  * @param {Object} userData Données de l'utilisateur
  * @param {Object} technician Technicien effectuant l'opération
  * @returns {Promise<Object>} Résultat de l'opération
@@ -67,17 +66,6 @@ async function saveUser(userData, technician) {
     const isUpdate = !!existingUser;
 
     try {
-        // 1. Sauvegarder dans Excel (source de vérité)
-        const excelResult = await excelService.saveUserToExcel({
-            user: userData,
-            isEdit: isUpdate
-        });
-
-        if (!excelResult.success) {
-            return { success: false, error: `Erreur Excel: ${excelResult.error}` };
-        }
-
-        // 2. Sauvegarder dans SQLite (cache)
         const id = existingUser?.id || `user_${Date.now()}`;
 
         if (isUpdate) {
@@ -85,28 +73,28 @@ async function saveUser(userData, technician) {
                 UPDATE users SET
                     displayName = ?, email = ?, department = ?, server = ?,
                     password = ?, officePassword = ?, notes = ?,
-                    lastModified = ?, modifiedBy = ?, lastSyncFromExcel = ?
+                    lastModified = ?, modifiedBy = ?
                 WHERE username = ?
             `, [
                 userData.displayName, userData.email || '', userData.department || '', userData.server || '',
                 userData.password || '', userData.officePassword || '', userData.notes || '',
-                now, technician?.name || 'system', now, userData.username
+                now, technician?.name || 'system', userData.username
             ]);
         } else {
             db.run(`
                 INSERT INTO users (
                     id, username, displayName, email, department, server,
                     password, officePassword, notes, createdAt, createdBy,
-                    lastModified, modifiedBy, lastSyncFromExcel
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    lastModified, modifiedBy
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `, [
                 id, userData.username, userData.displayName, userData.email || '', userData.department || '',
                 userData.server || '', userData.password || '', userData.officePassword || '',
-                userData.notes || '', now, technician?.name || 'system', now, technician?.name || 'system', now
+                userData.notes || '', now, technician?.name || 'system', now, technician?.name || 'system'
             ]);
         }
 
-        console.log(`✅ Utilisateur ${userData.username} ${isUpdate ? 'mis à jour' : 'créé'} dans SQLite et Excel`);
+        console.log(`✅ Utilisateur ${userData.username} ${isUpdate ? 'mis à jour' : 'créé'} dans SQLite`);
         return { success: true };
 
     } catch (error) {
@@ -116,85 +104,19 @@ async function saveUser(userData, technician) {
 }
 
 /**
- * Supprime un utilisateur de SQLite ET d'Excel
+ * Supprime un utilisateur de SQLite
  * @param {string} username Nom d'utilisateur à supprimer
  * @param {Object} technician Technicien effectuant l'opération
  * @returns {Promise<Object>} Résultat de l'opération
  */
 async function deleteUser(username, technician) {
     try {
-        // 1. Supprimer d'Excel (source de vérité)
-        const excelResult = await excelService.deleteUserFromExcel({ username });
-
-        if (!excelResult.success) {
-            return { success: false, error: `Erreur Excel: ${excelResult.error}` };
-        }
-
-        // 2. Supprimer de SQLite (cache)
         db.run('DELETE FROM users WHERE username = ?', [username]);
-
-        console.log(`✅ Utilisateur ${username} supprimé de SQLite et Excel`);
+        console.log(`✅ Utilisateur ${username} supprimé de SQLite`);
         return { success: true };
-
     } catch (error) {
         console.error('❌ Erreur lors de la suppression de l\'utilisateur:', error);
         return { success: false, error: error.message };
-    }
-}
-
-/**
- * Synchronise les utilisateurs depuis Excel vers SQLite
- * @param {boolean} force Force la resynchronisation même si le cache est récent
- * @returns {Promise<Object>} Résultat de la synchronisation
- */
-async function syncUsersFromExcel(force = false) {
-    const now = new Date().toISOString();
-
-    try {
-        console.log('🔄 Synchronisation des utilisateurs Excel → SQLite...');
-        const excelData = await excelService.readExcelFileAsync();
-
-        if (!excelData.success) {
-            return { success: false, error: `Impossible de lire Excel: ${excelData.error}`, usersCount: 0 };
-        }
-
-        const excelUsers = Object.values(excelData.users).flat();
-        if (excelUsers.length === 0) {
-            console.warn('⚠️ Aucun utilisateur trouvé dans Excel');
-            return { success: true, usersCount: 0, message: 'Aucun utilisateur dans Excel' };
-        }
-
-        const upsertStmt = db.prepare(`
-            INSERT INTO users (
-                id, username, displayName, email, department, server,
-                password, officePassword, createdAt, createdBy,
-                lastModified, modifiedBy, lastSyncFromExcel
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(username) DO UPDATE SET
-                displayName = excluded.displayName, email = excluded.email, department = excluded.department,
-                server = excluded.server, password = excluded.password, officePassword = excluded.officePassword,
-                lastModified = excluded.lastModified, modifiedBy = excluded.modifiedBy,
-                lastSyncFromExcel = excluded.lastSyncFromExcel
-        `);
-
-        const transaction = db.transaction(() => {
-            for (const user of excelUsers) {
-                const id = `user_${user.username}`;
-                upsertStmt.run(
-                    id, user.username, user.displayName, user.email || '', user.department || '',
-                    user.server || '', user.password || '', user.officePassword || '',
-                    now, 'sync_excel', now, 'sync_excel', now
-                );
-            }
-        });
-
-        transaction();
-        console.log(`✅ ${excelUsers.length} utilisateurs synchronisés Excel → SQLite`);
-        return { success: true, usersCount: excelUsers.length, message: `${excelUsers.length} utilisateurs synchronisés` };
-
-    } catch (error) {
-        console.error('❌ Erreur lors de la synchronisation Excel → SQLite:', error);
-        return { success: false, error: error.message, usersCount: 0 };
     }
 }
 
@@ -225,6 +147,5 @@ module.exports = {
     getUsersByServer,
     saveUser,
     deleteUser,
-    syncUsersFromExcel,
     getUserStats
 };
