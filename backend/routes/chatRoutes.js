@@ -11,16 +11,20 @@ const db = require('../db');
 router.get('/channels', async (req, res) => {
     try {
         const channels = await new Promise((resolve, reject) => {
+            // NOTE: Column is createdBy (camelCase) in SQLite schema, not created_by
             db.all(
-                `SELECT id, name, description, created_by, created_at, is_private, members
+                `SELECT id, name, description, createdBy as created_by, createdAt as created_at
                  FROM chat_channels
-                 ORDER BY created_at DESC`,
+                 ORDER BY createdAt DESC`,
                 [],
                 (err, rows) => {
                     if (err) reject(err);
                     else resolve(rows.map(row => ({
                         ...row,
-                        members: row.members ? JSON.parse(row.members) : []
+                        members: row.members ? JSON.parse(row.members) : [],
+                        // Compatibility if fields are missing
+                        is_private: 0,
+                        members: []
                     })));
                 }
             );
@@ -41,12 +45,14 @@ router.post('/channels', async (req, res) => {
     try {
         const { name, description, is_private, members } = req.body;
         const created_by = req.headers['x-technician-id'] || 'system';
+        const createdAt = new Date().toISOString();
 
         await new Promise((resolve, reject) => {
+            // NOTE: Schema uses createdAt, createdBy
             db.run(
-                `INSERT INTO chat_channels (name, description, created_by, is_private, members)
+                `INSERT INTO chat_channels (id, name, description, createdBy, createdAt)
                  VALUES (?, ?, ?, ?, ?)`,
-                [name, description, created_by, is_private ? 1 : 0, JSON.stringify(members || [])],
+                [`chan_${Date.now()}`, name, description, created_by, createdAt],
                 function (err) {
                     if (err) reject(err);
                     else resolve({ id: this.lastID });
@@ -72,16 +78,21 @@ router.get('/channels/:channelId/messages', async (req, res) => {
 
         const messages = await new Promise((resolve, reject) => {
             db.all(
-                `SELECT id, channel_id, user_id, username, message, timestamp, edited, reactions
+                `SELECT id, channelId, authorId, authorName, text, timestamp, reactions
                  FROM chat_messages
-                 WHERE channel_id = ?
+                 WHERE channelId = ?
                  ORDER BY timestamp DESC
                  LIMIT ?`,
                 [channelId, limit],
                 (err, rows) => {
                     if (err) reject(err);
                     else resolve(rows.map(row => ({
-                        ...row,
+                        id: row.id,
+                        channel_id: row.channelId,
+                        user_id: row.authorId,
+                        username: row.authorName,
+                        message: row.text,
+                        timestamp: row.timestamp,
                         reactions: row.reactions ? JSON.parse(row.reactions) : []
                     })).reverse());
                 }
@@ -104,15 +115,17 @@ router.post('/messages', async (req, res) => {
         const { channelId, message } = req.body;
         const user_id = req.headers['x-technician-id'] || 'system';
         const username = req.headers['x-technician-name'] || 'Système';
+        const id = `msg_${Date.now()}`;
 
         const result = await new Promise((resolve, reject) => {
+            // NOTE: Schema uses channelId, authorId, authorName, text
             db.run(
-                `INSERT INTO chat_messages (channel_id, user_id, username, message, timestamp)
-                 VALUES (?, ?, ?, ?, datetime('now'))`,
-                [channelId, user_id, username, message],
+                `INSERT INTO chat_messages (id, channelId, authorId, authorName, text, timestamp)
+                 VALUES (?, ?, ?, ?, ?, datetime('now'))`,
+                [id, channelId, user_id, username, message],
                 function (err) {
                     if (err) reject(err);
-                    else resolve({ id: this.lastID });
+                    else resolve({ id });
                 }
             );
         });
@@ -136,7 +149,7 @@ router.put('/messages/:id', async (req, res) => {
         await new Promise((resolve, reject) => {
             db.run(
                 `UPDATE chat_messages 
-                 SET message = ?, edited = 1
+                 SET text = ?
                  WHERE id = ?`,
                 [newText, id],
                 (err) => {
