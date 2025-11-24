@@ -1,5 +1,5 @@
 // backend/services/ai/aiService.js
-// ... (keep all previous imports)
+// ... (imports remain similar but need aiDatabaseService)
 const documentParserService = require('./documentParserService');
 const nlpService = require('./nlpService');
 const vectorSearchService = require('./vectorSearchService');
@@ -15,6 +15,7 @@ const geminiService = require('./geminiService');
 const path = require('path');
 const fs = require('fs').promises;
 const dataService = require('../dataService');
+const aiDatabaseService = require('./aiDatabaseService'); // Import the correct DB service wrapper
 
 // Mocking google_search if not available via 'this'
 const google_search_mock = async ({ query }) => {
@@ -24,7 +25,7 @@ const google_search_mock = async ({ query }) => {
 
 class AIService {
     constructor(databaseService, dataServiceInstance) {
-        this.db = databaseService;
+        this.db = databaseService; // This should be the aiDatabaseService instance
         this.dataService = dataServiceInstance || dataService;
         this.initialized = false;
         this.stats = {
@@ -43,7 +44,6 @@ class AIService {
         this.google_search = google_search_mock; // Attach mock
     }
 
-    // ... (keep initialize, loadAIConfig, loadAPIKeys, loadGEDSystemPrompt, getSortedProviders, getProviderService, setActiveProvider, loadDocumentsToIndex, uploadDocument methods as they were)
     async initialize() {
         if (this.initialized) return;
 
@@ -234,6 +234,11 @@ class AIService {
 
     async loadDocumentsToIndex() {
         try {
+            // Ensure db is initialized before calling methods if possible, or just catch error
+            if (!this.db.getAIDocumentsCount) {
+                console.error("DB service does not have getAIDocumentsCount. Wrong service injected?");
+                return;
+            }
             const documents = this.db.getAllAIDocuments();
             documents.forEach(doc => {
                 vectorSearchService.indexDocument(doc.id, doc.content, {
@@ -292,7 +297,6 @@ class AIService {
         }
     }
 
-    // ... (keep processQuery logic with modifications for orchestration)
     async processQuery(sessionId, message, userId = null, options = {}) {
         try {
             if (!this.initialized) {
@@ -428,7 +432,6 @@ class AIService {
         }
     }
 
-    // ... (keep searchDocuments, getDocuments, deleteDocument, getConversationHistory, getSettings, updateSetting, getStatistics, reset, _needsDocumentSearch, _generateSuggestions methods as they were)
     async searchDocuments(query, options = {}) {
         try {
             if (!this.initialized) await this.initialize();
@@ -632,4 +635,5 @@ class AIService {
     async getExtendedStatistics() { return {}; }
 }
 
-module.exports = new AIService(require('../databaseService'), dataService);
+// Pass the actual aiDatabaseService instance instead of the raw databaseService
+module.exports = new AIService(aiDatabaseService, dataService);

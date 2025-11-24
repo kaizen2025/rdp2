@@ -6,7 +6,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
-const AIService = require('../backend/services/ai/aiService');
+const aiService = require('../backend/services/ai/aiService');
 const aiDatabaseService = require('../backend/services/ai/aiDatabaseService');
 // ❌ REMOVED: Ollama is no longer used - replaced by Hugging Face & OpenRouter
 // const ollamaService = require('../backend/services/ai/ollamaService');
@@ -24,7 +24,7 @@ module.exports = (broadcast) => {
     const router = express.Router();
 
     // Initialiser le service IA
-    const aiService = new AIService(aiDatabaseService);
+    // const aiService = new AIService(aiDatabaseService); // FIX: aiService est déjà une instance exportée
 
     const asyncHandler = (fn) => (req, res, next) =>
         Promise.resolve(fn(req, res, next)).catch((error) => {
