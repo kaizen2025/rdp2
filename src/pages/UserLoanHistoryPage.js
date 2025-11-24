@@ -34,10 +34,10 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import WarningIcon from '@mui/icons-material/Warning';
 
 const eventConfig = {
-    created: { label: 'Prêt créé', color: 'success', icon: <EventAvailableIcon /> },
-    returned: { label: 'Retourné', color: 'primary', icon: <AssignmentReturnIcon /> },
-    extended: { label: 'Prolongé', color: 'info', icon: <UpdateIcon /> },
-    cancelled: { label: 'Annulé', color: 'error', icon: <CancelIcon /> },
+    created: { label: 'Prêt créé', color: 'success', icon: <EventAvailableIcon fontSize="small" /> },
+    returned: { label: 'Retourné', color: 'primary', icon: <AssignmentReturnIcon fontSize="small" /> },
+    extended: { label: 'Prolongé', color: 'info', icon: <UpdateIcon fontSize="small" /> },
+    cancelled: { label: 'Annulé', color: 'error', icon: <CancelIcon fontSize="small" /> },
 };
 
 const UserLoanHistoryPage = () => {
@@ -51,7 +51,7 @@ const UserLoanHistoryPage = () => {
         const loadAllUsers = async () => {
             setLoadingUsers(true);
             try {
-                const usersResult = await apiService.getExcelUsers();
+                const usersResult = await apiService.getUsers();
                 if (usersResult && usersResult.success) {
                     const formattedUsers = Object.values(usersResult.users).flat();
                     const uniqueUsers = Array.from(new Map(formattedUsers.map(user => [user.username, user])).values());
@@ -110,6 +110,7 @@ const UserLoanHistoryPage = () => {
 
         // Calculer les durées
         const durations = completedLoans.map(loan => {
+            if (!loan.loanDate || !loan.actualReturnDate) return 0;
             const start = parseISO(loan.loanDate);
             const end = parseISO(loan.actualReturnDate);
             return differenceInDays(end, start);
