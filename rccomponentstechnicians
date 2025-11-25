@@ -1,0 +1,5 @@
+[33m7bc11c2[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mdocucortex-enhanced[m[33m, [m[1;31morigin/claude/review-docucortex-docs-014DGw2fc17cern6cbYrKjyg[m[33m)[m fix(auth): Corriger le bug de login - accepter username et password comme paramètres séparés
+[33m0917d8f[m feat: Intégration complète DocuCortex Enhanced 3.0
+[33m2b0827c[m Add files via upload
+[33m35840ab[m Update local version (config changes + DOCUCORTEX folder)
+[33m1ef7b8e[m Merge pull request #72 from kaizen2025/fix/startup-errors

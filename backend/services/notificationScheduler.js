@@ -1,5 +1,14 @@
 // backend/services/notificationScheduler.js
-const { ipcMain } = require('electron');
+let ipcMain;
+try {
+    // Try to require electron only if available
+    const electron = require('electron');
+    ipcMain = electron.ipcMain;
+} catch (e) {
+    // Electron not available (e.g. headless backend)
+    console.log('[NotificationScheduler] Electron module not found, running in headless mode.');
+}
+
 const dataService = require('./dataService');
 const rdsService = require('./rdsService');
 const notificationService = require('./notificationService');
@@ -10,6 +19,12 @@ let mainWindow = null;
 
 const checkOverdueLoans = async () => {
     try {
+        // Vérifier que la config est chargée avant de continuer
+        if (!configService.appConfig || !configService.appConfig.databasePath) {
+            // En mode dev Electron, la config est dans le processus backend séparé
+            return;
+        }
+
         const loans = await dataService.getLoans();
         const overdueLoans = loans.filter(loan => loan.status === 'overdue' || loan.status === 'critical');
 
@@ -23,8 +38,12 @@ const checkOverdueLoans = async () => {
             const existingNotif = await notificationService.findNotificationByContent(notification.body);
             if (!existingNotif) {
                 await notificationService.createNotification(notification);
-                if (mainWindow) {
-                    mainWindow.webContents.send('show-notification', notification);
+                if (mainWindow && mainWindow.webContents) {
+                    try {
+                        mainWindow.webContents.send('show-notification', notification);
+                    } catch (err) {
+                        console.error("Failed to send notification to window:", err);
+                    }
                 }
             }
         }
@@ -35,6 +54,12 @@ const checkOverdueLoans = async () => {
 
 const checkServerStatus = async () => {
     try {
+        // Vérifier que la config est chargée avant de continuer
+        if (!configService.appConfig || !configService.appConfig.databasePath) {
+            // En mode dev Electron, la config est dans le processus backend séparé
+            return;
+        }
+
         const servers = configService.appConfig?.rds_servers || [];
         if (servers.length === 0) return;
 
@@ -49,8 +74,12 @@ const checkServerStatus = async () => {
                 const existingNotif = await notificationService.findNotificationByContent(notification.body);
                 if (!existingNotif) {
                     await notificationService.createNotification(notification);
-                    if (mainWindow) {
-                        mainWindow.webContents.send('show-notification', notification);
+                    if (mainWindow && mainWindow.webContents) {
+                        try {
+                            mainWindow.webContents.send('show-notification', notification);
+                        } catch (err) {
+                            console.error("Failed to send notification to window:", err);
+                        }
                     }
                 }
             } else if (status.cpu && status.cpu.usage > 90) {
@@ -62,8 +91,12 @@ const checkServerStatus = async () => {
                 const existingNotif = await notificationService.findNotificationByContent(notification.body);
                 if (!existingNotif) {
                     await notificationService.createNotification(notification);
-                    if (mainWindow) {
-                        mainWindow.webContents.send('show-notification', notification);
+                    if (mainWindow && mainWindow.webContents) {
+                        try {
+                            mainWindow.webContents.send('show-notification', notification);
+                        } catch (err) {
+                            console.error("Failed to send notification to window:", err);
+                        }
                     }
                 }
             } else if (status.storage && status.storage.usage > 90) {
@@ -75,8 +108,12 @@ const checkServerStatus = async () => {
                 const existingNotif = await notificationService.findNotificationByContent(notification.body);
                 if (!existingNotif) {
                     await notificationService.createNotification(notification);
-                    if (mainWindow) {
-                        mainWindow.webContents.send('show-notification', notification);
+                    if (mainWindow && mainWindow.webContents) {
+                        try {
+                            mainWindow.webContents.send('show-notification', notification);
+                        } catch (err) {
+                            console.error("Failed to send notification to window:", err);
+                        }
                     }
                 }
             }

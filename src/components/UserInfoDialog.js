@@ -9,17 +9,26 @@ import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Grid from '@mui/material/Grid';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
 
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import CheckIcon from '@mui/icons-material/Check';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import PersonIcon from '@mui/icons-material/Person';
 
-const InfoRow = ({ label, value, isPassword = false, forceCopy = false }) => {
+const InfoRow = ({ label, value, isPassword = false, forceCopy = false, onCopy }) => {
   const [showPassword, setShowPassword] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
-    if (value) navigator.clipboard.writeText(value);
+    if (value) {
+      navigator.clipboard.writeText(value);
+      setCopied(true);
+      if (onCopy) onCopy();
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   return (
@@ -29,15 +38,20 @@ const InfoRow = ({ label, value, isPassword = false, forceCopy = false }) => {
       </Grid>
       <Grid item xs={8}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="body1">{isPassword && !showPassword ? '••••••••' : value || '-'}</Typography>
+          <Typography variant="body1" sx={{ fontFamily: isPassword ? 'monospace' : 'inherit' }}>
+            {isPassword && !showPassword ? '••••••••' : value || '-'}
+          </Typography>
           {(value || forceCopy) && (
-            <Tooltip title="Copier">
-              <IconButton onClick={handleCopy} size="small" disabled={!value}><ContentCopyIcon fontSize="inherit" /></IconButton>
+            <Tooltip title={copied ? "Copié !" : "Copier"}>
+              <IconButton onClick={handleCopy} size="small" disabled={!value} color={copied ? "success" : "default"}>
+                {copied ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
+              </IconButton>
             </Tooltip>
           )}
           {isPassword && value && (
             <Tooltip title={showPassword ? 'Masquer' : 'Afficher'}>
-              <IconButton onClick={() => setShowPassword(!showPassword)} size="small">{showPassword ? <VisibilityOff fontSize="inherit" /> : <Visibility fontSize="inherit" />}</IconButton>
+              <IconButton onClick={() => setShowPassword(!showPassword)} size="small">
+                {showPassword ? <VisibilityOff fontSize="inherit" /> : <Visibility fontSize="inherit" />}</IconButton>
             </Tooltip>
           )}
         </Box>
@@ -47,27 +61,50 @@ const InfoRow = ({ label, value, isPassword = false, forceCopy = false }) => {
 };
 
 const UserInfoDialog = ({ open, onClose, user }) => {
+  const [toastOpen, setToastOpen] = useState(false);
+
   if (!user) return null;
 
   const { userInfo } = user;
+  const displayName = userInfo?.displayName || user.username;
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><PersonIcon /> Fiche Utilisateur</DialogTitle>
-      <DialogContent dividers>
-        <Grid container spacing={1}>
-          {/* CORRECTION: Utilisation de user.username */}
-          <InfoRow label="Nom d'utilisateur" value={user.username} />
-          <InfoRow label="Nom Complet" value={userInfo?.displayName} />
-          <InfoRow label="Service" value={userInfo?.department} />
-          <InfoRow label="Email" value={userInfo?.email} />
-          <InfoRow label="Serveur RDS" value={user.server} />
-          <InfoRow label="Mot de passe Windows" value={userInfo?.password} isPassword />
-          <InfoRow label="Mot de passe Office" value={userInfo?.officePassword} isPassword />
-        </Grid>
-      </DialogContent>
-      <DialogActions><Button onClick={onClose}>Fermer</Button></DialogActions>
-    </Dialog>
+    <>
+      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <PersonIcon color="primary" />
+          <Box>
+            <Typography variant="h6">Fiche Utilisateur</Typography>
+            <Typography variant="subtitle2" color="text.secondary">{displayName}</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Grid container spacing={1}>
+            <InfoRow label="Nom d'utilisateur" value={user.username} onCopy={() => setToastOpen(true)} />
+            <InfoRow label="Nom Complet" value={userInfo?.displayName} onCopy={() => setToastOpen(true)} />
+            <InfoRow label="Service" value={userInfo?.department} onCopy={() => setToastOpen(true)} />
+            <InfoRow label="Email" value={userInfo?.email} onCopy={() => setToastOpen(true)} />
+            <InfoRow label="Serveur RDS" value={user.server} onCopy={() => setToastOpen(true)} />
+            <InfoRow label="Mot de passe Windows" value={userInfo?.password} isPassword onCopy={() => setToastOpen(true)} />
+            <InfoRow label="Mot de passe Office" value={userInfo?.officePassword} isPassword onCopy={() => setToastOpen(true)} />
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose} variant="contained">Fermer</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={toastOpen}
+        autoHideDuration={2000}
+        onClose={() => setToastOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setToastOpen(false)} severity="success" sx={{ width: '100%' }} variant="filled">
+          Information copiée dans le presse-papier
+        </Alert>
+      </Snackbar>
+    </>
   );
 };
 
