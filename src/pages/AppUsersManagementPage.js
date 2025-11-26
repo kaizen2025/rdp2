@@ -21,13 +21,8 @@ import {
     DialogContent,
     DialogActions,
     TextField,
-    FormControlLabel,
-    Checkbox,
-    Grid,
-    Tooltip,
     Alert,
-    FormGroup,
-    Divider,
+    Tooltip,
     Avatar
 } from '@mui/material';
 import {
@@ -40,47 +35,28 @@ import {
     AdminPanelSettings as AdminIcon,
     Person as PersonIcon,
     PeopleAlt as PeopleAltIcon,
-    Refresh as RefreshIcon,
-    PhotoCamera as PhotoCameraIcon
+    Refresh as RefreshIcon
 } from '@mui/icons-material';
 import apiService from '../services/apiService';
 import PageHeader from '../components/common/PageHeader';
+import UserEditDialog from '../components/users/UserEditDialog';
 
 const AppUsersManagementPage = () => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [openDialog, setOpenDialog] = useState(false);
+
+    // États pour les dialogues
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
+
     const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
-    const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
-
-    // Formulaire nouvel utilisateur
-    const [formData, setFormData] = useState({
-        username: '',
-        email: '',
-        display_name: '',
-        position: '',
-        is_admin: false,
-        photo: null,
-        permissions: {
-            can_access_dashboard: true,
-            can_access_rds_sessions: false,
-            can_access_servers: false,
-            can_access_users: false,
-            can_access_ad_groups: false,
-            can_access_loans: false,
-            can_access_docucortex: false,
-            can_manage_users: false,
-            can_manage_permissions: false,
-            can_view_reports: false
-        }
-    });
-
     const [passwordForm, setPasswordForm] = useState({
         userId: null,
         newPassword: '',
         confirmPassword: ''
     });
+
+    const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
 
     // Charger la liste des utilisateurs
     const loadUsers = useCallback(async () => {
@@ -102,93 +78,20 @@ const AppUsersManagementPage = () => {
         loadUsers();
     }, [loadUsers]);
 
-    // Ouvrir dialog création/édition
-    const handleOpenDialog = (user = null) => {
-        if (user) {
-            setEditingUser(user);
-            setFormData({
-                username: user.username,
-                email: user.email,
-                display_name: user.display_name,
-                position: user.position || '',
-                is_admin: user.is_admin === 1,
-                photo: user.photo || null,
-                permissions: {
-                    can_access_dashboard: user.can_access_dashboard === 1,
-                    can_access_rds_sessions: user.can_access_rds_sessions === 1,
-                    can_access_servers: user.can_access_servers === 1,
-                    can_access_users: user.can_access_users === 1,
-                    can_access_ad_groups: user.can_access_ad_groups === 1,
-                    can_access_loans: user.can_access_loans === 1,
-                    can_access_docucortex: user.can_access_docucortex === 1,
-                    can_manage_users: user.can_manage_users === 1,
-                    can_manage_permissions: user.can_manage_permissions === 1,
-                    can_view_reports: user.can_view_reports === 1
-                }
-            });
-        } else {
-            setEditingUser(null);
-            setFormData({
-                username: '',
-                email: '',
-                display_name: '',
-                position: '',
-                is_admin: false,
-                permissions: {
-                    can_access_dashboard: true,
-                    can_access_rds_sessions: false,
-                    can_access_servers: false,
-                    can_access_users: false,
-                    can_access_ad_groups: false,
-                    can_access_loans: false,
-                    can_access_docucortex: false,
-                    can_manage_users: false,
-                    can_manage_permissions: false,
-                    can_view_reports: false
-                }
-            });
-        }
-        setOpenDialog(true);
+    // Gestion du dialogue d'édition/création
+    const handleOpenEditDialog = (user = null) => {
+        setEditingUser(user);
+        setEditDialogOpen(true);
     };
 
-    // Sauvegarder utilisateur (créer ou modifier)
-    const handleSave = async () => {
-        try {
-            if (editingUser) {
-                // Mise à jour utilisateur
-                const userUpdateResult = await apiService.updateAppUser(editingUser.id, {
-                    email: formData.email,
-                    display_name: formData.display_name,
-                    position: formData.position,
-                    is_admin: formData.is_admin
-                });
+    const handleCloseEditDialog = () => {
+        setEditDialogOpen(false);
+        setEditingUser(null);
+    };
 
-                // Mise à jour permissions
-                const permissionsResult = await apiService.updateUserPermissions(editingUser.id, formData.permissions);
-
-                if (formData.photo) {
-                    await apiService.saveTechnicianPhoto(editingUser.id, formData.photo);
-                }
-
-                if (userUpdateResult.success && permissionsResult.success) {
-                    setNotification({ open: true, message: 'Utilisateur mis à jour', severity: 'success' });
-                    loadUsers();
-                    setOpenDialog(false);
-                }
-            } else {
-                // Création nouvel utilisateur
-                const result = await apiService.createAppUser(formData);
-
-                if (result.success) {
-                    setNotification({ open: true, message: `Utilisateur "${formData.display_name}" créé avec succès`, severity: 'success' });
-                    loadUsers();
-                    setOpenDialog(false);
-                }
-            }
-        } catch (error) {
-            console.error('Erreur sauvegarde:', error);
-            setNotification({ open: true, message: `Erreur: ${error.message}`, severity: 'error' });
-        }
+    const handleSaveSuccess = (message) => {
+        setNotification({ open: true, message, severity: 'success' });
+        loadUsers();
     };
 
     // Supprimer utilisateur
@@ -248,7 +151,7 @@ const AppUsersManagementPage = () => {
         }
     };
 
-    // Render permissions sous forme de chips
+    // Render permissions sous forme de chips pour le tableau
     const renderPermissions = (user) => {
         const permissions = [];
 
@@ -301,7 +204,7 @@ const AppUsersManagementPage = () => {
                         <Button
                             variant="contained"
                             startIcon={<AddIcon />}
-                            onClick={() => handleOpenDialog()}
+                            onClick={() => handleOpenEditDialog()}
                             sx={{
                                 backgroundColor: 'rgba(255, 255, 255, 0.2)',
                                 color: 'white',
@@ -324,7 +227,6 @@ const AppUsersManagementPage = () => {
             )}
 
             <Paper elevation={3} sx={{ borderRadius: 2, overflow: 'hidden' }}>
-
                 <TableContainer>
                     <Table>
                         <TableHead>
@@ -371,7 +273,7 @@ const AppUsersManagementPage = () => {
                                     </TableCell>
                                     <TableCell align="right">
                                         <Tooltip title="Modifier">
-                                            <IconButton size="small" onClick={() => handleOpenDialog(user)}>
+                                            <IconButton size="small" onClick={() => handleOpenEditDialog(user)}>
                                                 <EditIcon />
                                             </IconButton>
                                         </Tooltip>
@@ -393,255 +295,15 @@ const AppUsersManagementPage = () => {
                 </TableContainer>
             </Paper>
 
-            {/* Dialog Création/Édition */}
-            <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>
-                <DialogTitle sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', fontWeight: 600 }}>
-                    {editingUser ? `Modifier ${editingUser.display_name}` : 'Nouvel Utilisateur'}
-                </DialogTitle>
-                <DialogContent sx={{ mt: 2 }}>
-                    <Grid container spacing={2}>
-                        <Grid item xs={12}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                                <Avatar
-                                    src={formData.photo ? URL.createObjectURL(formData.photo) : (editingUser?.photo ? `data:image/jpeg;base64,${editingUser.photo}` : '')}
-                                    sx={{ width: 80, height: 80 }}
-                                />
-                                <input
-                                    accept="image/*"
-                                    style={{ display: 'none' }}
-                                    id="user-photo-upload"
-                                    type="file"
-                                    onChange={(e) => setFormData(prev => ({ ...prev, photo: e.target.files[0] }))}
-                                />
-                                <label htmlFor="user-photo-upload">
-                                    <Button variant="contained" component="span" startIcon={<PhotoCameraIcon />}>
-                                        Changer la photo
-                                    </Button>
-                                </label>
-                            </Box>
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <TextField
-                                fullWidth
-                                label="Nom d'utilisateur"
-                                value={formData.username}
-                                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                disabled={!!editingUser}
-                                required
-                            />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <TextField
-                                fullWidth
-                                label="Email"
-                                type="email"
-                                value={formData.email}
-                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                required
-                            />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <TextField
-                                fullWidth
-                                label="Nom complet"
-                                value={formData.display_name}
-                                onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
-                                required
-                            />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <TextField
-                                fullWidth
-                                label="Poste / Position"
-                                value={formData.position}
-                                onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-                            />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <FormControlLabel
-                                control={
-                                    <Checkbox
-                                        checked={formData.is_admin}
-                                        onChange={(e) => setFormData({ ...formData, is_admin: e.target.checked })}
-                                        color="error"
-                                    />
-                                }
-                                label={<Typography variant="body2" fontWeight="bold" color="error">Super Administrateur (accès complet)</Typography>}
-                            />
-                        </Grid>
+            {/* Nouveau composant Dialog optimisé */}
+            <UserEditDialog
+                open={editDialogOpen}
+                onClose={handleCloseEditDialog}
+                user={editingUser}
+                onSaveSuccess={handleSaveSuccess}
+            />
 
-                        {!formData.is_admin && (
-                            <>
-                                <Grid item xs={12}>
-                                    <Divider sx={{ my: 1 }} />
-                                    <Typography variant="h6" gutterBottom sx={{ mt: 2, mb: 1 }}>
-                                        Permissions d'accès aux onglets
-                                    </Typography>
-                                </Grid>
-
-                                <Grid item xs={12} sm={6}>
-                                    <FormGroup>
-                                        <FormControlLabel
-                                            control={
-                                                <Checkbox
-                                                    checked={formData.permissions.can_access_dashboard}
-                                                    onChange={(e) => setFormData({
-                                                        ...formData,
-                                                        permissions: { ...formData.permissions, can_access_dashboard: e.target.checked }
-                                                    })}
-                                                />
-                                            }
-                                            label="📊 Tableau de bord"
-                                        />
-                                        <FormControlLabel
-                                            control={
-                                                <Checkbox
-                                                    checked={formData.permissions.can_access_rds_sessions}
-                                                    onChange={(e) => setFormData({
-                                                        ...formData,
-                                                        permissions: { ...formData.permissions, can_access_rds_sessions: e.target.checked }
-                                                    })}
-                                                />
-                                            }
-                                            label="💻 Sessions RDS"
-                                        />
-                                        <FormControlLabel
-                                            control={
-                                                <Checkbox
-                                                    checked={formData.permissions.can_access_servers}
-                                                    onChange={(e) => setFormData({
-                                                        ...formData,
-                                                        permissions: { ...formData.permissions, can_access_servers: e.target.checked }
-                                                    })}
-                                                />
-                                            }
-                                            label="🖥️ Serveurs"
-                                        />
-                                        <FormControlLabel
-                                            control={
-                                                <Checkbox
-                                                    checked={formData.permissions.can_access_users}
-                                                    onChange={(e) => setFormData({
-                                                        ...formData,
-                                                        permissions: { ...formData.permissions, can_access_users: e.target.checked }
-                                                    })}
-                                                />
-                                            }
-                                            label="👥 Utilisateurs"
-                                        />
-                                    </FormGroup>
-                                </Grid>
-
-                                <Grid item xs={12} sm={6}>
-                                    <FormGroup>
-                                        <FormControlLabel
-                                            control={
-                                                <Checkbox
-                                                    checked={formData.permissions.can_access_ad_groups}
-                                                    onChange={(e) => setFormData({
-                                                        ...formData,
-                                                        permissions: { ...formData.permissions, can_access_ad_groups: e.target.checked }
-                                                    })}
-                                                />
-                                            }
-                                            label="🔐 Groupes AD"
-                                        />
-                                        <FormControlLabel
-                                            control={
-                                                <Checkbox
-                                                    checked={formData.permissions.can_access_loans}
-                                                    onChange={(e) => setFormData({
-                                                        ...formData,
-                                                        permissions: { ...formData.permissions, can_access_loans: e.target.checked }
-                                                    })}
-                                                />
-                                            }
-                                            label="📦 Prêts"
-                                        />
-                                        <FormControlLabel
-                                            control={
-                                                <Checkbox
-                                                    checked={formData.permissions.can_access_docucortex}
-                                                    onChange={(e) => setFormData({
-                                                        ...formData,
-                                                        permissions: { ...formData.permissions, can_access_docucortex: e.target.checked }
-                                                    })}
-                                                />
-                                            }
-                                            label="🤖 DocuCortex IA"
-                                        />
-                                    </FormGroup>
-                                </Grid>
-
-                                <Grid item xs={12}>
-                                    <Divider sx={{ my: 1 }} />
-                                    <Typography variant="subtitle2" gutterBottom>
-                                        Permissions spéciales
-                                    </Typography>
-                                </Grid>
-
-                                <Grid item xs={12}>
-                                    <FormGroup row>
-                                        <FormControlLabel
-                                            control={
-                                                <Checkbox
-                                                    checked={formData.permissions.can_manage_users}
-                                                    onChange={(e) => setFormData({
-                                                        ...formData,
-                                                        permissions: { ...formData.permissions, can_manage_users: e.target.checked }
-                                                    })}
-                                                    color="warning"
-                                                />
-                                            }
-                                            label="Gérer les utilisateurs de l'app"
-                                        />
-                                        <FormControlLabel
-                                            control={
-                                                <Checkbox
-                                                    checked={formData.permissions.can_manage_permissions}
-                                                    onChange={(e) => setFormData({
-                                                        ...formData,
-                                                        permissions: { ...formData.permissions, can_manage_permissions: e.target.checked }
-                                                    })}
-                                                    color="warning"
-                                                />
-                                            }
-                                            label="Modifier les permissions"
-                                        />
-                                        <FormControlLabel
-                                            control={
-                                                <Checkbox
-                                                    checked={formData.permissions.can_view_reports}
-                                                    onChange={(e) => setFormData({
-                                                        ...formData,
-                                                        permissions: { ...formData.permissions, can_view_reports: e.target.checked }
-                                                    })}
-                                                />
-                                            }
-                                            label="Voir les rapports"
-                                        />
-                                    </FormGroup>
-                                </Grid>
-                            </>
-                        )}
-                    </Grid>
-                </DialogContent>
-                <DialogActions sx={{ p: 2 }}>
-                    <Button onClick={() => setOpenDialog(false)}>Annuler</Button>
-                    <Button
-                        variant="contained"
-                        onClick={handleSave}
-                        sx={{
-                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                            fontWeight: 600
-                        }}
-                    >
-                        {editingUser ? 'Mettre à jour' : 'Créer'}
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            {/* Dialog Réinitialisation mot de passe */}
+            {/* Dialog Réinitialisation mot de passe (gardé ici car simple) */}
             <Dialog open={passwordDialogOpen} onClose={() => setPasswordDialogOpen(false)} maxWidth="sm" fullWidth>
                 <DialogTitle sx={{ fontWeight: 600 }}>
                     Réinitialiser le mot de passe
