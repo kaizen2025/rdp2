@@ -8,11 +8,11 @@ const CacheContext = createContext();
 
 export const useCache = () => useContext(CacheContext);
 
-// ✅ AJOUT: 'ad_groups:VPN' et 'ad_groups:Sortants_responsables'
-const ENTITIES = [
-    'loans', 'computers', 'excel_users', 'technicians', 'rds_sessions', 'config',
-    'ad_groups:VPN', 'ad_groups:Sortants_responsables'
-];
+// Définition des priorités de chargement
+const CRITICAL_ENTITIES = ['config', 'technicians']; // Chargé immédiatement
+const SECONDARY_ENTITIES = ['loans', 'computers'];    // Chargé après court délai
+const LAZY_ENTITIES = ['users', 'rds_sessions', 'ad_groups:VPN', 'ad_groups:Sortants_responsables']; // On-demand
+const ALL_ENTITIES = [...CRITICAL_ENTITIES, ...SECONDARY_ENTITIES, ...LAZY_ENTITIES];
 
 export const CacheProvider = ({ children }) => {
     const { events, showNotification } = useApp();
@@ -23,11 +23,11 @@ export const CacheProvider = ({ children }) => {
     const fetchDataForEntity = useCallback(async (entity) => {
         try {
             let data;
-            // ✅ AJOUT: Logique pour charger les groupes AD
+            // Logique pour charger les groupes AD
             if (entity.startsWith('ad_groups:')) {
                 const groupName = entity.split(':')[1];
 
-                // ✅ Utiliser l'API Electron si disponible (mode desktop), sinon fallback HTTP
+                // Utiliser l'API Electron si disponible (mode desktop), sinon fallback HTTP
                 if (window.electronAPI && window.electronAPI.getAdGroupMembers) {
                     console.log(`[CacheContext] Utilisation de l'API Electron pour ${entity}`);
                     const result = await window.electronAPI.getAdGroupMembers(groupName);
@@ -40,84 +40,126 @@ export const CacheProvider = ({ children }) => {
                 switch (entity) {
                     case 'loans': data = await apiService.getLoans(); break;
                     case 'computers': data = await apiService.getComputers(); break;
-                    case 'excel_users': data = (await apiService.getExcelUsers())?.users || {}; break;
+                    case 'users': {
+                        const result = await apiService.getUsers();
+                        data = result?.users || [];
+                        break;
+                    }
                     case 'technicians': data = await apiService.getConnectedTechnicians(); break;
                     case 'rds_sessions': data = await apiService.getRdsSessions(); break;
                     case 'config': data = await apiService.getConfig(); break;
                     default: return;
                 }
             }
-            // ✅ S'assurer que data n'est jamais undefined/null
+
+            // S'assurer que data n'est jamais undefined/null
             if (data === undefined || data === null) {
-                data = entity.startsWith('ad_groups:') ? [] : (entity === 'excel_users' ? {} : []);
+                data = entity.startsWith('ad_groups:') ? [] : (entity === 'users' ? [] : []);
             }
+
             setCache(prev => ({ ...prev, [entity]: data }));
             return data;
         } catch (err) {
             console.error(`Erreur chargement ${entity}:`, err);
             setError(err.message);
 
-            // ✅ FIX: Don't show notification for AD groups if it's a transient connection error
+            // Ne pas afficher d'erreur pour les groupes AD (peut être transitoire)
             if (!entity.startsWith('ad_groups:')) {
                 showNotification('error', `Impossible de charger les données: ${entity}`);
             }
 
-            // ✅ CORRECTION CRITIQUE: Set empty default based on entity type to prevent undefined errors
+            // Valeurs par défaut en cas d'erreur
             const fallbackData = entity.startsWith('ad_groups:') ? [] :
-                                entity === 'excel_users' ? {} :
-                                entity === 'config' ? {} : [];
+                entity === 'users' ? [] :
+                    entity === 'config' ? {} : [];
+
             setCache(prev => ({ ...prev, [entity]: fallbackData }));
             return fallbackData;
         }
     }, [showNotification]);
 
-    // ... (le reste du fichier est identique)
-    // Chargement initial de toutes les données
+    /**
+     * Met à jour un élément dans le cache sans re-fetch
+     */
+    const updateCacheItem = useCallback((entity, data, action) => {
+        setCache(prev => {
+            const current = prev[entity];
+
+            // Si c'est un objet simple (config), remplacer directement
+            if (!Array.isArray(current)) {
+                return { ...prev, [entity]: action === 'delete' ? {} : data };
+            }
+
+            // Si c'est un tableau (loans, computers, etc.)
+            let updated;
+            switch (action) {
+                case 'create':
+                    updated = [...current, data];
+                    break;
+                case 'update':
+                    updated = current.map(item => item.id === data.id ? data : item);
+                    break;
+                case 'delete':
+                    updated = current.filter(item => item.id !== data.id);
+                    break;
+                case 'full_refresh':
+                    // Fallback: si on ne peut pas faire de mise à jour partielle
+                    fetchDataForEntity(entity);
+                    return prev;
+                default:
+                    return prev;
+            }
+
+            return { ...prev, [entity]: updated };
+        });
+    }, [fetchDataForEntity]);
+
+    // Chargement initial optimisé (Phased Loading)
     useEffect(() => {
         const initialLoad = async () => {
             setIsLoading(true);
-            await Promise.all(ENTITIES.map(entity => fetchDataForEntity(entity)));
-            setIsLoading(false);
+
+            // 1. Charger CRITICAL immédiatement
+            console.log('🚀 [CacheContext] Phase 1: Critical Entities');
+            await Promise.all(CRITICAL_ENTITIES.map(entity => fetchDataForEntity(entity)));
+
+            // 2. Charger SECONDARY après un court délai
+            setTimeout(() => {
+                console.log('🚀 [CacheContext] Phase 2: Secondary Entities');
+                Promise.all(SECONDARY_ENTITIES.map(entity => fetchDataForEntity(entity)));
+            }, 500);
+
+            // 3. LAZY sera chargé on-demand par les composants ou en arrière-plan plus tard
+            setTimeout(() => {
+                console.log('🚀 [CacheContext] Phase 3: Lazy Entities (Background)');
+                // On précharge quand même doucement pour que ce soit prêt
+                Promise.all(LAZY_ENTITIES.map(entity => fetchDataForEntity(entity)));
+            }, 3000);
+
+            setIsLoading(false); // UI débloquée rapidement !
         };
         initialLoad();
     }, [fetchDataForEntity]);
 
-    // ✅ OPTIMISATION: Mises à jour partielles au lieu de full re-fetch
+    // Gestion des mises à jour WebSocket
     useEffect(() => {
         const handleDataUpdate = (payload) => {
             if (payload && payload.entity) {
                 const entityToUpdate = payload.group ? `${payload.entity}:${payload.group}` : payload.entity;
-                if (ENTITIES.includes(entityToUpdate)) {
+
+                if (ALL_ENTITIES.includes(entityToUpdate)) {
                     console.log(`[CacheContext] Mise à jour reçue pour: ${entityToUpdate}`);
 
-                    // ✅ NOUVEAU: Si le payload contient des données partielles, les appliquer directement
-                    if (payload.data && payload.operation) {
-                        setCache(prev => {
-                            const current = prev[entityToUpdate] || [];
-                            let updated;
-
-                            if (payload.operation === 'update' && payload.data.id) {
-                                // Mise à jour d'un élément
-                                updated = Array.isArray(current)
-                                    ? current.map(item => item.id === payload.data.id ? { ...item, ...payload.data } : item)
-                                    : current;
-                            } else if (payload.operation === 'delete' && payload.data.id) {
-                                // Suppression d'un élément
-                                updated = Array.isArray(current)
-                                    ? current.filter(item => item.id !== payload.data.id)
-                                    : current;
-                            } else if (payload.operation === 'create') {
-                                // Ajout d'un nouvel élément
-                                updated = Array.isArray(current) ? [...current, payload.data] : current;
-                            } else {
-                                // Opération inconnue, remplacer tout
-                                updated = payload.data;
-                            }
-
-                            return { ...prev, [entityToUpdate]: updated };
-                        });
-                    } else {
-                        // Pas de données partielles, faire un full re-fetch
+                    // Mise à jour partielle si les données sont fournies
+                    if (payload.data && payload.action) {
+                        updateCacheItem(entityToUpdate, payload.data, payload.action);
+                    }
+                    // Support pour l'ancien format (operation au lieu de action)
+                    else if (payload.data && payload.operation) {
+                        updateCacheItem(entityToUpdate, payload.data, payload.operation);
+                    }
+                    else {
+                        // Fallback: re-fetch si pas de données partielles
                         fetchDataForEntity(entityToUpdate);
                     }
                 }
@@ -126,11 +168,19 @@ export const CacheProvider = ({ children }) => {
 
         const unsubscribe = events.on('data_updated', handleDataUpdate);
         return () => unsubscribe();
-    }, [events, fetchDataForEntity]);
+    }, [events, fetchDataForEntity, updateCacheItem]);
+
+    // Fonction pour charger une entité lazy on-demand
+    const loadLazyEntity = useCallback(async (entity) => {
+        if (!cache[entity]) {
+            return await fetchDataForEntity(entity);
+        }
+        return cache[entity];
+    }, [cache, fetchDataForEntity]);
 
     // Fonction pour forcer le rafraîchissement d'une entité
     const invalidate = useCallback(async (entity) => {
-        if (ENTITIES.includes(entity)) {
+        if (ALL_ENTITIES.includes(entity)) {
             await fetchDataForEntity(entity);
         }
     }, [fetchDataForEntity]);
@@ -140,6 +190,7 @@ export const CacheProvider = ({ children }) => {
         isLoading,
         error,
         invalidate,
+        loadLazyEntity
     };
 
     return (

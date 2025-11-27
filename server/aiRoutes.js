@@ -22,7 +22,7 @@ const upload = multer({
 
 module.exports = (broadcast) => {
     const router = express.Router();
-    
+
     // Initialiser le service IA
     const aiService = new AIService(aiDatabaseService);
 
@@ -72,7 +72,7 @@ module.exports = (broadcast) => {
         }
 
         const result = await aiService.uploadDocument(req.file);
-        
+
         if (result.success) {
             // Notifier via WebSocket
             broadcast({
@@ -90,7 +90,7 @@ module.exports = (broadcast) => {
     router.get('/documents', asyncHandler(async (req, res) => {
         const limit = parseInt(req.query.limit) || 100;
         const offset = parseInt(req.query.offset) || 0;
-        
+
         const result = aiService.getDocuments(limit, offset);
         res.json(result);
     }));
@@ -101,7 +101,7 @@ module.exports = (broadcast) => {
     router.get('/documents/:id', asyncHandler(async (req, res) => {
         const documentId = parseInt(req.params.id);
         const document = aiDatabaseService.getAIDocumentById(documentId);
-        
+
         if (!document) {
             return res.status(404).json({
                 success: false,
@@ -121,7 +121,7 @@ module.exports = (broadcast) => {
     router.delete('/documents/:id', asyncHandler(async (req, res) => {
         const documentId = parseInt(req.params.id);
         const result = await aiService.deleteDocument(documentId);
-        
+
         if (result.success) {
             broadcast({
                 type: 'ai_document_deleted',
@@ -137,7 +137,7 @@ module.exports = (broadcast) => {
      */
     router.post('/documents/search', asyncHandler(async (req, res) => {
         const { query, maxResults, minScore } = req.body;
-        
+
         if (!query) {
             return res.status(400).json({
                 success: false,
@@ -153,6 +153,143 @@ module.exports = (broadcast) => {
         res.json(result);
     }));
 
+    /**
+     * POST /ai/analyze-document - Analyse complète d'un document (texte)
+     */
+    router.post('/analyze-document', asyncHandler(async (req, res) => {
+        const { text, type, model } = req.body;
+
+        if (!text) {
+            return res.status(400).json({
+                success: false,
+                error: 'Texte requis pour l\'analyse'
+            });
+        }
+
+        // Utiliser le service IA pour analyser
+        // On simule l'analyse complète via un prompt structuré si la méthode n'existe pas directement
+        const prompt = `
+Analyse le document suivant et fournis :
+1. Un résumé exécutif
+2. Les points clés
+3. Les entités importantes
+4. Les sentiments et tonalité
+5. Des recommandations d'actions
+
+Type de document: ${type || 'général'}
+Texte: ${text.substring(0, 10000)}... (tronqué si trop long)
+        `;
+
+        const result = await aiService.processQuery('analysis-session', prompt, null, { aiProvider: model });
+
+        res.json({
+            success: true,
+            data: {
+                analysis: result.response,
+                type: type,
+                model: result.aiProvider,
+                processing_time: result.responseTime
+            }
+        });
+    }));
+
+    /**
+     * POST /ai/analyze-image - Analyse d'image (OCR + Description)
+     */
+    router.post('/analyze-image', asyncHandler(async (req, res) => {
+        const { image, type, model } = req.body;
+
+        if (!image) {
+            return res.status(400).json({
+                success: false,
+                error: 'Image requise (base64)'
+            });
+        }
+
+        // Note: aiService.processImageDocument attend un fichier, ici on a du base64
+        // On va devoir adapter ou utiliser une méthode spécifique si elle existe
+        // Pour l'instant, on suppose que le frontend envoie l'image via /documents/upload pour l'OCR
+        // Si c'est juste pour analyse, on peut utiliser le multimodal si disponible
+
+        // TODO: Implémenter l'analyse d'image directe via le service multimodal
+        // En attendant, on renvoie une erreur non implémenté ou on simule
+        res.status(501).json({
+            success: false,
+            error: 'Analyse d\'image directe non implémentée. Utilisez /documents/upload pour l\'OCR.'
+        });
+    }));
+
+    /**
+     * POST /ai/summarize - Résumé de texte
+     */
+    router.post('/summarize', asyncHandler(async (req, res) => {
+        const { text, maxLength, model } = req.body;
+
+        if (!text) {
+            return res.status(400).json({
+                success: false,
+                error: 'Texte requis'
+            });
+        }
+
+        const result = await aiService.summarizeText(text, maxLength || 200);
+        res.json(result);
+    }));
+
+    /**
+     * POST /ai/ocr - OCR direct sur fichier
+     */
+    router.post('/ocr', upload.single('file'), asyncHandler(async (req, res) => {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                error: 'Fichier requis'
+            });
+        }
+
+        // Utiliser uploadDocument qui fait l'OCR si image
+        const result = await aiService.uploadDocument(req.file);
+        res.json(result);
+    }));
+
+    /**
+     * POST /ai/analyze - Alias pour analyze-document
+     */
+    router.post('/analyze', asyncHandler(async (req, res) => {
+        // Rediriger vers la logique de analyze-document
+        const { text, type, model } = req.body;
+
+        if (!text) {
+            return res.status(400).json({
+                success: false,
+                error: 'Texte requis'
+            });
+        }
+
+        const prompt = `
+Analyse le document suivant et fournis :
+1. Un résumé exécutif
+2. Les points clés
+3. Les entités importantes
+4. Les sentiments et tonalité
+5. Des recommandations d'actions
+
+Type de document: ${type || 'général'}
+Texte: ${text.substring(0, 10000)}...
+        `;
+
+        const result = await aiService.processQuery('analysis-session', prompt, null, { aiProvider: model });
+
+        res.json({
+            success: true,
+            data: {
+                analysis: result.response,
+                type: type,
+                model: result.aiProvider
+            }
+        });
+    }));
+
     // ==================== CONVERSATIONS ====================
 
     /**
@@ -160,7 +297,7 @@ module.exports = (broadcast) => {
      */
     router.post('/chat', asyncHandler(async (req, res) => {
         const { message, sessionId, userId } = req.body;
-        
+
         if (!message || !sessionId) {
             return res.status(400).json({
                 success: false,
@@ -170,7 +307,7 @@ module.exports = (broadcast) => {
 
         // ✅ Utilise la nouvelle recherche intelligente
         const result = await aiService.intelligentSearch(message, sessionId, userId);
-        
+
         // Notifier via WebSocket pour temps reel
         if (result.success) {
             broadcast({
@@ -192,7 +329,7 @@ module.exports = (broadcast) => {
     router.get('/conversations/:sessionId', asyncHandler(async (req, res) => {
         const { sessionId } = req.params;
         const limit = parseInt(req.query.limit) || 50;
-        
+
         const result = aiService.getConversationHistory(sessionId, limit);
         res.json(result);
     }));
@@ -535,7 +672,7 @@ module.exports = (broadcast) => {
     router.get('/statistics/daily', asyncHandler(async (req, res) => {
         const days = parseInt(req.query.days) || 7;
         const stats = aiDatabaseService.getAIStats(days);
-        
+
         res.json({
             success: true,
             stats: stats,
@@ -550,7 +687,7 @@ module.exports = (broadcast) => {
      */
     router.post('/reset', asyncHandler(async (req, res) => {
         const result = await aiService.reset();
-        
+
         if (result.success) {
             broadcast({
                 type: 'ai_reset',
@@ -566,7 +703,7 @@ module.exports = (broadcast) => {
      */
     router.post('/cleanup', asyncHandler(async (req, res) => {
         const result = aiDatabaseService.cleanup();
-        
+
         res.json({
             success: true,
             result: result
@@ -578,7 +715,7 @@ module.exports = (broadcast) => {
      */
     router.get('/stats/overview', asyncHandler(async (req, res) => {
         const stats = aiDatabaseService.getOverallStats();
-        
+
         res.json({
             success: true,
             stats: stats
@@ -592,7 +729,7 @@ module.exports = (broadcast) => {
      */
     router.post('/network/configure', asyncHandler(async (req, res) => {
         const { serverPath, workingDirectory, autoIndex, scanInterval, maxFileSize } = req.body;
-        
+
         const config = {
             serverPath,
             workingDirectory,
@@ -620,7 +757,7 @@ module.exports = (broadcast) => {
      */
     router.post('/network/scan', asyncHandler(async (req, res) => {
         const result = await aiService.scanAndIndexNetwork();
-        
+
         if (result.success) {
             broadcast({
                 type: 'network_scan_completed',
@@ -637,7 +774,7 @@ module.exports = (broadcast) => {
      */
     router.post('/network/watch/start', asyncHandler(async (req, res) => {
         const result = await aiService.startNetworkWatching();
-        
+
         if (result.success) {
             broadcast({
                 type: 'network_watching_started'
@@ -652,7 +789,7 @@ module.exports = (broadcast) => {
      */
     router.post('/network/watch/stop', asyncHandler(async (req, res) => {
         const result = aiService.stopNetworkWatching();
-        
+
         if (result.success) {
             broadcast({
                 type: 'network_watching_stopped'
@@ -669,7 +806,7 @@ module.exports = (broadcast) => {
      */
     router.post('/search/intelligent', asyncHandler(async (req, res) => {
         const { query, sessionId, userId } = req.body;
-        
+
         if (!query) {
             return res.status(400).json({
                 success: false,
@@ -689,7 +826,7 @@ module.exports = (broadcast) => {
     router.get('/documents/:id/preview', asyncHandler(async (req, res) => {
         const documentId = parseInt(req.params.id);
         const result = await aiService.prepareDocumentPreview(documentId);
-        
+
         if (!result.success) {
             return res.status(404).json(result);
         }
@@ -703,7 +840,7 @@ module.exports = (broadcast) => {
     router.get('/documents/:id/download', asyncHandler(async (req, res) => {
         const documentId = parseInt(req.params.id);
         const result = await aiService.prepareDocumentDownload(documentId);
-        
+
         if (!result.success) {
             return res.status(404).json(result);
         }
@@ -866,11 +1003,11 @@ module.exports = (broadcast) => {
     router.get('/network/preview/:fileId', asyncHandler(async (req, res) => {
         try {
             const { fileId } = req.params;
-            const { 
-                width, 
-                height, 
-                format, 
-                quality, 
+            const {
+                width,
+                height,
+                format,
+                quality,
                 page,
                 maxPages
             } = req.query;
@@ -946,7 +1083,7 @@ module.exports = (broadcast) => {
     router.get('/network/download/:fileId', asyncHandler(async (req, res) => {
         try {
             const { fileId } = req.params;
-            const { 
+            const {
                 filename,
                 range,
                 compression,
@@ -984,15 +1121,15 @@ module.exports = (broadcast) => {
 
             // Configuration des headers pour le téléchargement
             res.setHeader('Content-Type', result.mimeType);
-            res.setHeader('Content-Disposition', 
+            res.setHeader('Content-Disposition',
                 `attachment; filename="${result.filename}"`);
             res.setHeader('Content-Length', result.size);
             res.setHeader('Accept-Ranges', 'bytes');
-            
+
             if (result.lastModified) {
                 res.setHeader('Last-Modified', result.lastModified);
             }
-            
+
             if (result.etag) {
                 res.setHeader('ETag', result.etag);
             }
@@ -1003,11 +1140,11 @@ module.exports = (broadcast) => {
                 if (rangeMatch) {
                     const start = parseInt(rangeMatch[1], 10);
                     const end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : result.size - 1;
-                    
+
                     res.status(206);
                     res.setHeader('Content-Range', `bytes ${start}-${end}/${result.size}`);
                     res.setHeader('Content-Length', end - start + 1);
-                    
+
                     // Envoyer le stream avec range
                     result.stream.pipe(res);
                 } else {
@@ -1047,7 +1184,7 @@ module.exports = (broadcast) => {
      */
     router.get('/network/stats', asyncHandler(async (req, res) => {
         try {
-            const { 
+            const {
                 period,
                 includeDetails,
                 groupBy,
@@ -1116,7 +1253,7 @@ module.exports = (broadcast) => {
     router.put('/network/documents/:fileId', asyncHandler(async (req, res) => {
         try {
             const { fileId } = req.params;
-            const { 
+            const {
                 name,
                 description,
                 tags,
@@ -1191,7 +1328,7 @@ module.exports = (broadcast) => {
     router.delete('/network/documents/:fileId', asyncHandler(async (req, res) => {
         try {
             const { fileId } = req.params;
-            const { 
+            const {
                 force,
                 backup,
                 reason
@@ -1263,7 +1400,7 @@ module.exports = (broadcast) => {
     router.post('/network/documents/:fileId/copy', asyncHandler(async (req, res) => {
         try {
             const { fileId } = req.params;
-            const { 
+            const {
                 targetPath,
                 newName,
                 preserveMetadata,
@@ -1337,7 +1474,7 @@ module.exports = (broadcast) => {
     router.post('/network/documents/:fileId/move', asyncHandler(async (req, res) => {
         try {
             const { fileId } = req.params;
-            const { 
+            const {
                 targetPath,
                 newName,
                 overwrite
@@ -1438,7 +1575,7 @@ module.exports = (broadcast) => {
             };
 
             // Validation des paramètres de recherche
-            if (!searchOptions.query && !searchOptions.fileTypes.length && 
+            if (!searchOptions.query && !searchOptions.fileTypes.length &&
                 !searchOptions.tags.length && !searchOptions.dateRange && !searchOptions.sizeRange) {
                 return res.status(400).json({
                     success: false,
@@ -1555,7 +1692,7 @@ module.exports = (broadcast) => {
         try {
             // Convertir base64 en buffer
             const buffer = Buffer.from(imageBuffer, 'base64');
-            
+
             // Créer un objet fichier simulé
             const imageFile = {
                 buffer: buffer,

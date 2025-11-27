@@ -90,11 +90,11 @@ function AppContent() {
                                 enrichedTechnician.permissions = roleConfig.permissions;
                             } else {
                                 console.warn(`⚠️ Rôle "${technician.role}" introuvable, permissions viewer par défaut`);
-                                enrichedTechnician.permissions = ['dashboard:view', 'sessions:view'];
+                                enrichedTechnician.permissions = ['dashboard:view', 'sessions:view', 'loans:view', 'ai_assistant:view'];
                             }
                         } else {
                             console.warn('⚠️ Config non disponible, permissions viewer par défaut');
-                            enrichedTechnician.permissions = ['dashboard:view', 'sessions:view'];
+                            enrichedTechnician.permissions = ['dashboard:view', 'sessions:view', 'loans:view', 'ai_assistant:view'];
                         }
 
                         setCurrentTechnician(enrichedTechnician);

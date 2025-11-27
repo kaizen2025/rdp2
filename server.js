@@ -37,9 +37,6 @@ if (!fs.existsSync(dataDir)) {
 // ✅ NOUVEAU - Routes d'authentification et gestion utilisateurs
 app.use('/api/auth', authRoutes);
 
-// ✅ NOUVEAU - Routes de notifications
-app.use('/api/notifications', notificationRoutes);
-
 // Routes API
 app.get('/api/health', (req, res) => {
   res.json({
@@ -54,7 +51,7 @@ app.get('/api/health', (req, res) => {
 app.post('/api/analyze', async (req, res) => {
   try {
     const { text } = req.body;
-    
+
     if (!text || text.trim().length === 0) {
       return res.status(400).json({
         error: 'Aucun texte fourni pour l\'analyse'
@@ -65,8 +62,8 @@ app.post('/api/analyze', async (req, res) => {
     const analysis = {
       summary: "Analyse automatique du document effectuée avec succès.",
       keywords: ["gestion", "intelligence", "artificielle", "workflow", "analyse"],
-      sentiment: text.includes('bon') || text.includes('excellent') ? 'positif' : 
-                text.includes('mauvais') || text.includes('problème') ? 'négatif' : 'neutre',
+      sentiment: text.includes('bon') || text.includes('excellent') ? 'positif' :
+        text.includes('mauvais') || text.includes('problème') ? 'négatif' : 'neutre',
       category: text.includes('technique') ? 'document_technique' : 'document_gestion',
       confidence: Math.random() * 0.3 + 0.7, // Entre 0.7 et 1.0
       suggestions: [
@@ -98,7 +95,7 @@ app.post('/api/analyze', async (req, res) => {
 app.post('/api/documents', (req, res) => {
   try {
     const { title, content } = req.body;
-    
+
     if (!title || !content) {
       return res.status(400).json({
         error: 'Titre et contenu requis'
@@ -116,7 +113,7 @@ app.post('/api/documents', (req, res) => {
     // Sauvegarde temporaire en mémoire
     const documentsFile = path.join(dataDir, 'documents.json');
     let documents = [];
-    
+
     if (fs.existsSync(documentsFile)) {
       try {
         documents = JSON.parse(fs.readFileSync(documentsFile, 'utf8'));
@@ -147,7 +144,7 @@ app.post('/api/documents', (req, res) => {
 app.get('/api/documents', (req, res) => {
   try {
     const documentsFile = path.join(dataDir, 'documents.json');
-    
+
     if (!fs.existsSync(documentsFile)) {
       return res.json({
         success: true,
@@ -286,7 +283,7 @@ app.post('/api/rds/monitoring/check', async (req, res) => {
 // Servir les fichiers statiques React en production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, 'build')));
-  
+
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'build', 'index.html'));
   });
