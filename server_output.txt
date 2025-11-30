@@ -1,0 +1,70 @@
+=============================================
+ D├®marrage du serveur RDS Viewer...
+=============================================
+­ƒöì [DEBUG] Appel de startServer()...
+­ƒöì [DEBUG] __dirname: C:\Projet\rdp2\server
+­ƒöì [DEBUG] process.cwd(): C:\Projet\rdp2
+­ƒöì [DEBUG] NODE_ENV: undefined
+­ƒöì [DEBUG] RUNNING_IN_ELECTRON: undefined
+­ƒöì [DEBUG] isProduction: false
+
+=============================================
+­ƒöº Allocation automatique des ports...
+=============================================
+
+­ƒöì Recherche d'un port disponible pour Service...
+   Plage test├®e : 3002-3012
+(node:13088) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Ô£à Port 3002 disponible pour Service
+­ƒöì Recherche d'un port disponible pour Service...
+   Plage test├®e : 3003-3013
+Ô£à Port 3003 disponible pour Service
+­ƒöì Recherche d'un port disponible pour React Dev Server...
+   Plage test├®e : 3000-3010
+   ÔÜá´©Å  Port 3000 occup├®, test du suivant...
+Ô£à Port 3001 disponible pour React Dev Server
+
+Ô£à Tous les ports ont ├®t├® allou├®s avec succ├¿s:
+   ÔÇó HTTP Server    : 3002
+   ÔÇó WebSocket      : 3003
+   ÔÇó React Dev      : 3001
+
+­ƒôØ Configuration des ports sauvegard├®e dans .ports.json
+Ô£à Mode DEV - Ports trouv├®s: { API_PORT: 3002, WS_PORT: 3003 }
+[Config] Lecture de: C:\Projet\rdp2\config\config.json
+Ô£à Configuration charg├®e.
+­ƒöì V├®rification de la n├®cessit├® d'une migration de donn├®es...
+Ô£à Migration d├®j├á effectu├®e, rien ├á faire.
+Ô£à Base de donn├®es SQLite connect├®e (ONLINE) : \\192.168.1.230\Donnees\Informatique\PROGRAMMES\Programme RDS\RDS Viewer Group\rds_viewer_data.sqlite
+Ô£à Base de donn├®es connect├®e avec succ├¿s.
+Ô£à WebSocket initialis├® sur le port 3003 avec heartbeat
+Ô£à Routes API configur├®es (standard + multimodal + auth + notifications).
+­ƒòÆ Planification des t├óches de fond...
+[NotificationScheduler] Ex├®cution des v├®rifications planifi├®es...
+[DocSync] Starting synchronization for directory: \\192.168.1.230\Donnees\Informatique
+[DocSync] Service de synchronisation d├®marr├® pour le dossier : \\192.168.1.230\Donnees\Informatique
+Ô£à T├óches de fond planifi├®es.
+node:events:502
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::3003
+    at Server.setupListenHandle [as _listen2] (node:net:1937:16)
+    at listenInCluster (node:net:1994:12)
+    at Server.listen (node:net:2099:7)
+    at new WebSocketServer (C:\Projet\rdp2\node_modules\ws\lib\websocket-server.js:102:20)
+    at initializeWebSocket (C:\Projet\rdp2\server\server.js:66:11)
+    at startServer (C:\Projet\rdp2\server\server.js:210:9)
+Emitted 'error' event on WebSocketServer instance at:
+    at Server.emit (node:events:524:28)
+    at emitErrorNT (node:net:1973:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 3003
+}
+
+Node.js v22.13.1

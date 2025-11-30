@@ -43,7 +43,7 @@ const DraggablePaper = (props) => {
 const AddChannelDialog = memo(({ open, onClose, onSave }) => {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
-    
+
     const handleSubmit = () => {
         if (!name.trim()) return;
         onSave({ name, description });
@@ -51,7 +51,7 @@ const AddChannelDialog = memo(({ open, onClose, onSave }) => {
         setDescription('');
         onClose();
     };
-    
+
     return (
         <StyledDialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
             <DialogTitle>Nouveau Canal</DialogTitle>
@@ -140,7 +140,7 @@ const MessageItem = memo(({ message, isFirstInGroup, currentUser, onEdit, onDele
                 {renderMessageContent()}
                 {message.file_info && <Chip icon={<DescriptionIcon />} label={message.file_info.name} size="small" variant="outlined" sx={{ mt: 1 }} />}
                 {message.reactions && Object.keys(message.reactions).length > 0 && <Stack direction="row" spacing={0.5} sx={{ mt: 0.5 }}>{Object.entries(message.reactions).filter(([key]) => key !== 'edited').map(([emoji, users]) => users.length > 0 && <Tooltip key={emoji} title={getReactionAuthors(users)}><Chip label={`${emoji} ${users.length}`} size="small" variant={users.includes(currentUser?.id) ? 'filled' : 'outlined'} onClick={() => onReact(message.id, emoji)} sx={{ cursor: 'pointer' }} /></Tooltip>)}</Stack>}
-                {isHovered && <Paper sx={{ position: 'absolute', top: -16, right: 8, display: 'flex', gap: 0.2, borderRadius: 2 }}><Tooltip title="Réagir"><IconButton size="small" onClick={(e) => setReactionAnchor(e.currentTarget)}><AddReactionIcon sx={{fontSize: 18}} /></IconButton></Tooltip>{isOwn && <Tooltip title="Plus d'options"><IconButton size="small" onClick={(e) => setMenuAnchor(e.currentTarget)}><MoreVertIcon sx={{fontSize: 18}} /></IconButton></Tooltip>}</Paper>}
+                {isHovered && <Paper sx={{ position: 'absolute', top: -16, right: 8, display: 'flex', gap: 0.2, borderRadius: 2 }}><Tooltip title="Réagir"><IconButton size="small" onClick={(e) => setReactionAnchor(e.currentTarget)}><AddReactionIcon sx={{ fontSize: 18 }} /></IconButton></Tooltip>{isOwn && <Tooltip title="Plus d'options"><IconButton size="small" onClick={(e) => setMenuAnchor(e.currentTarget)}><MoreVertIcon sx={{ fontSize: 18 }} /></IconButton></Tooltip>}</Paper>}
                 <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}><MenuItem onClick={() => { onEdit(message); setMenuAnchor(null); }}><ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>Modifier</MenuItem><MenuItem onClick={() => { onDelete(message.id); setMenuAnchor(null); }}><ListItemIcon><DeleteIcon fontSize="small" /></ListItemIcon>Supprimer</MenuItem></Menu>
                 <Popover open={Boolean(reactionAnchor)} anchorEl={reactionAnchor} onClose={() => setReactionAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}><Stack direction="row" sx={{ p: 0.5 }}>{EMOJI_REACTIONS.map(emoji => <IconButton key={emoji} onClick={() => { onReact(message.id, emoji); setReactionAnchor(null); }}>{emoji}</IconButton>)}</Stack></Popover>
             </Box>
@@ -186,7 +186,7 @@ const ChatDialog = ({ open, onClose, onlineTechnicians = [], initialMessage = ''
     const loadMessages = useCallback(async (channelId) => { if (!channelId || !currentTechnician?.id) return; setIsLoading(true); setMessages([]); try { const msgs = await apiService.getChatMessages(channelId); setMessages(msgs || []); } catch (error) { showNotification('error', `Erreur chargement messages: ${error.message}`); setMessages([]); } finally { setIsLoading(false); } }, [currentTechnician, showNotification]);
     useEffect(() => { if (open) loadData(); }, [open, loadData]);
     useEffect(() => { if (open && currentChannel) loadMessages(currentChannel); }, [open, currentChannel, loadMessages]);
-    
+
     // ✅ NOUVEAU: Marquer le canal comme lu quand on change de canal ou quand de nouveaux messages arrivent
     useEffect(() => {
         if (open && currentChannel && messages.length > 0) {
@@ -197,7 +197,7 @@ const ChatDialog = ({ open, onClose, onlineTechnicians = [], initialMessage = ''
             return () => clearTimeout(timer);
         }
     }, [open, currentChannel, messages, markChannelAsRead]);
-    
+
     useEffect(() => { const handleNewMessage = (msg) => { if (msg.channelId === currentChannel) setMessages(prev => [...prev, msg]); }; const handleUpdate = () => loadMessages(currentChannel); const unsubNew = events.on('chat_message_new', handleNewMessage); const unsubUpdate = events.on('chat_message_updated', handleUpdate); const unsubDelete = events.on('chat_message_deleted', handleUpdate); const unsubReaction = events.on('chat_reaction_toggled', handleUpdate); const unsubChannels = events.on('data_updated:chat_channels', loadData); return () => { unsubNew(); unsubUpdate(); unsubDelete(); unsubReaction(); unsubChannels(); }; }, [currentChannel, events, loadMessages, loadData]);
     useEffect(() => { if (!isLoading) scrollToBottom('auto'); }, [isLoading, scrollToBottom]);
     useEffect(() => { if (!isSending) scrollToBottom('smooth'); }, [messages, isSending, scrollToBottom]);
@@ -212,7 +212,12 @@ const ChatDialog = ({ open, onClose, onlineTechnicians = [], initialMessage = ''
 
     return (
         <StyledDialog open={open} onClose={onClose} PaperComponent={DraggablePaper} maxWidth="lg" PaperProps={{ sx: { height: '80vh', width: '80vw' } }}>
-            <DialogTitle sx={{ cursor: 'move', m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} id="draggable-dialog-title"><Typography variant="h6">Chat Équipe IT</Typography><IconButton onClick={onClose} aria-label="Fermer"><CloseIcon /></IconButton></DialogTitle>
+            <DialogTitle sx={{ cursor: 'move', m: 0, p: 2 }} id="draggable-dialog-title" component="div">
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                    <Typography variant="h6">Chat Équipe IT</Typography>
+                    <IconButton onClick={onClose} aria-label="Fermer"><CloseIcon /></IconButton>
+                </Box>
+            </DialogTitle>
             <DialogContent dividers sx={{ p: 0, display: 'flex', overflow: 'hidden' }}>
                 <Box sx={{ width: 260, borderRight: 1, borderColor: 'divider', display: 'flex', flexDirection: 'column', bgcolor: 'grey.100' }}>
                     <Box sx={{ flex: 1, overflowY: 'auto' }}>
@@ -226,14 +231,14 @@ const ChatDialog = ({ open, onClose, onlineTechnicians = [], initialMessage = ''
                     <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}><Typography variant="h6">{currentChannel.startsWith('dm--') ? '' : '#'}{currentTargetName}</Typography></Box>
                     <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 1 }}>
                         {isLoading ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box> :
-                         messages.length === 0 ? <Typography sx={{ textAlign: 'center', p: 4, color: 'text.secondary' }}>C'est le début de votre conversation. Dites bonjour !</Typography> :
-                         messages.map((msg, index) => {
-                            const prevMsg = messages[index - 1];
-                            const isFirstInGroup = !prevMsg || prevMsg.authorId !== msg.authorId || (new Date(msg.timestamp) - new Date(prevMsg.timestamp)) > 5 * 60 * 1000;
-                            const showDateDivider = !prevMsg || new Date(msg.timestamp).toDateString() !== new Date(prevMsg.timestamp).toDateString();
-                            const isOnline = onlineIds.has(msg.authorId);
-                            return (<React.Fragment key={msg.id}>{showDateDivider && <DateDivider date={msg.timestamp} />}<MessageItem message={msg} isFirstInGroup={isFirstInGroup} currentUser={currentTechnician} onEdit={handleEditMessage} onDelete={handleDeleteMessage} onReact={handleReaction} isOnline={isOnline} /></React.Fragment>);
-                         })}
+                            messages.length === 0 ? <Typography sx={{ textAlign: 'center', p: 4, color: 'text.secondary' }}>C'est le début de votre conversation. Dites bonjour !</Typography> :
+                                messages.map((msg, index) => {
+                                    const prevMsg = messages[index - 1];
+                                    const isFirstInGroup = !prevMsg || prevMsg.authorId !== msg.authorId || (new Date(msg.timestamp) - new Date(prevMsg.timestamp)) > 5 * 60 * 1000;
+                                    const showDateDivider = !prevMsg || new Date(msg.timestamp).toDateString() !== new Date(prevMsg.timestamp).toDateString();
+                                    const isOnline = onlineIds.has(msg.authorId);
+                                    return (<React.Fragment key={msg.id}>{showDateDivider && <DateDivider date={msg.timestamp} />}<MessageItem message={msg} isFirstInGroup={isFirstInGroup} currentUser={currentTechnician} onEdit={handleEditMessage} onDelete={handleDeleteMessage} onReact={handleReaction} isOnline={isOnline} /></React.Fragment>);
+                                })}
                         <div ref={messagesEndRef} />
                     </Box>
                     <Paper elevation={3} sx={{ p: 1, m: 2, borderRadius: 2 }}>

@@ -369,15 +369,27 @@ function setupIpcHandlers() {
     });
 }
 
-app.whenReady().then(() => {
-    startServer();
+async function main() {
+    await startServer(); // S'assure que le serveur (et la config) est prêt
     setupAutoUpdater();
-    initializeAdBridge();  // ✅ Initialize AD IPC bridge
+    initializeAdBridge();
     setupIpcHandlers();
-    createWindow();
-    notificationScheduler.start(mainWindow);
-    app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
-});
+    createWindow(); // Crée la fenêtre, qui a maintenant accès à un serveur prêt
+
+    // Les services qui dépendent de la fenêtre ou de la config peuvent démarrer ici
+    if (mainWindow) {
+        logToUI('info', '[Main] Démarrage des services post-fenêtre...');
+        notificationScheduler.start(mainWindow);
+    }
+
+    app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0) {
+            createWindow();
+        }
+    });
+}
+
+app.whenReady().then(main);
 
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('will-quit', () => {

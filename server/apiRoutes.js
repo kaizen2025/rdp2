@@ -4,7 +4,7 @@ const express = require('express');
 const configService = require('../backend/services/configService');
 const dataService = require('../backend/services/dataService');
 const adService = require('../backend/services/adService');
-const excelService = require('../backend/services/excelService');
+
 const userService = require('../backend/services/userService');
 const accessoriesService = require('../backend/services/accessoriesService');
 const chatService = require('../backend/services/chatService');
@@ -39,18 +39,18 @@ module.exports = (broadcast) => {
         }
         res.json({ status: 'ok', message: 'Le serveur est opérationnel.' });
     }));
-    
+
     // Route pour vérifier le mode offline/online
     router.get('/status', asyncHandler(async (req, res) => {
         res.json({
             isOffline: databaseService.isInOfflineMode(),
             databasePath: databaseService.getDatabasePath(),
-            message: databaseService.isInOfflineMode() 
+            message: databaseService.isInOfflineMode()
                 ? 'Mode OFFLINE - Base de données locale utilisée'
                 : 'Mode ONLINE - Connecté au serveur réseau'
         });
     }));
-    
+
     router.get('/config', asyncHandler(async (req, res) => res.json(configService.getConfig())));
     router.post('/config', asyncHandler(async (req, res) => {
         const result = await configService.saveConfig(req.body.newConfig);
@@ -91,7 +91,7 @@ module.exports = (broadcast) => {
     }));
     router.post('/rds-sessions/send-message', asyncHandler(async (req, res) => res.json(await rdsService.sendMessage(req.body.server, req.body.sessionId, req.body.message))));
     router.get('/rds-sessions/ping/:server', asyncHandler(async (req, res) => res.json(await rdsService.pingServer(req.params.server))));
-    
+
     router.get('/computers', asyncHandler(async (req, res) => res.json(await dataService.getComputers())));
     router.post('/computers/:id/photo', asyncHandler(async (req, res) => {
         const result = await dataService.saveComputerPhoto(req.params.id, req.body);
@@ -198,6 +198,23 @@ module.exports = (broadcast) => {
         res.json(result);
     }));
 
+    // UTILISATEURS (SQLITE)
+    router.get('/users', asyncHandler(async (req, res) => res.json(await userService.getUsersByServer())));
+    router.post('/users', asyncHandler(async (req, res) => {
+        const result = await userService.saveUser(req.body, getCurrentTechnician(req));
+        broadcast({ type: 'data_updated', payload: { entity: 'users' } });
+        res.json(result);
+    }));
+    router.delete('/users/:username', asyncHandler(async (req, res) => {
+        const result = await userService.deleteUser(req.params.username, getCurrentTechnician(req));
+        broadcast({ type: 'data_updated', payload: { entity: 'users' } });
+        res.json(result);
+    }));
+    router.get('/users/stats', asyncHandler(async (req, res) => res.json(await userService.getUserStats())));
+
+    // Alias pour compatibilité
+    router.get('/excel/users', asyncHandler(async (req, res) => res.json(await userService.getUsersByServer())));
+
     router.get('/notifications', asyncHandler(async (req, res) => res.json(await notificationService.getNotifications())));
     router.get('/notifications/unread', asyncHandler(async (req, res) => res.json(await notificationService.getUnreadNotifications())));
     router.post('/notifications/:id/mark-read', asyncHandler(async (req, res) => {
@@ -230,49 +247,6 @@ module.exports = (broadcast) => {
     router.post('/ad/users/:username/reset-password', asyncHandler(async (req, res) => res.json(await adService.resetAdUserPassword(req.params.username, req.body.newPassword, req.body.mustChange))));
     router.post('/ad/users', asyncHandler(async (req, res) => res.json(await adService.createAdUser(req.body))));
 
-    router.get('/ad/ous', asyncHandler(async (req, res) => {
-        const { parentId } = req.query; // parentId sera l'ID (DistinguishedName) de l'OU parente
-        res.json(await adService.getAdOUs(parentId || null));
-    }));
-
-    router.get('/ad/ou-users', asyncHandler(async (req, res) => {
-        const { ouDN } = req.query;
-        if (!ouDN) {
-            return res.status(400).json({ error: 'Le paramètre ouDN est manquant.' });
-        }
-        res.json(await adService.getAdUsersInOU(ouDN));
-    }));
-
-    router.get('/excel/users', asyncHandler(async (req, res) => res.json(await userService.getUsersByServer())));
-    router.post('/excel/users/refresh', asyncHandler(async (req, res) => {
-        excelService.invalidateCache();
-        const result = await userService.syncUsersFromExcel(true);
-        broadcast({ type: 'data_updated', payload: { entity: 'excel_users' } });
-        res.json(result);
-    }));
-    router.post('/excel/users', asyncHandler(async (req, res) => {
-        const result = await userService.saveUser(req.body.user, getCurrentTechnician(req));
-        if (result.success) broadcast({ type: 'data_updated', payload: { entity: 'excel_users' } });
-        res.json(result);
-    }));
-    router.delete('/excel/users/:username', asyncHandler(async (req, res) => {
-        const result = await userService.deleteUser(req.params.username, getCurrentTechnician(req));
-        if (result.success) broadcast({ type: 'data_updated', payload: { entity: 'excel_users' } });
-        res.json(result);
-    }));
-
-    router.get('/chat/channels', asyncHandler(async (req, res) => res.json(await chatService.getChannels())));
-    router.post('/chat/channels', asyncHandler(async (req, res) => {
-        const result = await chatService.addChannel(req.body.name, req.body.description, getCurrentTechnician(req));
-        broadcast({ type: 'data_updated', payload: { entity: 'chat_channels' } });
-        res.status(201).json(result);
-    }));
-    router.get('/chat/messages/:channelId', asyncHandler(async (req, res) => res.json(await chatService.getMessages(req.params.channelId))));
-    router.post('/chat/messages', asyncHandler(async (req, res) => {
-        const newMessage = await chatService.addMessage(req.body.channelId, req.body.messageText, getCurrentTechnician(req), req.body.fileInfo);
-        broadcast({ type: 'chat_message_new', payload: newMessage });
-        res.status(201).json(newMessage);
-    }));
     router.put('/chat/messages/:messageId', asyncHandler(async (req, res) => {
         const result = await chatService.editMessage(req.params.messageId, req.body.channelId, req.body.newText, getCurrentTechnician(req));
         broadcast({ type: 'chat_message_updated', payload: { messageId: req.params.messageId, channelId: req.body.channelId } });

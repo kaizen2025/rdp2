@@ -1,6 +1,6 @@
 # RDS Viewer - Gestionnaire de sessions RDS avec Intelligence Artificielle
 
-## Version 3.0.26 - Application Electron Professionnelle
+## Version 3.0.29 Enhanced - Application Electron Professionnelle + DocuCortex IA
 
 Application Electron complète pour la gestion de sessions RDS, prêts d'ordinateurs et documents avec IA intégrée (DocuCortex) pour Anecoop.
 
@@ -60,12 +60,18 @@ Le build génère: `dist/RDS Viewer-3.0.26-Portable-Optimized.exe` (~180 MB)
 - Catégorisation automatique
 - Recherche full-text
 
-### Intelligence Artificielle (DocuCortex)
-- Chat IA avec Gemini AI
-- Analyse de documents
-- Extraction de contenu intelligent
-- Résumés automatiques
-- Suggestions contextuelles
+### Intelligence Artificielle (DocuCortex Enhanced)
+- **Chat IA** avec Gemini AI pour support conversationnel
+- **IA Prédictive Locale** (TensorFlow.js) - 100% offline, RGPD conforme
+  - Prédictions de demande d'équipements
+  - Détection d'anomalies comportementales
+  - Recommandations personnalisées
+  - Analyse de tendances temporelles
+  - Optimisation des ressources RDS
+- **Analyse de documents** avec OCR
+- **Extraction de contenu** intelligent
+- **Résumés automatiques**
+- **Suggestions contextuelles**
 
 ### Administration
 - Gestion utilisateurs avec rôles
