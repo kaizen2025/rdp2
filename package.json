@@ -47,6 +47,7 @@
     "express": "^4.21.2",
     "express-rate-limit": "^7.4.1",
     "express-validator": "^7.2.0",
+    "framer-motion": "^12.23.24",
     "html2canvas": "^1.4.1",
     "http-proxy-middleware": "^2.0.6",
     "iconv-lite": "^0.6.3",
@@ -70,6 +71,8 @@
     "react-router-dom": "^6.23.1",
     "react-virtualized-auto-sizer": "^1.0.26",
     "react-window": "^2.2.2",
+    "recharts": "^3.4.1",
+    "sqlite3": "^5.1.7",
     "tesseract.js": "^5.1.1",
     "ws": "^8.18.3",
     "xlsx": "^0.18.5"

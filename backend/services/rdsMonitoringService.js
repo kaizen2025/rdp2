@@ -3,6 +3,7 @@
 const { PowerShell } = require('../../lib/powershellWrapper');
 const EventEmitter = require('events');
 const configService = require('./configService');
+const { checkTcpConnection } = require('./rdsService'); // Import de la vérification TCP
 
 class RDSMonitoringService extends EventEmitter {
     constructor() {
@@ -64,28 +65,44 @@ class RDSMonitoringService extends EventEmitter {
      */
     async getServerStats(serverName, domain, credential) {
         try {
+            // Étape 1: Vérification TCP rapide
+            const isOnline = await checkTcpConnection(serverName, 3389, 2000);
+            if (!isOnline) {
+                // Serveur hors ligne, on retourne une erreur silencieuse ou un statut hors ligne
+                // Pour éviter de spammer les logs, on peut juste retourner success: false
+                return { success: false, error: `Serveur ${serverName} injoignable (TCP 3389)` };
+            }
+
             const ps = new PowerShell();
 
             // Script PowerShell pour obtenir stats complètes
+            // Utilisation de SilentlyContinue pour éviter les popups d'erreur/auth
             const script = `
-                $ErrorActionPreference = 'Stop'
+                $ErrorActionPreference = 'SilentlyContinue' 
                 $server = '${serverName}'
                 ${credential ? `$cred = Get-StoredCredential -Target '${credential}'` : ''}
 
                 # CPU (via WMI)
-                $cpu = Get-WmiObject Win32_Processor -ComputerName $server ${credential ? '-Credential $cred' : ''} |
+                $cpu = Get-WmiObject Win32_Processor -ComputerName $server ${credential ? '-Credential $cred' : ''} -ErrorAction SilentlyContinue |
                     Measure-Object -Property LoadPercentage -Average |
                     Select-Object -ExpandProperty Average
 
+                if ($null -eq $cpu) { $cpu = 0 }
+
                 # Memory (via WMI)
-                $os = Get-WmiObject Win32_OperatingSystem -ComputerName $server ${credential ? '-Credential $cred' : ''}
-                $totalMemoryGB = [math]::Round($os.TotalVisibleMemorySize / 1MB, 2)
-                $freeMemoryGB = [math]::Round($os.FreePhysicalMemory / 1MB, 2)
-                $usedMemoryGB = $totalMemoryGB - $freeMemoryGB
-                $memoryPercent = [math]::Round(($usedMemoryGB / $totalMemoryGB) * 100, 2)
+                $os = Get-WmiObject Win32_OperatingSystem -ComputerName $server ${credential ? '-Credential $cred' : ''} -ErrorAction SilentlyContinue
+                
+                if ($null -ne $os) {
+                    $totalMemoryGB = [math]::Round($os.TotalVisibleMemorySize / 1MB, 2)
+                    $freeMemoryGB = [math]::Round($os.FreePhysicalMemory / 1MB, 2)
+                    $usedMemoryGB = $totalMemoryGB - $freeMemoryGB
+                    $memoryPercent = [math]::Round(($usedMemoryGB / $totalMemoryGB) * 100, 2)
+                } else {
+                    $totalMemoryGB = 0; $freeMemoryGB = 0; $usedMemoryGB = 0; $memoryPercent = 0
+                }
 
                 # Disques (tous les volumes)
-                $disks = Get-WmiObject Win32_LogicalDisk -ComputerName $server ${credential ? '-Credential $cred' : ''} -Filter "DriveType=3" |
+                $disks = Get-WmiObject Win32_LogicalDisk -ComputerName $server ${credential ? '-Credential $cred' : ''} -Filter "DriveType=3" -ErrorAction SilentlyContinue |
                     ForEach-Object {
                         @{
                             Drive = $_.DeviceID
@@ -95,9 +112,12 @@ class RDSMonitoringService extends EventEmitter {
                             UsedPercent = [math]::Round((($_.Size - $_.FreeSpace) / $_.Size) * 100, 2)
                         }
                     }
+                
+                if ($null -eq $disks) { $disks = @() }
 
-                # Sessions actives
-                $sessions = qwinsta /server:$server 2>&1 | Select-String "Active" | Measure-Object | Select-Object -ExpandProperty Count
+                # Sessions actives (qwinsta peut prompter si accès refusé, on redirige stderr)
+                $sessions = qwinsta /server:$server 2>$null | Select-String "Active" | Measure-Object | Select-Object -ExpandProperty Count
+                if ($null -eq $sessions) { $sessions = 0 }
 
                 # Résultat JSON
                 @{
