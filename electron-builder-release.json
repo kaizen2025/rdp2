@@ -1,0 +1,107 @@
+{
+  "appId": "com.anecoop.rdsviewer",
+  "productName": "RDS Viewer",
+  "copyright": "Copyright © 2025 Anecoop",
+  "extraMetadata": {
+    "main": "electron/main.js",
+    "name": "rds-viewer",
+    "version": "3.1.1"
+  },
+  "directories": {
+    "buildResources": "assets",
+    "output": "dist"
+  },
+  "files": [
+    "build/**/*",
+    "electron/**/*",
+    "server/**/*",
+    "backend/**/*",
+    "config/**/*",
+    "data/**/*",
+    "package.json",
+    "!build/**/*.map",
+    "!**/*.md",
+    "!**/DOCUCORTEX*.md"
+  ],
+  "extraResources": [
+    {
+      "from": "config",
+      "to": "config",
+      "filter": ["**/*"]
+    },
+    {
+      "from": "data",
+      "to": "data",
+      "filter": ["**/*"]
+    },
+    {
+      "from": "backend",
+      "to": "backend",
+      "filter": ["**/*"]
+    }
+  ],
+  "compression": "maximum",
+  "asar": true,
+  "asarUnpack": [
+    "**/*.node",
+    "**/node_modules/bcrypt/**/*",
+    "**/node_modules/better-sqlite3/**/*",
+    "**/node_modules/@google/generative-ai/**/*",
+    "**/node_modules/express/**/*",
+    "**/node_modules/cors/**/*",
+    "**/node_modules/ws/**/*",
+    "**/node_modules/multer/**/*",
+    "**/node_modules/axios/**/*",
+    "**/backend/**/*",
+    "**/server/**/*"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "assets/icon.ico",
+    "artifactName": "${productName}-${version}-Setup.${ext}",
+    "requestedExecutionLevel": "asInvoker",
+    "publisherName": "Anecoop"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "allowElevation": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "RDS Viewer",
+    "installerIcon": "assets/icon.ico",
+    "uninstallerIcon": "assets/icon.ico",
+    "installerHeaderIcon": "assets/icon.ico",
+    "license": "LICENSE",
+    "language": "1036",
+    "deleteAppDataOnUninstall": false,
+    "runAfterFinish": true,
+    "menuCategory": true,
+    "displayLanguageSelector": true,
+    "perMachine": false,
+    "differentialPackage": true
+  },
+  "portable": {
+    "artifactName": "${productName}-${version}-Portable.${ext}",
+    "requestExecutionLevel": "user",
+    "useZip": false,
+    "splashImage": "assets/icon.png"
+  },
+  "publish": [
+    {
+      "provider": "generic",
+      "url": "file://192.168.1.230/donnees/Informatique/PROGRAMMES/Programme RDS/RDS Viewer Group/update",
+      "channel": "latest"
+    }
+  ],
+  "detectUpdateChannel": true
+}

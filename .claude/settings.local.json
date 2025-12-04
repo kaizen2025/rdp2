@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(npm install)",
+      "Bash(npx eslint:*)",
+      "Bash(dir:*)",
+      "Bash(test:*)",
+      "Bash(npx electron-builder:*)",
+      "Bash(powershell:*)",
+      "Bash(copy latest.yml distlatest.yml)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
