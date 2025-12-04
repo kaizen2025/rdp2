@@ -13,9 +13,7 @@ const documentMetadataService = require('./documentMetadataService');
 const intelligentResponseService = require('./intelligentResponseService');
 const filePreviewService = require('./filePreviewService');
 const ocrService = require('./ocrService');
-const huggingfaceService = require('./huggingfaceService'); // ✅ Service Hugging Face (PRIORITAIRE)
-const openrouterService = require('./openrouterService'); // ✅ Service OpenRouter (FALLBACK)
-const geminiService = require('./geminiService'); // ✅ Service Gemini (NOUVEAU)
+const geminiService = require('./geminiService'); // Service Gemini (PRINCIPAL)
 const path = require('path');
 const fs = require('fs').promises;
 const dataService = require('../dataService');
@@ -30,13 +28,11 @@ class AIService {
             totalConversations: 0,
             totalQueries: 0
         };
-        // Système multi-provider avec fallback
+        // Système avec provider Gemini uniquement
         this.providers = {
-            huggingface: { enabled: false, service: huggingfaceService },
-            openrouter: { enabled: false, service: openrouterService },
             gemini: { enabled: false, service: geminiService }
         };
-        this.activeProvider = 'default'; // Provider actuellement utilisé
+        this.activeProvider = 'gemini'; // Provider par défaut
         this.config = null; // Configuration complète chargée depuis ai-config.json
         this.gedSystemPrompt = null; // Prompt système GED optimisé pour Polaris Alpha
     }
@@ -80,22 +76,20 @@ class AIService {
                 console.log(`\n🔌 Initialisation de ${providerName} (priority: ${providerConfig.priority})...`);
 
                 try {
+                    // Passer la configuration complète incluant les modèles pour Gemini
                     const result = await this.providers[providerName].service.initialize({
                         apiKey: providerConfig.apiKey,
+                        models: providerConfig.models,
                         model: providerConfig.model,
-                        timeout: providerConfig.timeout
+                        timeout: providerConfig.timeout,
+                        temperature: providerConfig.temperature,
+                        maxTokens: providerConfig.max_tokens
                     });
 
                     if (result.success) {
                         this.providers[providerName].enabled = true;
-
-                        // Le premier provider qui réussit devient actif
-                        if (this.activeProvider === 'default') {
-                            this.activeProvider = providerName;
-                            console.log(`✅ ${providerName} défini comme provider actif`);
-                        } else {
-                            console.log(`✅ ${providerName} disponible en fallback`);
-                        }
+                        this.activeProvider = providerName;
+                        console.log(`✅ ${providerName} défini comme provider actif`);
                     } else {
                         console.warn(`⚠️ ${providerName} non disponible:`, result.error);
                     }
@@ -2688,49 +2682,86 @@ ${contextDocs}
         ];
     }
 
-    async _orchestrateQuery(query) {
-        const prompt = `
-            You are an intelligent orchestrator for a multi-tool AI agent.
-            Your task is to classify the user's query into one of the following categories:
-
-            1.  **local_search**: The user is asking a question about internal procedures, documents, or information that would be stored on a local server.
-                Examples: "Comment installer une imprimante ?", "Quelle est la procédure pour un nouvel employé ?", "Trouve le document sur la sécurité VPN."
-
-            2.  **app_command**: The user is giving a command to the application, such as searching for specific data within the app's database.
-                Examples: "Trouve-moi tous les PC portables prêtés", "Affiche les prêts en retard", "Quels sont les ordinateurs de marque Dell ?"
-
-            3.  **web_search**: The user is asking a general knowledge question, or a question about current events, prices, or information that would be found on the internet.
-                Examples: "Quel temps fait-il à Paris ?", "Qui est le PDG de Microsoft ?", "Quelles sont les dernières nouvelles sur l'IA ?"
-
-            Here is the user's query: "${query}"
-
-            Return only the category as a single JSON string, like this: {"category": "local_search"}
-        `;
-
+    /**
+     * Génère du texte en utilisant le provider actif
+     * @param {string} prompt - Le prompt à envoyer
+     * @param {Object} options - Options de génération
+     */
+    async generateText(prompt, options = {}) {
         try {
-            const aiResponse = await this.generateText(prompt, { max_tokens: 50, temperature: 0.1 });
-            const jsonResponse = JSON.parse(aiResponse);
-            return jsonResponse.category;
+            if (!this.initialized) {
+                await this.initialize();
+            }
+
+            // Essayer d'utiliser Gemini en priorité
+            if (this.providers.gemini?.enabled && this.providers.gemini?.service) {
+                const result = await this.providers.gemini.service.generateText(prompt);
+                if (result.success) {
+                    return result.response;
+                }
+            }
+
+            // Fallback: utiliser le provider actif
+            const providerService = this.getProviderService(this.activeProvider);
+            if (providerService && typeof providerService.generate === 'function') {
+                const result = await providerService.generate(prompt, options);
+                if (result.success) {
+                    return result.response;
+                }
+            }
+
+            // Si aucun provider ne fonctionne, retourner une réponse par défaut
+            throw new Error('Aucun provider IA disponible pour générer du texte');
         } catch (error) {
-            console.error('Error during query orchestration:', error);
-            // Default to local_search as a safe fallback
-            return 'local_search';
+            console.error('Erreur génération texte:', error);
+            throw error;
         }
     }
 
-    async _performWebSearch(query) {
-        try {
-            const searchResults = await this.google_search({ query });
-            if (searchResults.results && searchResults.results.length > 0) {
-                // For now, just return the snippet of the first result.
-                // This could be expanded to summarize multiple results.
-                return searchResults.results[0].snippet;
+    async _orchestrateQuery(query) {
+        // Détection simplifiée sans appel IA (pour éviter les erreurs si aucun provider n'est configuré)
+        const lowerQuery = query.toLowerCase();
+
+        // Mots-clés pour recherche web
+        const webKeywords = ['météo', 'temps qu\'il fait', 'actualité', 'news', 'prix de', 'combien coûte',
+            'qui est', 'dernières nouvelles', 'aujourd\'hui', 'cette semaine'];
+
+        // Mots-clés pour commandes de l'application
+        const appKeywords = ['trouve', 'affiche', 'liste', 'montre', 'pc', 'ordinateur', 'prêt',
+            'retard', 'disponible', 'loué', 'réservé', 'stock', 'matériel'];
+
+        // Détecter le type de requête
+        for (const kw of webKeywords) {
+            if (lowerQuery.includes(kw)) {
+                return 'web_search';
             }
-            return "Je n'ai pas trouvé de réponse à votre question sur le web.";
-        } catch (error) {
-            console.error('Error during web search:', error);
-            return "Désolé, je n'ai pas pu effectuer la recherche web.";
         }
+
+        // Pour les commandes app, on cherche des termes spécifiques au contexte de gestion
+        const hasAppKeyword = appKeywords.some(kw => lowerQuery.includes(kw));
+        const hasFindVerb = ['trouve', 'affiche', 'liste', 'montre', 'cherche'].some(v => lowerQuery.includes(v));
+
+        if (hasAppKeyword && hasFindVerb) {
+            return 'app_command';
+        }
+
+        // Par défaut, recherche documentaire locale
+        return 'local_search';
+    }
+
+    async _performWebSearch(query) {
+        // La recherche web n'est pas configurée dans cette version
+        // Retourner un message informatif
+        return `Je suis DocuCortex, votre assistant de gestion documentaire interne.
+
+Je ne peux pas effectuer de recherches web (météo, actualités, etc.) car cette fonctionnalité n'est pas configurée.
+
+**Ce que je peux faire :**
+- Rechercher dans vos documents internes
+- Vous aider avec la gestion des prêts de matériel
+- Analyser vos fichiers et documents
+
+Pour des questions comme la météo ou les actualités, veuillez utiliser un navigateur web ou un assistant externe.`;
     }
 
     // ==================== NOUVELLES MÉTHODES DOCUCORTEX GED ====================

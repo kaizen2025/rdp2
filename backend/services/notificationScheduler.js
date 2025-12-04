@@ -1,15 +1,22 @@
 // backend/services/notificationScheduler.js
-const { ipcMain } = require('electron');
 const dataService = require('./dataService');
 const rdsService = require('./rdsService');
 const notificationService = require('./notificationService');
 const configService = require('./configService');
+const databaseService = require('./databaseService');
 
 let schedulerInterval = null;
 let mainWindow = null;
+let isInitialized = false;
 
 const checkOverdueLoans = async () => {
     try {
+        // Vérifier que la base de données est connectée
+        if (!configService.appConfig?.databasePath) {
+            console.log('[NotificationScheduler] Configuration non chargée, report des vérifications...');
+            return;
+        }
+
         const loans = await dataService.getLoans();
         const overdueLoans = loans.filter(loan => loan.status === 'overdue' || loan.status === 'critical');
 
@@ -35,6 +42,11 @@ const checkOverdueLoans = async () => {
 
 const checkServerStatus = async () => {
     try {
+        // Vérifier que la configuration est chargée
+        if (!configService.appConfig) {
+            return;
+        }
+
         const servers = configService.appConfig?.rds_servers || [];
         if (servers.length === 0) return;
 

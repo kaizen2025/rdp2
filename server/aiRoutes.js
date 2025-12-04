@@ -494,26 +494,31 @@ module.exports = (broadcast) => {
     }));
 
     /**
-     * GET /ai/models/recommended - Récupère les modèles recommandés (OpenRouter uniquement)
+     * GET /ai/models/recommended - Récupère les modèles Gemini disponibles
      */
     router.get('/models/recommended', asyncHandler(async (req, res) => {
         try {
-            const openrouterService = require('../backend/services/ai/openrouterService');
-
-            const recommendedModels = openrouterService.getRecommendedModels();
+            // Modèles Gemini disponibles
+            const geminiModels = [
+                { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash (Experimental)', description: 'Le plus récent et rapide', contextLength: 1048576, recommended: true },
+                { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: 'Rapide et efficace', contextLength: 1048576, recommended: true },
+                { id: 'gemini-1.5-flash-8b', name: 'Gemini 1.5 Flash 8B', description: 'Version légère', contextLength: 1048576, recommended: false },
+                { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'Plus puissant, plus lent', contextLength: 2097152, recommended: true },
+                { id: 'gemini-1.0-pro', name: 'Gemini 1.0 Pro', description: 'Version stable', contextLength: 32760, recommended: false }
+            ];
 
             res.json({
                 success: true,
-                models: recommendedModels,
-                total: recommendedModels.length,
-                provider: 'openrouter',
+                models: geminiModels,
+                total: geminiModels.length,
+                provider: 'gemini',
                 validated: true
             });
         } catch (error) {
-            console.error('Erreur récupération modèles recommandés:', error);
+            console.error('Erreur récupération modèles:', error);
             res.status(500).json({
                 success: false,
-                error: 'Erreur récupération modèles recommandés',
+                error: 'Erreur récupération modèles',
                 details: error.message
             });
         }
