@@ -22,13 +22,26 @@ class GeminiService {
     /**
      * Initialise le service Gemini avec la clé API
      */
-    async initialize(apiKey, config = {}) {
+    async initialize(apiKeyOrConfig, config = {}) {
         try {
-            if (!apiKey || apiKey.trim() === '') {
-                console.log('[GeminiService] ⚠️ Aucune clé API fournie - Mode désactivé');
-                this.initialized = false;
-                return { success: false, error: 'API Key manquante' };
+            // Gérer les deux formats d'appel: initialize(apiKey, config) ou initialize({apiKey, ...config})
+            let apiKey;
+            if (typeof apiKeyOrConfig === 'object' && apiKeyOrConfig !== null) {
+                apiKey = apiKeyOrConfig.apiKey;
+                config = { ...apiKeyOrConfig, ...config };
+            } else {
+                apiKey = apiKeyOrConfig;
             }
+
+            // S'assurer que apiKey est une chaîne valide
+            if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '' || apiKey === 'STORED_IN_ENV_FILE') {
+                console.log('[GeminiService] ⚠️ Aucune clé API valide fournie - Mode désactivé');
+                this.initialized = false;
+                return { success: false, error: 'Clé API Gemini manquante ou invalide. Configurez votre clé dans les paramètres IA.' };
+            }
+
+            // Nettoyer la clé API
+            apiKey = apiKey.trim();
 
             this.config = {
                 models: {

@@ -1,9 +1,9 @@
 /**
- * Panneau de configuration OpenRouter uniquement
- * HuggingFace retiré - OpenRouter seul provider
+ * Panneau de configuration IA - Gemini uniquement
+ * Configuration complète avec orchestrateur intelligent
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     Box,
     Paper,
@@ -17,7 +17,12 @@ import {
     IconButton,
     InputAdornment,
     FormControlLabel,
-    Switch
+    Switch,
+    Select,
+    MenuItem,
+    FormControl,
+    InputLabel,
+    CircularProgress
 } from '@mui/material';
 import {
     SmartToy as AIIcon,
@@ -32,10 +37,29 @@ import {
 
 import { useApp } from '../../contexts/AppContext';
 import { usePermissions } from '../../hooks/usePermissions';
-import ModelSelector from './ModelSelector';
 import axios from 'axios';
 
 const API_BASE = '/api/ai';
+
+// Liste des modèles Gemini disponibles
+const GEMINI_MODELS = {
+    text: [
+        { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash (Experimental)', description: 'Le plus récent et rapide' },
+        { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: 'Rapide et efficace' },
+        { id: 'gemini-1.5-flash-8b', name: 'Gemini 1.5 Flash 8B', description: 'Version légère' },
+        { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'Plus puissant, plus lent' },
+        { id: 'gemini-1.0-pro', name: 'Gemini 1.0 Pro', description: 'Version stable' }
+    ],
+    vision: [
+        { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash (Experimental)', description: 'Vision multimodale avancée' },
+        { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: 'Vision rapide' },
+        { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'Vision haute qualité' }
+    ],
+    embedding: [
+        { id: 'text-embedding-004', name: 'Text Embedding 004', description: 'Dernière version' },
+        { id: 'embedding-001', name: 'Embedding 001', description: 'Version stable' }
+    ]
+};
 
 const AISettingsPanel = () => {
     const { config } = useApp();
@@ -48,47 +72,79 @@ const AISettingsPanel = () => {
                 enabled: true,
                 priority: 1,
                 apiKey: '',
-                model: 'gemini-1.5-flash',
+                models: {
+                    text: 'gemini-2.0-flash-exp',
+                    vision: 'gemini-2.0-flash-exp',
+                    embedding: 'text-embedding-004'
+                },
                 timeout: 120000,
                 temperature: 0.7,
-                max_tokens: 4096
-            },
-            openrouter: {
-                enabled: true,
-                priority: 2,
-                apiKey: '',
-                baseUrl: 'https://openrouter.ai/api/v1',
-                model: 'openrouter/polaris-alpha',
-                timeout: 120000,
-                temperature: 0.7,
-                max_tokens: 4096
+                max_tokens: 8192,
+                orchestrator: {
+                    enabled: true,
+                    autoDetectIntent: true,
+                    useOCRForImages: true,
+                    useEmbeddingForSearch: true,
+                    enableDocumentActions: true
+                }
             }
+        },
+        fallback: {
+            enabled: false
         }
     });
 
-    const [showGeminiKey, setShowGeminiKey] = useState(false);
-    const [showORKey, setShowORKey] = useState(false);
+    const [showApiKey, setShowApiKey] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
-    const [testingProvider, setTestingProvider] = useState(null);
-    const [connectionStatus, setConnectionStatus] = useState({});
+    const [isTesting, setIsTesting] = useState(false);
+    const [connectionStatus, setConnectionStatus] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        loadConfiguration();
-    }, []);
-
-    const loadConfiguration = async () => {
+    const loadConfiguration = useCallback(async () => {
         try {
+            setIsLoading(true);
             const response = await axios.get(`${API_BASE}/config`);
-            if (response.data.success) {
-                setAiConfig(response.data.config);
+            if (response.data.success && response.data.config) {
+                // Fusionner avec les valeurs par défaut
+                const loadedConfig = response.data.config;
+                setAiConfig(prev => ({
+                    ...prev,
+                    ...loadedConfig,
+                    providers: {
+                        ...prev.providers,
+                        gemini: {
+                            ...prev.providers.gemini,
+                            ...(loadedConfig.providers?.gemini || {}),
+                            models: {
+                                text: loadedConfig.providers?.gemini?.models?.text || loadedConfig.providers?.gemini?.model || 'gemini-2.0-flash-exp',
+                                vision: loadedConfig.providers?.gemini?.models?.vision || 'gemini-2.0-flash-exp',
+                                embedding: loadedConfig.providers?.gemini?.models?.embedding || 'text-embedding-004'
+                            },
+                            orchestrator: {
+                                enabled: true,
+                                autoDetectIntent: true,
+                                useOCRForImages: true,
+                                useEmbeddingForSearch: true,
+                                enableDocumentActions: true,
+                                ...(loadedConfig.providers?.gemini?.orchestrator || {})
+                            }
+                        }
+                    }
+                }));
             }
         } catch (error) {
             console.error('Erreur chargement configuration:', error);
             setError('Impossible de charger la configuration IA');
+        } finally {
+            setIsLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        loadConfiguration();
+    }, [loadConfiguration]);
 
     const handleSaveConfig = async () => {
         try {
@@ -110,36 +166,75 @@ const AISettingsPanel = () => {
         }
     };
 
-    const handleTestProvider = async (provider) => {
+    const handleTestConnection = async () => {
         try {
-            setTestingProvider(provider);
-            setConnectionStatus({ ...connectionStatus, [provider]: null });
+            setIsTesting(true);
+            setConnectionStatus(null);
 
-            const response = await axios.post(`${API_BASE}/providers/${provider}/test`, {
-                apiKey: aiConfig.providers[provider].apiKey,
-                model: aiConfig.providers[provider].model
+            const response = await axios.post(`${API_BASE}/providers/gemini/test`, {
+                apiKey: aiConfig.providers.gemini.apiKey,
+                model: aiConfig.providers.gemini.models?.text || 'gemini-2.0-flash-exp'
             });
 
             setConnectionStatus({
-                ...connectionStatus,
-                [provider]: {
-                    success: response.data.success,
-                    message: response.data.connected ?
-                        `✅ Connexion réussie (${response.data.modelsAvailable || 0} modèles disponibles)` :
-                        response.data.error
-                }
+                success: response.data.success,
+                message: response.data.success
+                    ? 'Connexion à Gemini réussie !'
+                    : response.data.error || 'Erreur de connexion'
             });
         } catch (error) {
             setConnectionStatus({
-                ...connectionStatus,
-                [provider]: {
-                    success: false,
-                    message: error.response?.data?.details || error.message
-                }
+                success: false,
+                message: error.response?.data?.details || error.response?.data?.error || error.message
             });
         } finally {
-            setTestingProvider(null);
+            setIsTesting(false);
         }
+    };
+
+    const updateGeminiConfig = (field, value) => {
+        setAiConfig(prev => ({
+            ...prev,
+            providers: {
+                ...prev.providers,
+                gemini: {
+                    ...prev.providers.gemini,
+                    [field]: value
+                }
+            }
+        }));
+    };
+
+    const updateGeminiModel = (modelType, value) => {
+        setAiConfig(prev => ({
+            ...prev,
+            providers: {
+                ...prev.providers,
+                gemini: {
+                    ...prev.providers.gemini,
+                    models: {
+                        ...prev.providers.gemini.models,
+                        [modelType]: value
+                    }
+                }
+            }
+        }));
+    };
+
+    const updateOrchestrator = (field, value) => {
+        setAiConfig(prev => ({
+            ...prev,
+            providers: {
+                ...prev.providers,
+                gemini: {
+                    ...prev.providers.gemini,
+                    orchestrator: {
+                        ...prev.providers.gemini.orchestrator,
+                        [field]: value
+                    }
+                }
+            }
+        }));
     };
 
     const canEdit = hasPermission('config:admin') || isSuperAdmin();
@@ -154,13 +249,21 @@ const AISettingsPanel = () => {
         );
     }
 
+    if (isLoading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
     return (
         <Box>
             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <SettingsIcon /> Configuration IA - DocuCortex
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Configurez Gemini (priorité 1) et OpenRouter (fallback). Provider actif: <strong>{aiConfig.aiProvider}</strong>
+                Configurez Gemini (priorité 1) et OpenRouter (fallback). Provider actif: <strong>gemini</strong>
             </Typography>
 
             {error && (
@@ -174,8 +277,8 @@ const AISettingsPanel = () => {
                 </Alert>
             )}
 
-            {/* Provider 1: Gemini (Priority 1 - Par défaut) */}
-            <Paper sx={{ p: 3, mb: 3, border: aiConfig.aiProvider === 'gemini' ? '2px solid #1976d2' : 'none' }}>
+            {/* Configuration Gemini */}
+            <Paper sx={{ p: 3, mb: 3, border: '2px solid #1976d2' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <AIIcon color="primary" />
@@ -187,17 +290,7 @@ const AISettingsPanel = () => {
                         control={
                             <Switch
                                 checked={aiConfig.providers.gemini.enabled}
-                                onChange={(e) => setAiConfig({
-                                    ...aiConfig,
-                                    aiProvider: e.target.checked ? 'gemini' : 'openrouter',
-                                    providers: {
-                                        ...aiConfig.providers,
-                                        gemini: {
-                                            ...aiConfig.providers.gemini,
-                                            enabled: e.target.checked
-                                        }
-                                    }
-                                })}
+                                onChange={(e) => updateGeminiConfig('enabled', e.target.checked)}
                             />
                         }
                         label="Activé"
@@ -206,30 +299,22 @@ const AISettingsPanel = () => {
                 <Divider sx={{ mb: 2 }} />
 
                 <Grid container spacing={2}>
+                    {/* Clé API */}
                     <Grid item xs={12}>
                         <TextField
                             fullWidth
                             label="Clé API Gemini"
-                            type={showGeminiKey ? 'text' : 'password'}
+                            type={showApiKey ? 'text' : 'password'}
                             value={aiConfig.providers.gemini.apiKey}
-                            onChange={(e) => setAiConfig({
-                                ...aiConfig,
-                                providers: {
-                                    ...aiConfig.providers,
-                                    gemini: {
-                                        ...aiConfig.providers.gemini,
-                                        apiKey: e.target.value
-                                    }
-                                }
-                            })}
+                            onChange={(e) => updateGeminiConfig('apiKey', e.target.value)}
                             placeholder="AIza..."
                             helperText="Obtenez votre clé sur https://ai.google.dev/"
                             disabled={!aiConfig.providers.gemini.enabled}
                             InputProps={{
                                 endAdornment: (
                                     <InputAdornment position="end">
-                                        <IconButton onClick={() => setShowGeminiKey(!showGeminiKey)} edge="end">
-                                            {showGeminiKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                        <IconButton onClick={() => setShowApiKey(!showApiKey)} edge="end">
+                                            {showApiKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
                                         </IconButton>
                                     </InputAdornment>
                                 )
@@ -237,102 +322,95 @@ const AISettingsPanel = () => {
                         />
                     </Grid>
 
+                    {/* Sélecteur Modèle Texte */}
                     <Grid item xs={12} md={4}>
-                        <TextField
-                            fullWidth
-                            label="📝 Modèle Texte"
-                            value={aiConfig.providers.gemini.models?.text || aiConfig.providers.gemini.model || 'gemini-2.0-flash-exp'}
-                            onChange={(e) => setAiConfig({
-                                ...aiConfig,
-                                providers: {
-                                    ...aiConfig.providers,
-                                    gemini: {
-                                        ...aiConfig.providers.gemini,
-                                        models: {
-                                            ...aiConfig.providers.gemini.models,
-                                            text: e.target.value
-                                        }
-                                    }
-                                }
-                            })}
-                            disabled={!aiConfig.providers.gemini.enabled}
-                            helperText="Questions générales"
-                        />
+                        <FormControl fullWidth disabled={!aiConfig.providers.gemini.enabled}>
+                            <InputLabel>Modèle Texte</InputLabel>
+                            <Select
+                                value={aiConfig.providers.gemini.models?.text || 'gemini-2.0-flash-exp'}
+                                onChange={(e) => updateGeminiModel('text', e.target.value)}
+                                label="Modèle Texte"
+                            >
+                                {GEMINI_MODELS.text.map(model => (
+                                    <MenuItem key={model.id} value={model.id}>
+                                        {model.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <Typography variant="caption" color="text.secondary">
+                            Questions générales
+                        </Typography>
                     </Grid>
 
+                    {/* Sélecteur Modèle Vision */}
                     <Grid item xs={12} md={4}>
-                        <TextField
-                            fullWidth
-                            label="🖼️ Modèle Vision"
-                            value={aiConfig.providers.gemini.models?.vision || 'gemini-2.0-flash-exp'}
-                            onChange={(e) => setAiConfig({
-                                ...aiConfig,
-                                providers: {
-                                    ...aiConfig.providers,
-                                    gemini: {
-                                        ...aiConfig.providers.gemini,
-                                        models: {
-                                            ...aiConfig.providers.gemini.models,
-                                            vision: e.target.value
-                                        }
-                                    }
-                                }
-                            })}
-                            disabled={!aiConfig.providers.gemini.enabled}
-                            helperText="Images, Excel scanné"
-                        />
+                        <FormControl fullWidth disabled={!aiConfig.providers.gemini.enabled}>
+                            <InputLabel>Modèle Vision</InputLabel>
+                            <Select
+                                value={aiConfig.providers.gemini.models?.vision || 'gemini-2.0-flash-exp'}
+                                onChange={(e) => updateGeminiModel('vision', e.target.value)}
+                                label="Modèle Vision"
+                            >
+                                {GEMINI_MODELS.vision.map(model => (
+                                    <MenuItem key={model.id} value={model.id}>
+                                        {model.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <Typography variant="caption" color="text.secondary">
+                            Images, Excel scanné
+                        </Typography>
                     </Grid>
 
+                    {/* Sélecteur Modèle Embedding */}
                     <Grid item xs={12} md={4}>
-                        <TextField
-                            fullWidth
-                            label="🔍 Modèle Embedding"
-                            value={aiConfig.providers.gemini.models?.embedding || 'text-embedding-004'}
-                            onChange={(e) => setAiConfig({
-                                ...aiConfig,
-                                providers: {
-                                    ...aiConfig.providers,
-                                    gemini: {
-                                        ...aiConfig.providers.gemini,
-                                        models: {
-                                            ...aiConfig.providers.gemini.models,
-                                            embedding: e.target.value
-                                        }
-                                    }
-                                }
-                            })}
-                            disabled={!aiConfig.providers.gemini.enabled}
-                            helperText="Recherche sémantique"
-                        />
+                        <FormControl fullWidth disabled={!aiConfig.providers.gemini.enabled}>
+                            <InputLabel>Modèle Embedding</InputLabel>
+                            <Select
+                                value={aiConfig.providers.gemini.models?.embedding || 'text-embedding-004'}
+                                onChange={(e) => updateGeminiModel('embedding', e.target.value)}
+                                label="Modèle Embedding"
+                            >
+                                {GEMINI_MODELS.embedding.map(model => (
+                                    <MenuItem key={model.id} value={model.id}>
+                                        {model.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <Typography variant="caption" color="text.secondary">
+                            Recherche sémantique
+                        </Typography>
                     </Grid>
 
-                    <Grid item xs={12} md={4}>
+                    {/* Bouton de test */}
+                    <Grid item xs={12}>
                         <Button
-                            fullWidth
                             variant="outlined"
-                            onClick={() => handleTestProvider('gemini')}
-                            disabled={!aiConfig.providers.gemini.enabled || testingProvider === 'gemini'}
-                            startIcon={testingProvider === 'gemini' ? <RefreshIcon /> : connectionStatus.gemini ? (connectionStatus.gemini.success ? <CheckIcon /> : <ErrorIcon />) : <RefreshIcon />}
-                            color={connectionStatus.gemini ? (connectionStatus.gemini.success ? 'success' : 'error') : 'primary'}
-                            sx={{ height: '56px' }}
+                            onClick={handleTestConnection}
+                            disabled={!aiConfig.providers.gemini.enabled || isTesting || !aiConfig.providers.gemini.apiKey}
+                            startIcon={isTesting ? <CircularProgress size={20} /> : connectionStatus ? (connectionStatus.success ? <CheckIcon /> : <ErrorIcon />) : <RefreshIcon />}
+                            color={connectionStatus ? (connectionStatus.success ? 'success' : 'error') : 'primary'}
                         >
-                            {testingProvider === 'gemini' ? 'Test...' : 'Tester'}
+                            {isTesting ? 'Test en cours...' : 'Tester la connexion'}
                         </Button>
                     </Grid>
 
-                    {connectionStatus.gemini && (
+                    {connectionStatus && (
                         <Grid item xs={12}>
-                            <Alert severity={connectionStatus.gemini.success ? 'success' : 'error'}>
-                                {connectionStatus.gemini.message}
+                            <Alert severity={connectionStatus.success ? 'success' : 'error'}>
+                                {connectionStatus.message}
                             </Alert>
                         </Grid>
                     )}
 
-                    {/* 🎭 Options Chef d'Orchestre */}
+                    {/* Options Chef d'Orchestre */}
                     <Grid item xs={12}>
                         <Divider sx={{ my: 2 }} />
                         <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600 }}>
-                            🎭 Options Chef d'Orchestre
+                            Options Chef d'Orchestre
                         </Typography>
                         <Alert severity="info" sx={{ mb: 2 }}>
                             L'orchestrateur détecte automatiquement le type de requête et choisit le meilleur modèle (texte, vision, ou recherche documentaire).
@@ -344,19 +422,7 @@ const AISettingsPanel = () => {
                             control={
                                 <Switch
                                     checked={aiConfig.providers.gemini.orchestrator?.enabled !== false}
-                                    onChange={(e) => setAiConfig({
-                                        ...aiConfig,
-                                        providers: {
-                                            ...aiConfig.providers,
-                                            gemini: {
-                                                ...aiConfig.providers.gemini,
-                                                orchestrator: {
-                                                    ...aiConfig.providers.gemini.orchestrator,
-                                                    enabled: e.target.checked
-                                                }
-                                            }
-                                        }
-                                    })}
+                                    onChange={(e) => updateOrchestrator('enabled', e.target.checked)}
                                     disabled={!aiConfig.providers.gemini.enabled}
                                 />
                             }
@@ -369,23 +435,11 @@ const AISettingsPanel = () => {
                             control={
                                 <Switch
                                     checked={aiConfig.providers.gemini.orchestrator?.useOCRForImages !== false}
-                                    onChange={(e) => setAiConfig({
-                                        ...aiConfig,
-                                        providers: {
-                                            ...aiConfig.providers,
-                                            gemini: {
-                                                ...aiConfig.providers.gemini,
-                                                orchestrator: {
-                                                    ...aiConfig.providers.gemini.orchestrator,
-                                                    useOCRForImages: e.target.checked
-                                                }
-                                            }
-                                        }
-                                    })}
+                                    onChange={(e) => updateOrchestrator('useOCRForImages', e.target.checked)}
                                     disabled={!aiConfig.providers.gemini.enabled}
                                 />
                             }
-                            label="🖼️ OCR automatique pour images"
+                            label="OCR automatique pour images"
                         />
                     </Grid>
 
@@ -394,23 +448,11 @@ const AISettingsPanel = () => {
                             control={
                                 <Switch
                                     checked={aiConfig.providers.gemini.orchestrator?.useEmbeddingForSearch !== false}
-                                    onChange={(e) => setAiConfig({
-                                        ...aiConfig,
-                                        providers: {
-                                            ...aiConfig.providers,
-                                            gemini: {
-                                                ...aiConfig.providers.gemini,
-                                                orchestrator: {
-                                                    ...aiConfig.providers.gemini.orchestrator,
-                                                    useEmbeddingForSearch: e.target.checked
-                                                }
-                                            }
-                                        }
-                                    })}
+                                    onChange={(e) => updateOrchestrator('useEmbeddingForSearch', e.target.checked)}
                                     disabled={!aiConfig.providers.gemini.enabled}
                                 />
                             }
-                            label="🔍 Embeddings pour recherche"
+                            label="Embeddings pour recherche"
                         />
                     </Grid>
 
@@ -419,129 +461,13 @@ const AISettingsPanel = () => {
                             control={
                                 <Switch
                                     checked={aiConfig.providers.gemini.orchestrator?.enableDocumentActions !== false}
-                                    onChange={(e) => setAiConfig({
-                                        ...aiConfig,
-                                        providers: {
-                                            ...aiConfig.providers,
-                                            gemini: {
-                                                ...aiConfig.providers.gemini,
-                                                orchestrator: {
-                                                    ...aiConfig.providers.gemini.orchestrator,
-                                                    enableDocumentActions: e.target.checked
-                                                }
-                                            }
-                                        }
-                                    })}
+                                    onChange={(e) => updateOrchestrator('enableDocumentActions', e.target.checked)}
                                     disabled={!aiConfig.providers.gemini.enabled}
                                 />
                             }
-                            label="📂 Actions documents (ouvrir/afficher)"
+                            label="Actions documents (ouvrir/afficher)"
                         />
                     </Grid>
-                </Grid>
-            </Paper>
-
-            {/* Provider 2: OpenRouter (Priority 2 - Fallback) */}
-            <Paper sx={{ p: 3, mb: 3, border: aiConfig.aiProvider === 'openrouter' ? '2px solid #1976d2' : 'none' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <AIIcon color="secondary" />
-                        <Typography variant="h6">OpenRouter</Typography>
-                        <Chip label="Priorité 2" size="small" color="secondary" />
-                        <Chip label="Fallback" size="small" color="warning" variant="outlined" />
-                    </Box>
-                    <FormControlLabel
-                        control={
-                            <Switch
-                                checked={aiConfig.providers.openrouter.enabled}
-                                onChange={(e) => setAiConfig({
-                                    ...aiConfig,
-                                    providers: {
-                                        ...aiConfig.providers,
-                                        openrouter: {
-                                            ...aiConfig.providers.openrouter,
-                                            enabled: e.target.checked
-                                        }
-                                    }
-                                })}
-                            />
-                        }
-                        label="Activé"
-                    />
-                </Box>
-                <Divider sx={{ mb: 2 }} />
-
-                <Grid container spacing={2}>
-                    <Grid item xs={12}>
-                        <TextField
-                            fullWidth
-                            label="Clé API OpenRouter"
-                            type={showORKey ? 'text' : 'password'}
-                            value={aiConfig.providers.openrouter.apiKey}
-                            onChange={(e) => setAiConfig({
-                                ...aiConfig,
-                                providers: {
-                                    ...aiConfig.providers,
-                                    openrouter: {
-                                        ...aiConfig.providers.openrouter,
-                                        apiKey: e.target.value
-                                    }
-                                }
-                            })}
-                            placeholder="sk-or-v1-..."
-                            helperText="Obtenez votre clé sur https://openrouter.ai/keys"
-                            disabled={!aiConfig.providers.openrouter.enabled}
-                            InputProps={{
-                                endAdornment: (
-                                    <InputAdornment position="end">
-                                        <IconButton onClick={() => setShowORKey(!showORKey)} edge="end">
-                                            {showORKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                                        </IconButton>
-                                    </InputAdornment>
-                                )
-                            }}
-                        />
-                    </Grid>
-
-                    <Grid item xs={12} md={8}>
-                        <ModelSelector
-                            provider="openrouter"
-                            value={aiConfig.providers.openrouter.model}
-                            onChange={(newModel) => setAiConfig({
-                                ...aiConfig,
-                                providers: {
-                                    ...aiConfig.providers,
-                                    openrouter: {
-                                        ...aiConfig.providers.openrouter,
-                                        model: newModel
-                                    }
-                                }
-                            })}
-                            disabled={!aiConfig.providers.openrouter.enabled}
-                        />
-                    </Grid>
-
-                    <Grid item xs={12} md={4}>
-                        <Button
-                            fullWidth
-                            variant="outlined"
-                            onClick={() => handleTestProvider('openrouter')}
-                            disabled={!aiConfig.providers.openrouter.enabled || testingProvider === 'openrouter'}
-                            startIcon={testingProvider === 'openrouter' ? <RefreshIcon /> : connectionStatus.openrouter ? (connectionStatus.openrouter.success ? <CheckIcon /> : <ErrorIcon />) : <RefreshIcon />}
-                            color={connectionStatus.openrouter ? (connectionStatus.openrouter.success ? 'success' : 'error') : 'primary'}
-                            sx={{ height: '56px' }}
-                        >
-                            {testingProvider === 'openrouter' ? 'Test...' : 'Tester'}
-                        </Button>
-                    </Grid>
-
-                    {connectionStatus.openrouter && (
-                        <Grid item xs={12}>
-                            <Alert severity={connectionStatus.openrouter.success ? 'success' : 'error'}>
-                                {connectionStatus.openrouter.message}
-                            </Alert>
-                        </Grid>
-                    )}
                 </Grid>
             </Paper>
 
