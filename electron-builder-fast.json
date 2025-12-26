@@ -1,0 +1,84 @@
+{
+  "appId": "com.anecoop.rdsviewer",
+  "productName": "RDS Viewer",
+  "npmRebuild": false,
+  "copyright": "Copyright © 2025 Anecoop",
+  "extraMetadata": {
+    "main": "electron/main.js",
+    "name": "rds-viewer",
+    "version": "3.0.26"
+  },
+  "directories": {
+    "buildResources": "assets",
+    "output": "dist"
+  },
+  "files": [
+    "build/**/*",
+    "electron/**/*",
+    "server/**/*",
+    "backend/**/*",
+    "config/**/*",
+    "data/**/*",
+    "node_modules/**/*",
+    "package.json",
+    "!build/**/*.map",
+    "!node_modules/@*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+    "!node_modules/@*/{test,__tests__,tests,powered-test,example,examples}",
+    "!node_modules/**/{*.d.ts,*.map,*.js.map}",
+    "!node_modules/**/.bin"
+  ],
+  "extraResources": [
+    {
+      "from": "config",
+      "to": "config",
+      "filter": ["**/*"]
+    },
+    {
+      "from": "data",
+      "to": "data",
+      "filter": ["**/*"]
+    }
+  ],
+  "compression": "store",
+  "asar": true,
+  "asarUnpack": [
+    "**/*.node",
+    "**/node_modules/bcrypt/**/*",
+    "**/node_modules/better-sqlite3/**/*"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "assets/icon.ico",
+    "artifactName": "${productName}-${version}-Setup.${ext}",
+    "requestedExecutionLevel": "asInvoker"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "allowElevation": false,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "RDS Viewer",
+    "installerIcon": "assets/icon.ico",
+    "uninstallerIcon": "assets/icon.ico",
+    "installerHeaderIcon": "assets/icon.ico",
+    "license": "LICENSE",
+    "language": "1036",
+    "deleteAppDataOnUninstall": false,
+    "runAfterFinish": true,
+    "menuCategory": true,
+    "displayLanguageSelector": true,
+    "perMachine": false,
+    "packElevateHelper": false,
+    "differentialPackage": false
+  },
+  "publish": {
+    "provider": "generic",
+    "url": "file://192.168.1.230/Donnees/Informatique/PROGRAMMES/Programme RDS/RDS Viewer Group/update"
+  }
+}

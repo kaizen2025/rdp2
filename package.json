@@ -17,6 +17,7 @@
     "build:portable": "npm run build && npm run rebuild:native && electron-builder --win portable --x64 --config electron-builder-portable.json",
     "build:optimized": "npm run build && npm run rebuild:native && electron-builder --config electron-builder-optimized.json --win portable --x64",
     "build:installer": "npm run build && npm run rebuild:native && electron-builder --win nsis --x64 --config electron-builder.json",
+    "build:fast": "npm run build && npm run rebuild:native && electron-builder --win nsis --x64 --config electron-builder-fast.json",
     "build:all": "npm run build && npm run rebuild:native && electron-builder --win --x64 --config electron-builder.json",
     "build:linux": "npm run build && npm run rebuild:native && electron-builder --linux --config electron-builder.json",
     "build:mac": "npm run build && npm run rebuild:native && electron-builder --mac --config electron-builder.json",
