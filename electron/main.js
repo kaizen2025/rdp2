@@ -232,15 +232,34 @@ function setupAutoUpdater() {
     try {
         const configPath = isDev
             ? path.join(__dirname, '..', 'config', 'config.json')
-            : path.join(path.dirname(app.getPath('exe')), 'config', 'config.json');
+            : path.join(process.resourcesPath, 'config', 'config.json');
+
         if (fs.existsSync(configPath)) {
             const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
             if (config.updateUrl) {
-                logToUI('info', `[Updater] URL de mise à jour personnalisée: ${config.updateUrl}`);
-                autoUpdater.setFeedURL(config.updateUrl);
-            } else { logToUI('warn', '[Updater] Aucune URL de mise à jour personnalisée trouvée.'); }
-        } else { logToUI('warn', `[Updater] Fichier de configuration non trouvé à ${configPath}.`); }
-    } catch (error) { logToUI('error', '[Updater] Erreur lecture config.json pour l\'URL de mise à jour.', error); }
+                logToUI('info', `[Updater] URL de mise à jour trouvée: ${config.updateUrl}`);
+
+                // Convertir le chemin UNC en URL file:// si nécessaire
+                let feedUrl = config.updateUrl;
+                if (feedUrl.startsWith('\\\\')) {
+                    feedUrl = 'file://' + feedUrl.replace(/\\/g, '/');
+                    logToUI('info', `[Updater] Conversion UNC -> file:// : ${feedUrl}`);
+                }
+
+                autoUpdater.setFeedURL({
+                    provider: 'generic',
+                    url: feedUrl
+                });
+                logToUI('info', `[Updater] ✅ Feed URL configurée: ${feedUrl}`);
+            } else {
+                logToUI('warn', '[Updater] ⚠️ Aucune URL de mise à jour trouvée dans config.json');
+            }
+        } else {
+            logToUI('warn', `[Updater] ⚠️ Fichier de configuration non trouvé à ${configPath}`);
+        }
+    } catch (error) {
+        logToUI('error', '[Updater] ❌ Erreur lecture config.json pour l\'URL de mise à jour:', error.message);
+    }
 
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = true;

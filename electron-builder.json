@@ -138,6 +138,6 @@
   },
   "publish": {
     "provider": "generic",
-    "url": "https://updates.yourdomain.com"
+    "url": "file://192.168.1.230/Donnees/Informatique/PROGRAMMES/Programme RDS/RDS Viewer Group/update"
   }
 }

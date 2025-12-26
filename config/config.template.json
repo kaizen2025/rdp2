@@ -2,7 +2,7 @@
   "databasePath": "C:\\ProgramData\\RDS_Viewer_Group\\rds_viewer_data.sqlite",
   "excelFilePath": "\\\\CHEMIN_RESEAU\\vers\\votre\\fichier_utilisateurs.xlsx",
   "documentSyncPath": "\\\\CHEMIN_RESEAU\\vers\\vos\\documents_de_procedures",
-  "updateUrl": "http://VOTRE_SERVEUR_DE_MAJ/update/",
+  "updateUrl": "\\\\192.168.1.230\\Donnees\\Informatique\\PROGRAMMES\\Programme RDS\\RDS Viewer Group\\update",
   "excelColumnMapping": {
     "Identifiant": "username",
     "Mot de passe": "password",
@@ -26,5 +26,23 @@
   "it_technicians": [
     { "id": "login_technicien", "name": "Prénom NOM", "position": "Administrateur", "email": "email@domaine.com", "isActive": true, "permissions": ["admin"], "avatar": "PN" }
   ],
-  "it_staff": ["Prénom NOM"]
+  "it_staff": ["Prénom NOM"],
+  "gemini": {
+    "enabled": true,
+    "apiKey": "VOTRE_CLE_API_GEMINI_ICI",
+    "models": {
+      "text": "gemini-2.0-flash-exp",
+      "vision": "gemini-2.0-flash-exp",
+      "embedding": "text-embedding-004"
+    },
+    "temperature": 0.7,
+    "maxTokens": 8192,
+    "orchestrator": {
+      "enabled": true,
+      "autoDetectIntent": true,
+      "useOCRForImages": true,
+      "useEmbeddingForSearch": true,
+      "enableDocumentActions": true
+    }
+  }
 }
