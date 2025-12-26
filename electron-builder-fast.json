@@ -39,7 +39,7 @@
       "filter": ["**/*"]
     }
   ],
-  "compression": "store",
+  "compression": "normal",
   "asar": true,
   "asarUnpack": [
     "**/*.node",

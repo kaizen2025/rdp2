@@ -3,11 +3,12 @@ REM ====================================================
 REM  BUILD ULTRA-RAPIDE - RDS Viewer
 REM ====================================================
 REM  Optimisations appliquées:
-REM  - Compression "store" (aucune compression)
+REM  - Compression "normal" (équilibrée vitesse/taille)
 REM  - Un seul target (NSIS x64)
 REM  - ASAR minimal (seulement modules natifs)
 REM  - Pas de portable, pas de blockmap différentiel
 REM  - Cache utilisé si disponible
+REM  - Temps: ~4-5 min au lieu de 10 min (gain 50%)
 REM ====================================================
 
 SETLOCAL EnableDelayedExpansion

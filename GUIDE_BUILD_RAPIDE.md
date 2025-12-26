@@ -2,7 +2,7 @@
 
 ## ⚡ Méthode 1 : Build Ultra-Rapide (Recommandé pour développement)
 
-**Temps estimé : ~2-3 minutes** (au lieu de 10 minutes)
+**Temps estimé : ~4-5 minutes** (au lieu de 10 minutes)
 
 ### Utilisation :
 
@@ -17,26 +17,27 @@ npm run build:fast
 
 ### Optimisations appliquées :
 
-1. **Compression désactivée** (`compression: "store"`)
-   - Aucune compression ASAR = Build 3-4x plus rapide
-   - Fichier final plus gros (~20-30% de plus) mais création instantanée
+1. **Compression normale** (`compression: "normal"`)
+   - Compression équilibrée entre vitesse et taille
+   - Fichier final ~200 MB (taille normale)
+   - Build 2x plus rapide que "maximum"
 
 2. **Un seul target** (NSIS seulement)
    - Pas de version portable en même temps
-   - Gain de temps : ~3 minutes
+   - Gain de temps : ~3-4 minutes
 
 3. **ASAR minimal**
    - Seulement les modules natifs sont "unpacked"
    - `bcrypt` et `better-sqlite3` uniquement
-   - Pas tout `node_modules`, `server`, `backend`
+   - Tout le reste reste dans ASAR compressé
 
 4. **Pas de differential package**
    - Pas de calcul de différentiel pour les mises à jour
-   - Gain de temps : ~1 minute
+   - Gain de temps : ~1-2 minutes
 
 5. **Exclusions optimisées**
    - Exclusion de `.bin`, tests, exemples, fichiers .d.ts
-   - Moins de fichiers à traiter
+   - Moins de fichiers à traiter = build plus rapide
 
 ### Configuration utilisée :
 
@@ -44,7 +45,7 @@ Fichier : `electron-builder-fast.json`
 
 ```json
 {
-  "compression": "store",           // ⚡ AUCUNE compression
+  "compression": "normal",          // ⚡ Compression normale (équilibrée)
   "asarUnpack": [                   // ⚡ Minimal
     "**/*.node",
     "**/node_modules/bcrypt/**/*",
@@ -97,9 +98,9 @@ build-production.bat
 
 | Critère | Build Ultra-Rapide | Build Normal |
 |---------|-------------------|--------------|
-| **Temps de build** | ~2-3 min | ~10 min |
-| **Taille finale** | ~250 MB | ~190 MB |
-| **Compression** | Aucune | Maximum |
+| **Temps de build** | ~4-5 min | ~10 min |
+| **Taille finale** | ~200 MB | ~190 MB |
+| **Compression** | Normale | Maximum |
 | **Targets** | NSIS seulement | NSIS + Portable |
 | **Usage recommandé** | Développement/Test | Production |
 | **Differential** | Non | Oui |
@@ -261,9 +262,9 @@ Cela ajoute ~1-2 minutes au build.
 
 ## 🎉 Résultat
 
-Avec le build ultra-rapide, vous passez de **10 minutes à 2-3 minutes** !
+Avec le build ultra-rapide, vous passez de **10 minutes à 4-5 minutes** !
 
-**Gain de temps : 70-75% 🚀**
+**Gain de temps : 50% 🚀**
 
 Parfait pour :
 - ✅ Itérations rapides en développement
