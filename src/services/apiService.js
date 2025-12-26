@@ -1,30 +1,54 @@
 // src/services/apiService.js - VERSION FINALE, COMPLÈTE ET NETTOYÉE
 
+import { getApiBaseUrl } from './backendConfig';
+
 class ApiService {
     constructor() {
+        this.baseURL = null;
+        this.baseURLPromise = null;
+        this.baseURLLogged = false;
         // Détection automatique du mode
-        const isElectron = window.electronAPI !== undefined;
+        this.isElectron = window.electronAPI !== undefined;
 
         // En mode Electron : utiliser le port fixe configuré dans Electron (3002)
         // En mode navigateur dev : utiliser le proxy (setupProxy.js lit .ports.json automatiquement)
-        if (isElectron) {
-            this.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:3002/api';
+        if (this.isElectron) {
+            this.baseURLPromise = getApiBaseUrl();
         } else {
             // Le proxy setupProxy.js gère automatiquement la redirection depuis .ports.json
             this.baseURL = process.env.REACT_APP_API_URL || '/api';
         }
 
         this.currentTechnicianId = localStorage.getItem('currentTechnicianId') || null;
-        console.log(`🔧 ApiService initialisé avec baseURL: ${this.baseURL} (Electron: ${isElectron}) pour le technicien: ${this.currentTechnicianId || 'aucun'}`);
+        console.log(`🔧 ApiService initialisé (Electron: ${this.isElectron}) pour le technicien: ${this.currentTechnicianId || 'aucun'}`);
+    }
+
+    ensureBaseUrl = async () => {
+        if (this.baseURL) return this.baseURL;
+        if (!this.baseURLPromise) {
+            this.baseURLPromise = getApiBaseUrl();
+        }
+        this.baseURL = await this.baseURLPromise;
+        if (!this.baseURLLogged) {
+            console.log(`?? ApiService baseURL: ${this.baseURL} (Electron: ${this.isElectron})`);
+            this.baseURLLogged = true;
+        }
+        return this.baseURL;
     }
 
     /**
-     * Méthode de requête centrale. L'utilisation d'une arrow function garantit que 'this' est correctement lié.
+     * Méthode de requête centrale avec debug complet
      */
     request = async (endpoint, options = {}) => {
-        const url = `${this.baseURL}${endpoint}`;
+        const baseURL = await this.ensureBaseUrl();
+        const url = `${baseURL}${endpoint}`;
         const techId = this.currentTechnicianId;
-        
+        const startTime = Date.now();
+        const requestId = Math.random().toString(36).substring(7);
+
+        // ✅ DEBUG: Log de toutes les requêtes
+        console.log(`[API ${requestId}] 📡 ${options.method || 'GET'} ${endpoint}`);
+
         // ✅ CORRECTION: Ne pas forcer Content-Type si le body est FormData
         // Le navigateur définit automatiquement multipart/form-data avec boundary
         const headers = { ...options.headers };
@@ -36,19 +60,28 @@ class ApiService {
 
         try {
             const response = await fetch(url, config);
+            const duration = Date.now() - startTime;
+
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ error: response.statusText, message: `Erreur HTTP ${response.status}` }));
                 const errorMessage = errorData.error || errorData.details || errorData.message;
+                console.error(`[API ${requestId}] ❌ ERREUR ${response.status} en ${duration}ms:`, errorMessage);
                 const error = new Error(errorMessage);
                 error.response = response; // Attache la réponse complète à l'erreur
                 throw error;
             }
+
+            console.log(`[API ${requestId}] ✅ ${response.status} en ${duration}ms`);
+
             if (response.status === 204) return null; // No Content
             return response.json();
         } catch (error) {
+            const duration = Date.now() - startTime;
             if (error.message.includes('Failed to fetch')) {
+                console.error(`[API ${requestId}] ❌ CONNEXION IMPOSSIBLE en ${duration}ms - Serveur non accessible`);
                 throw new Error('Impossible de contacter le serveur. Vérifiez que le backend est démarré et accessible.');
             }
+            console.error(`[API ${requestId}] ❌ ERREUR en ${duration}ms:`, error.message);
             throw error;
         }
     }
@@ -67,12 +100,21 @@ class ApiService {
     checkServerHealth = async () => this.request('/health')
 
     // AUTH & TECHNICIENS
-    login = async (technicianData) => {
-        this.setCurrentTechnician(technicianData.id);
-        return this.request('/technicians/login', { method: 'POST', body: JSON.stringify(technicianData) });
+    // AUTH & TECHNICIENS
+    login = async (username, password) => {
+        return this.request('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ username, password })
+        });
     }
     logout = () => { this.setCurrentTechnician(null); return Promise.resolve(); }
     getConnectedTechnicians = async () => this.request('/technicians/connected')
+    registerTechnicianLogin = async (technician) => {
+        return this.request('/technicians/login', {
+            method: 'POST',
+            body: JSON.stringify({ technician })
+        });
+    }
     saveTechnicianPhoto = async (technicianId, photoFile) => {
         const formData = new FormData();
         formData.append('photo', photoFile);
@@ -139,6 +181,7 @@ class ApiService {
     disableAdUser = async (username) => this.request(`/ad/users/${encodeURIComponent(username)}/disable`, { method: 'POST' })
     resetAdUserPassword = async (username, newPassword, mustChange = true) => this.request(`/ad/users/${encodeURIComponent(username)}/reset-password`, { method: 'POST', body: JSON.stringify({ newPassword, mustChange }) })
     createAdUser = async (userData) => this.request(`/ad/users`, { method: 'POST', body: JSON.stringify(userData) })
+    createUserFolder = async (userData) => this.request(`/ad/users/${encodeURIComponent(userData.username)}/create-folder`, { method: 'POST', body: JSON.stringify(userData) })
     getAdOUs = async (parentId = null) => this.request(parentId ? `/ad/ous?parentId=${encodeURIComponent(parentId)}` : '/ad/ous')
     getAdUsersInOU = async (ouDN) => this.request(`/ad/ou-users?ouDN=${encodeURIComponent(ouDN)}`)
     searchAdUsers = async (searchTerm) => this.request(`/ad/users/search?term=${encodeURIComponent(searchTerm)}`)
@@ -157,12 +200,15 @@ class ApiService {
     editChatMessage = async (messageId, channelId, newText) => this.request(`/chat/messages/${messageId}`, { method: 'PUT', body: JSON.stringify({ channelId, newText }) })
     deleteChatMessage = async (messageId, channelId) => this.request(`/chat/messages/${messageId}`, { method: 'DELETE', body: JSON.stringify({ channelId }) })
     toggleChatReaction = async (messageId, channelId, emoji) => this.request('/chat/reactions', { method: 'POST', body: JSON.stringify({ messageId, channelId, emoji }) })
+    // ✅ Messages privés
+    createPrivateChannel = async (targetUserId, targetUser) => this.request('/chat/private', { method: 'POST', body: JSON.stringify({ targetUserId, targetUser }) })
+    getPrivateChannels = async () => this.request('/chat/private/channels')
 
     // ✅ AGENT IA
     // Health & Initialization
     getAIHealth = async () => this.request('/ai/health')
     initializeAI = async () => this.request('/ai/initialize', { method: 'POST' })
-    
+
     // Documents
     uploadAIDocument = async (file) => {
         const formData = new FormData();
@@ -176,7 +222,7 @@ class ApiService {
     getAIDocument = async (id) => this.request(`/ai/documents/${id}`)
     deleteAIDocument = async (id) => this.request(`/ai/documents/${id}`, { method: 'DELETE' })
     searchAIDocuments = async (query, maxResults = 5, minScore = 0.1) => this.request('/ai/documents/search', { method: 'POST', body: JSON.stringify({ query, maxResults, minScore }) })
-    
+
     // Conversations - ✅ Using enhanced endpoint with OpenRouter support
     sendAIMessage = async (sessionId, message, userId = null, aiProvider = 'openrouter') => this.request('/ai/chat/enhanced', { method: 'POST', body: JSON.stringify({ sessionId, message, userId, aiProvider }) })
     sendGeminiMessage = async (sessionId, message, fileText, userId = null) => this.request('/ai/chat/enhanced', { method: 'POST', body: JSON.stringify({ sessionId, message, fileText, userId, aiProvider: 'gemini' }) })
@@ -212,7 +258,7 @@ class ApiService {
     getAIStatistics = async () => this.request('/ai/statistics')
     getAIDailyStatistics = async (days = 7) => this.request(`/ai/statistics/daily?days=${days}`)
     getAIStatsOverview = async () => this.request('/ai/stats/overview')
-    
+
     // Administration
     resetAI = async () => this.request('/ai/reset', { method: 'POST' })
     cleanupAI = async () => this.request('/ai/cleanup', { method: 'POST' })
@@ -268,7 +314,8 @@ class ApiService {
     getDocumentPreview = async (documentId) => this.request(`/ai/documents/${documentId}/preview`)
     downloadDocument = async (documentId) => {
         // Téléchargement direct
-        window.open(`${this.baseURL}/ai/documents/${documentId}/download`, '_blank');
+        const baseURL = await this.ensureBaseUrl();
+        window.open(`${baseURL}/ai/documents/${documentId}/download`, '_blank');
     }
 
     // Natural Language Search

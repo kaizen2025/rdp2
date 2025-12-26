@@ -48,8 +48,7 @@ import {
 } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
-
-const API_BASE = 'http://localhost:3002/api/ai';
+import { getApiBaseUrl } from '../../services/backendConfig';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const ACCEPTED_FILE_TYPES = {
@@ -115,12 +114,13 @@ function DragDropUpload({ onUploadComplete, autoCategorizationEnabled = true }) 
     const categorizeFiles = async (filesToCategorize) => {
         setCategorizing(true);
         try {
+            const apiBase = await getApiBaseUrl();
             for (const fileItem of filesToCategorize) {
                 const formData = new FormData();
                 formData.append('file', fileItem.file);
 
                 try {
-                    const response = await axios.post(`${API_BASE}/categorize/document`, formData, {
+                    const response = await axios.post(`${apiBase}/ai/categorize/document`, formData, {
                         headers: { 'Content-Type': 'multipart/form-data' }
                     });
 
@@ -145,6 +145,7 @@ function DragDropUpload({ onUploadComplete, autoCategorizationEnabled = true }) 
 
     const handleUpload = async () => {
         setUploading(true);
+        const apiBase = await getApiBaseUrl();
 
         for (const fileItem of files) {
             if (fileItem.status === 'success') continue;
@@ -164,7 +165,7 @@ function DragDropUpload({ onUploadComplete, autoCategorizationEnabled = true }) 
                     formData.append('metadata', JSON.stringify(fileItem.categorization.metadata || {}));
                 }
 
-                const response = await axios.post(`${API_BASE}/upload`, formData, {
+                const response = await axios.post(`${apiBase}/ai/upload`, formData, {
                     headers: { 'Content-Type': 'multipart/form-data' },
                     onUploadProgress: (progressEvent) => {
                         const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);

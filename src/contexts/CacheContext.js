@@ -8,11 +8,10 @@ const CacheContext = createContext();
 
 export const useCache = () => useContext(CacheContext);
 
-// ✅ AJOUT: 'ad_groups:VPN' et 'ad_groups:Sortants_responsables'
-const ENTITIES = [
-    'loans', 'computers', 'excel_users', 'technicians', 'rds_sessions', 'config',
-    'ad_groups:VPN', 'ad_groups:Sortants_responsables'
-];
+// ✅ OPTIMISATION: Entités prioritaires (chargées en premier) vs secondaires
+const PRIORITY_ENTITIES = ['config', 'excel_users', 'computers', 'loans'];
+const SECONDARY_ENTITIES = ['technicians', 'rds_sessions', 'ad_groups:VPN', 'ad_groups:Sortants_responsables'];
+const ENTITIES = [...PRIORITY_ENTITIES, ...SECONDARY_ENTITIES];
 
 export const CacheProvider = ({ children }) => {
     const { events, showNotification } = useApp();
@@ -71,13 +70,26 @@ export const CacheProvider = ({ children }) => {
         }
     }, [showNotification]);
 
-    // ... (le reste du fichier est identique)
-    // Chargement initial de toutes les données
+    // ✅ OPTIMISATION: Chargement progressif - prioritaires d'abord, puis secondaires
     useEffect(() => {
         const initialLoad = async () => {
+            console.log('[CacheContext] 🚀 Démarrage chargement progressif...');
+            const startTime = Date.now();
             setIsLoading(true);
-            await Promise.all(ENTITIES.map(entity => fetchDataForEntity(entity)));
+
+            // Phase 1: Charger les entités prioritaires (critiques pour l'affichage)
+            console.log('[CacheContext] 📦 Phase 1: Chargement entités prioritaires...', PRIORITY_ENTITIES);
+            await Promise.all(PRIORITY_ENTITIES.map(entity => fetchDataForEntity(entity)));
+            console.log('[CacheContext] ✅ Phase 1 terminée en', Date.now() - startTime, 'ms');
+
+            // Débloquer l'UI dès que les données prioritaires sont chargées
             setIsLoading(false);
+            console.log('[CacheContext] 🎉 UI débloquée après', Date.now() - startTime, 'ms');
+
+            // Phase 2: Charger les entités secondaires en arrière-plan
+            console.log('[CacheContext] 📦 Phase 2: Chargement entités secondaires...', SECONDARY_ENTITIES);
+            await Promise.all(SECONDARY_ENTITIES.map(entity => fetchDataForEntity(entity)));
+            console.log('[CacheContext] ✅ Phase 2 terminée. Total:', Date.now() - startTime, 'ms');
         };
         initialLoad();
     }, [fetchDataForEntity]);

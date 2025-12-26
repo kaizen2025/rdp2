@@ -5,7 +5,8 @@
 
 const fs = require('fs').promises;
 const path = require('path');
-const pdfParse = require('pdf-parse');
+const pdfParseLib = require('pdf-parse');
+const pdfParse = pdfParseLib.default || pdfParseLib;
 const mammoth = require('mammoth');
 const XLSX = require('xlsx');
 const PizZip = require('pizzip');
@@ -14,8 +15,8 @@ const Tesseract = require('tesseract.js');
 class DocumentParserService {
     constructor() {
         this.supportedFormats = [
-            '.pdf', '.doc', '.docx', '.xls', '.xlsx', 
-            '.ppt', '.pptx', '.txt', '.jpg', '.jpeg', 
+            '.pdf', '.doc', '.docx', '.xls', '.xlsx',
+            '.ppt', '.pptx', '.txt', '.jpg', '.jpeg',
             '.png', '.bmp', '.tiff'
         ];
     }
@@ -26,13 +27,13 @@ class DocumentParserService {
     async parseDocument(filePath, fileBuffer = null) {
         try {
             const ext = path.extname(filePath).toLowerCase();
-            
+
             if (!this.supportedFormats.includes(ext)) {
                 throw new Error(`Format non supporte: ${ext}`);
             }
 
             const buffer = fileBuffer || await fs.readFile(filePath);
-            
+
             switch (ext) {
                 case '.pdf':
                     return await this.parsePDF(buffer);
@@ -134,11 +135,11 @@ class DocumentParserService {
         try {
             const workbook = XLSX.read(buffer, { type: 'buffer' });
             let allText = '';
-            
+
             workbook.SheetNames.forEach(sheetName => {
                 const worksheet = workbook.Sheets[sheetName];
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                
+
                 allText += `\n=== Feuille: ${sheetName} ===\n`;
                 jsonData.forEach(row => {
                     allText += row.join(' | ') + '\n';
@@ -295,7 +296,7 @@ class DocumentParserService {
     chunkText(text, maxWords = 1000, overlap = 100) {
         const words = text.split(/\s+/);
         const chunks = [];
-        
+
         for (let i = 0; i < words.length; i += (maxWords - overlap)) {
             const chunk = words.slice(i, i + maxWords).join(' ');
             chunks.push({
@@ -304,7 +305,7 @@ class DocumentParserService {
                 wordCount: chunk.split(/\s+/).length
             });
         }
-        
+
         return chunks;
     }
 }

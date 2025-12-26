@@ -24,8 +24,7 @@ import {
     Error as ErrorIcon
 } from '@mui/icons-material';
 import axios from 'axios';
-
-const API_BASE = 'http://localhost:3002/api/ai/config';
+import { getApiBaseUrl } from '../../services/backendConfig';
 
 function UpdateUrlConfig() {
     const [updateUrl, setUpdateUrl] = useState('');
@@ -40,7 +39,8 @@ function UpdateUrlConfig() {
     const loadUpdateUrl = async () => {
         try {
             setLoading(true);
-            const response = await axios.get(`${API_BASE}/update-url`);
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.get(`${apiBase}/ai/config/update-url`);
 
             if (response.data.success) {
                 setUpdateUrl(response.data.updateUrl);
@@ -59,7 +59,8 @@ function UpdateUrlConfig() {
             setSaving(true);
             setMessage({ type: '', text: '' });
 
-            const response = await axios.post(`${API_BASE}/update-url`, {
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.post(`${apiBase}/ai/config/update-url`, {
                 updateUrl
             });
 

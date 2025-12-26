@@ -21,49 +21,45 @@ class IntelligentResponseService {
     }
 
     async generateStructuredResponse(query, relevantDocs, intent) {
-        let response = '';
+        // ✅ OPTIMISÉ: Réponses concises et structurées
 
         if (intent === 'greeting') {
-            response = `🧠 **Bonjour! Je suis DocuCortex**, votre assistant GED intelligent.\n\nComment puis-je vous aider?`;
-            return { text: response, citations: [], suggestions: this.getDefaultSuggestions() };
+            return {
+                text: `👋 **Bonjour!** Je suis DocuCortex, votre assistant GED.\n\nComment puis-je vous aider?`,
+                citations: [],
+                suggestions: this.getDefaultSuggestions()
+            };
         }
 
         if (relevantDocs.length === 0) {
-            response = `❌ Aucun document trouvé pour: "${query}"\n\n`;
-            response += `💡 **Suggestions:**\n`;
-            response += `• Essayez des mots-clés plus généraux\n`;
-            response += `• Vérifiez l'orthographe\n`;
-            response += `• Utilisez des synonymes`;
-            return { text: response, citations: [], suggestions: [] };
+            return {
+                text: `❌ **Aucun résultat** pour "${query}"\n\n💡 Essayez des termes plus généraux ou vérifiez l'orthographe.`,
+                citations: [],
+                suggestions: ['Chercher tous les documents', 'Uploader un document', 'Voir les fichiers récents']
+            };
         }
 
-        // Introduction
-        response += `📚 **${relevantDocs.length} document(s) pertinent(s) trouvé(s)**\n\n`;
+        // Format compact et professionnel
+        const topDoc = relevantDocs[0];
+        const topScore = Math.round(topDoc.score * 100);
 
-        // Citations pour chaque document
-        relevantDocs.forEach((doc, i) => {
-            const citation = `[${i + 1}] ${doc.filename}`;
-            const score = Math.round(doc.score * 100);
+        let response = `📄 **${relevantDocs.length} document(s) trouvé(s)**\n\n`;
 
-            response += `${citation}\n`;
-            response += `📌 **Source:** \`${doc.networkPath || 'Local'}\`\n`;
-            response += `📊 **Pertinence:** ${score}% `;
-            response += score >= 80 ? '🟢' : score >= 50 ? '🟡' : '🟠';
-            response += `\n`;
+        // Document principal avec extrait
+        response += `### 📌 ${topDoc.filename}\n`;
+        response += `📊 Pertinence: **${topScore}%** ${topScore >= 80 ? '🟢' : topScore >= 50 ? '🟡' : '🟠'}\n`;
+        if (topDoc.networkPath) response += `📁 \`${topDoc.networkPath}\`\n`;
+        if (topDoc.excerpt) response += `\n> ${topDoc.excerpt.substring(0, 250)}...\n`;
 
-            if (doc.excerpt) {
-                response += `📄 **Extrait:** "${doc.excerpt.substring(0, 200)}..."\n`;
-            }
+        // Autres documents en liste compacte
+        if (relevantDocs.length > 1) {
+            response += `\n**Autres résultats:**\n`;
+            relevantDocs.slice(1, 4).forEach((doc, i) => {
+                response += `${i + 2}. ${doc.filename} (${Math.round(doc.score * 100)}%)\n`;
+            });
+        }
 
-            response += `\n`;
-        });
-
-        // Suggestions questions
         const suggestions = this.generateRelatedQuestions(query, relevantDocs);
-        if (suggestions.length > 0) {
-            response += `\n❓ **Questions liées suggérées:**\n`;
-            suggestions.forEach(q => response += `• ${q}\n`);
-        }
 
         return {
             text: response,
@@ -177,7 +173,7 @@ class IntelligentResponseService {
 
     generateRelatedQuestions(query, docs) {
         const questions = [];
-        
+
         // Basé sur les mots-clés des documents
         const keywords = new Set();
         docs.forEach(doc => {
@@ -187,7 +183,7 @@ class IntelligentResponseService {
         });
 
         const keywordArray = Array.from(keywords).slice(0, 5);
-        
+
         if (keywordArray.length > 0) {
             questions.push(`Quels sont les documents sur ${keywordArray[0]}?`);
             if (keywordArray.length > 1) {
@@ -199,7 +195,7 @@ class IntelligentResponseService {
         if (docs.length > 1) {
             questions.push(`Peux-tu comparer ces ${docs.length} documents?`);
         }
-        
+
         questions.push(`Quand ces documents ont-ils été créés?`);
         questions.push(`Qui a créé ces documents?`);
 

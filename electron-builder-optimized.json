@@ -1,6 +1,7 @@
 {
   "appId": "com.anecoop.rdsviewer",
   "productName": "RDS Viewer",
+  "npmRebuild": false,
   "copyright": "Copyright © 2025 Anecoop",
   "extraMetadata": {
     "main": "electron/main.js",

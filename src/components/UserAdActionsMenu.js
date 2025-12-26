@@ -49,7 +49,7 @@ const UserAdActionsMenu = ({ anchorEl, onClose, user, onActionComplete }) => {
     };
 
     // === GÉNÉRATEUR DE MOT DE PASSE PERSONNALISÉ ===
-    // Format: 2 premières lettres prénom (minuscules) + 2 premières lettres nom (minuscules) + 4 chiffres + 2 lettres majuscules + 1 symbole
+    // Format: 1ère lettre prénom + 1ère lettre nom + 4 chiffres + 2 lettres majuscules + 1 symbole
     // Exemple: Kevin Bivia → kb3272XM&
     const generateSecurePassword = () => {
         // Extraire le prénom et le nom du displayName
@@ -57,17 +57,14 @@ const UserAdActionsMenu = ({ anchorEl, onClose, user, onActionComplete }) => {
         const firstname = parts[0] || 'user';
         const lastname = parts[parts.length - 1] || 'user';
 
-        // 2 premières lettres du prénom en minuscule
-        const prenomPrefix = firstname.substring(0, 2).toLowerCase();
+        // 1ère lettre du prénom en minuscule
+        const prenomPrefix = firstname.charAt(0).toLowerCase();
 
-        // 2 premières lettres du nom en minuscule
-        const nomPrefix = lastname.substring(0, 2).toLowerCase();
+        // 1ère lettre du nom en minuscule
+        const nomPrefix = lastname.charAt(0).toLowerCase();
 
-        // 4 chiffres aléatoires
-        let digits = '';
-        for (let i = 0; i < 4; i++) {
-            digits += Math.floor(Math.random() * 10);
-        }
+        // 4 chiffres aléatoires (1000-9999 pour garantir 4 chiffres)
+        const digits = Math.floor(1000 + Math.random() * 9000);
 
         // 2 lettres majuscules aléatoires
         const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -77,7 +74,7 @@ const UserAdActionsMenu = ({ anchorEl, onClose, user, onActionComplete }) => {
         }
 
         // 1 symbole aléatoire
-        const specialChars = '!@#$%^&*-=+';
+        const specialChars = '!@#$%&*+-=';
         const randomSymbol = specialChars[Math.floor(Math.random() * specialChars.length)];
 
         // Construire le mot de passe
@@ -266,10 +263,10 @@ const UserAdActionsMenu = ({ anchorEl, onClose, user, onActionComplete }) => {
             </Menu>
 
             {/* DIALOG RÉINITIALISATION MOT DE PASSE */}
-            <Dialog 
-                open={openPasswordDialog} 
-                onClose={() => !isLoading && setOpenPasswordDialog(false)} 
-                maxWidth="sm" 
+            <Dialog
+                open={openPasswordDialog}
+                onClose={() => !isLoading && setOpenPasswordDialog(false)}
+                maxWidth="sm"
                 fullWidth
             >
                 <DialogTitle>

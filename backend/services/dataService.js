@@ -60,6 +60,45 @@ function getDynamicLoanStatus(loan) {
     return 'active';
 }
 
+// ✅ NOUVEAU: Fonction pour vérifier les chevauchements de dates
+function checkLoanDateConflict(computerId, startDate, endDate, excludeLoanId = null) {
+    // Récupérer tous les prêts actifs/réservés pour cet ordinateur
+    let query = `SELECT * FROM loans WHERE computerId = ? AND status IN ('active', 'reserved', 'overdue', 'critical')`;
+    const params = [computerId];
+
+    if (excludeLoanId) {
+        query += ` AND id != ?`;
+        params.push(excludeLoanId);
+    }
+
+    const existingLoans = db.all(query, params);
+
+    // Normaliser les dates
+    const newStart = new Date(startDate);
+    const newEnd = new Date(endDate);
+    newStart.setHours(0, 0, 0, 0);
+    newEnd.setHours(23, 59, 59, 999);
+
+    // Chercher un chevauchement
+    for (const loan of existingLoans) {
+        const loanStart = new Date(loan.loanDate);
+        const loanEnd = new Date(loan.expectedReturnDate);
+        loanStart.setHours(0, 0, 0, 0);
+        loanEnd.setHours(23, 59, 59, 999);
+
+        // Chevauchement: les périodes se croisent
+        if (newStart <= loanEnd && newEnd >= loanStart) {
+            return {
+                hasConflict: true,
+                conflictingLoan: loan,
+                message: `Ce matériel est déjà réservé du ${loanStart.toLocaleDateString('fr-FR')} au ${loanEnd.toLocaleDateString('fr-FR')} par ${loan.userDisplayName || loan.userName}`
+            };
+        }
+    }
+
+    return { hasConflict: false };
+}
+
 async function getLoans() {
     // ✅ AMÉLIORATION: Tri par date de prêt la plus récente en premier
     const rows = db.all(`SELECT * FROM loans ORDER BY loanDate DESC`);
@@ -67,6 +106,12 @@ async function getLoans() {
 }
 
 async function createLoan(loanData, technician) {
+    // ✅ VALIDATION: Vérifier les chevauchements de dates AVANT de créer
+    const conflict = checkLoanDateConflict(loanData.computerId, loanData.loanDate, loanData.expectedReturnDate);
+    if (conflict.hasConflict) {
+        return { success: false, error: conflict.message, conflictingLoan: conflict.conflictingLoan };
+    }
+
     const id = `loan_${Date.now()}`;
     const now = new Date().toISOString();
     const history = [{ event: 'created', date: now, by: technician?.name, details: loanData }];
@@ -75,21 +120,27 @@ async function createLoan(loanData, technician) {
         db.run(sql, [ id, loanData.computerId, loanData.computerName, loanData.userName, loanData.userDisplayName, loanData.itStaff, loanData.loanDate, loanData.expectedReturnDate, loanData.status, loanData.notes, stringifyJSON(loanData.accessories), stringifyJSON(history), now, technician?.name ]);
         db.run('UPDATE computers SET status = ? WHERE id = ?', [loanData.status === 'reserved' ? 'reserved' : 'loaned', loanData.computerId]);
         await addToLoanHistory({ ...loanData, eventType: 'created', by: technician?.name, byId: technician?.id, date: now, loanId: id });
-        return { success: true };
+        return { success: true, loanId: id };
     } catch (error) { return { success: false, error: error.message }; }
 }
 
-// ✅ AMÉLIORATION: Nouvelle fonction pour modifier un prêt
+// ✅ AMÉLIORATION: Nouvelle fonction pour modifier un prêt avec validation
 async function updateLoan(loanId, loanData, technician) {
     const now = new Date().toISOString();
     const originalLoan = db.get('SELECT * FROM loans WHERE id = ?', [loanId]);
     if (!originalLoan) return { success: false, error: 'Prêt non trouvé.' };
 
+    // ✅ VALIDATION: Vérifier les chevauchements de dates (en excluant le prêt en cours d'édition)
+    const conflict = checkLoanDateConflict(loanData.computerId, loanData.loanDate, loanData.expectedReturnDate, loanId);
+    if (conflict.hasConflict) {
+        return { success: false, error: conflict.message, conflictingLoan: conflict.conflictingLoan };
+    }
+
     const history = parseJSON(originalLoan.history, []);
     history.push({ event: 'updated', date: now, by: technician?.name, details: { old: originalLoan, new: loanData } });
 
     const sql = `UPDATE loans SET computerId=?, computerName=?, userName=?, userDisplayName=?, itStaff=?, loanDate=?, expectedReturnDate=?, notes=?, accessories=?, history=? WHERE id=?`;
-    
+
     try {
         db.run(sql, [
             loanData.computerId, loanData.computerName, loanData.userName, loanData.userDisplayName,
@@ -102,7 +153,7 @@ async function updateLoan(loanId, loanData, technician) {
             db.run('UPDATE computers SET status = ? WHERE id = ?', ['available', originalLoan.computerId]);
             db.run('UPDATE computers SET status = ? WHERE id = ?', [loanData.status === 'reserved' ? 'reserved' : 'loaned', loanData.computerId]);
         }
-        
+
         return { success: true };
     } catch (error) {
         return { success: false, error: error.message };
@@ -128,6 +179,13 @@ async function extendLoan(loanId, newReturnDate, reason, technician) {
     const now = new Date().toISOString();
     const loan = db.get('SELECT * FROM loans WHERE id = ?', [loanId]);
     if (!loan) return { success: false, error: 'Prêt non trouvé' };
+
+    // ✅ VALIDATION: Vérifier que la nouvelle date de retour ne chevauche pas une réservation existante
+    const conflict = checkLoanDateConflict(loan.computerId, loan.loanDate, newReturnDate, loanId);
+    if (conflict.hasConflict) {
+        return { success: false, error: conflict.message, conflictingLoan: conflict.conflictingLoan };
+    }
+
     const history = parseJSON(loan.history, []);
     history.push({ event: 'extended', date: now, by: technician?.name, reason });
     try {

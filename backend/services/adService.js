@@ -2,21 +2,20 @@
 
 const { executeEncodedPowerShell } = require('./powershellService');
 const databaseService = require('./databaseService');
-const path = require('path');
-const fs = require('fs');
+const configService = require('./configService');
 
-// Charger la configuration
-let config = null;
-try {
-    const configPath = path.join(__dirname, '../../config/config.json');
-    const configContent = fs.readFileSync(configPath, 'utf-8');
-    config = JSON.parse(configContent);
-} catch (error) {
-    console.error('❌ Erreur chargement config pour adService:', error.message);
+function getAdConfig() {
+    try {
+        return configService.getConfig();
+    } catch (error) {
+        console.error('[AD] Erreur lecture configuration:', error.message);
+        return null;
+    }
 }
 
 // Fonction pour générer le préambule PowerShell avec credentials et serveur
 function getAdAuthPreambule() {
+    const config = getAdConfig();
     if (!config) return '';
 
     const { ad_server, domain, username, password } = config;
@@ -36,6 +35,7 @@ function getAdAuthPreambule() {
 
 // Fonction pour ajouter les paramètres AD aux commandes
 function getAdParams() {
+    const config = getAdConfig();
     if (!config || !config.ad_server) return '';
     return ' -Server $adServer -Credential $adCredential';
 }
@@ -309,33 +309,66 @@ async function createAdUser(userData) {
     const adParams = getAdParams();
     const escapeParam = (str) => str ? str.replace(/"/g, '`"') : '';
 
+    // ✅ CORRECTION: Extraire le domaine depuis email ou obtenir depuis AD
+    const config = getAdConfig();
+    const domain = config?.domain || 'anecoopfr.local';  // Domaine par défaut
+    const emailDomain = email.split('@')[1] || domain;
+
     const psScript = `
         ${authPreambule}
         try {
             Import-Module ActiveDirectory -ErrorAction Stop
+
+            # ✅ VALIDATION: Vérifier que le chemin OU existe
+            $ouPath = "${escapeParam(ouPath)}"
+            try {
+                Get-ADOrganizationalUnit${adParams} -Identity $ouPath -ErrorAction Stop | Out-Null
+            } catch {
+                throw "Le chemin OU n'existe pas: $ouPath. Vérifiez que l'OU est correctement créée dans Active Directory."
+            }
+
+            # ✅ VALIDATION: Vérifier que l'utilisateur n'existe pas déjà
+            $existingUser = Get-ADUser${adParams} -Filter "SamAccountName -eq '${escapeParam(username)}'" -ErrorAction SilentlyContinue
+            if ($existingUser) {
+                throw "Un utilisateur avec le login '${escapeParam(username)}' existe déjà dans Active Directory."
+            }
+
             $securePassword = ConvertTo-SecureString "${escapeParam(password)}" -AsPlainText -Force
             $params = @{
-                SamAccountName = "${escapeParam(username)}"; Name = "${escapeParam(displayName || `${firstName} ${lastName}`)}";
-                GivenName = "${escapeParam(firstName)}"; Surname = "${escapeParam(lastName)}";
-                DisplayName = "${escapeParam(displayName || `${firstName} ${lastName}`)}";
-                UserPrincipalName = "${escapeParam(username)}@${escapeParam(email.split('@')[1] || 'domain.local')}";
-                EmailAddress = "${escapeParam(email)}"; AccountPassword = $securePassword;
-                Enabled = $true; ChangePasswordAtLogon = $${changePasswordAtLogon}; Path = "${escapeParam(ouPath)}";
+                SamAccountName = "${escapeParam(username)}"
+                Name = "${escapeParam(displayName || `${firstName} ${lastName}`)}"
+                GivenName = "${escapeParam(firstName)}"
+                Surname = "${escapeParam(lastName)}"
+                DisplayName = "${escapeParam(displayName || `${firstName} ${lastName}`)}"
+                UserPrincipalName = "${escapeParam(username)}@${domain}"
+                EmailAddress = "${escapeParam(email)}"
+                AccountPassword = $securePassword
+                Enabled = $true
+                ChangePasswordAtLogon = $${changePasswordAtLogon}
+                Path = $ouPath
             }
             if ("${escapeParam(description)}") { $params.Description = "${escapeParam(description)}" }
+
             $newUser = New-ADUser${adParams} @params -ErrorAction Stop -PassThru
-            Set-ADUser${adParams} -Identity $newUser -UserCannotChangePassword $${userCannotChangePassword} -PasswordNeverExpires $${passwordNeverExpires}
+            Set-ADUser${adParams} -Identity $newUser -UserCannotChangePassword $${userCannotChangePassword} -PasswordNeverExpires $${passwordNeverExpires} -ErrorAction Stop
+
+            # Copier les groupes d'un utilisateur existant si demandé
             $copyFrom = "${escapeParam(copyFromUsername)}"
             if ($copyFrom) {
-                $sourceUser = Get-ADUser${adParams} -Identity $copyFrom -ErrorAction Stop
-                $groups = Get-ADPrincipalGroupMembership${adParams} -Identity $sourceUser | Select-Object -ExpandProperty SamAccountName
-                foreach ($group in $groups) {
-                    if ($group -ne "Domain Users") {
-                        Add-ADGroupMember${adParams} -Identity $group -Members $newUser -ErrorAction SilentlyContinue
+                try {
+                    $sourceUser = Get-ADUser${adParams} -Identity $copyFrom -ErrorAction Stop
+                    $groups = Get-ADPrincipalGroupMembership${adParams} -Identity $sourceUser | Select-Object -ExpandProperty SamAccountName
+                    foreach ($group in $groups) {
+                        if ($group -ne "Domain Users") {
+                            Add-ADGroupMember${adParams} -Identity $group -Members $newUser -ErrorAction SilentlyContinue
+                        }
                     }
+                } catch {
+                    Write-Warning "Impossible de copier les groupes depuis $copyFrom : $($_.Exception.Message)"
                 }
             }
-            @{ success = $true; username = "${escapeParam(username)}"; message = "Utilisateur créé avec succès" } | ConvertTo-Json -Compress
+
+            @{ success = $true; username = "${escapeParam(username)}"; message = "Utilisateur créé avec succès dans AD" } | ConvertTo-Json -Compress
         } catch {
             @{ success = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress
         }
@@ -393,6 +426,153 @@ async function getAdOUs(parentId = null) {
     }
 }
 
+// ✅ NOUVELLE FONCTION: Créer le dossier utilisateur avec quota et lecteur réseau
+async function createUserFolderWithQuota(userData) {
+    const {
+        username,
+        fileServerPath = '\\\\192.168.1.230\\Utilisateurs',  // ✅ Chemin réseau configuré
+        quotaGB = 5,  // Quota par défaut de 5 Go
+        driveLetter = 'U:'  // ✅ Lettre de lecteur U: comme demandé
+    } = userData;
+
+    const authPreambule = getAdAuthPreambule();
+    const adParams = getAdParams();
+    const escapeParam = (str) => str ? str.replace(/"/g, '`"') : '';
+    const quotaBytes = quotaGB * 1024 * 1024 * 1024;  // Convertir Go en octets
+
+    // ✅ CORRECTION: Obtenir le domaine depuis config
+    const config = getAdConfig();
+    const domain = config?.domain || 'anecoopfr.local';
+
+    const psScript = `
+        ${authPreambule}
+        try {
+            Import-Module ActiveDirectory -ErrorAction Stop
+
+            # ✅ VALIDATION: Vérifier que l'utilisateur existe dans AD
+            try {
+                $user = Get-ADUser${adParams} -Identity "${escapeParam(username)}" -ErrorAction Stop
+            } catch {
+                throw "L'utilisateur '${escapeParam(username)}' n'existe pas dans Active Directory. Créez d'abord l'utilisateur avant de créer son dossier."
+            }
+
+            # Créer le chemin complet du dossier utilisateur
+            $userFolder = "${escapeParam(fileServerPath)}\\${escapeParam(username)}"
+            $quotaLimit = ${quotaBytes}
+
+            # ✅ VALIDATION: Vérifier que le chemin de base existe
+            $basePath = "${escapeParam(fileServerPath)}"
+            if (-not (Test-Path $basePath)) {
+                throw "Le chemin serveur de fichiers n'existe pas: $basePath. Vérifiez le partage réseau."
+            }
+
+            # Vérifier si le dossier existe déjà
+            $folderCreated = $false
+            if (-not (Test-Path $userFolder)) {
+                # Créer le dossier
+                New-Item -Path $userFolder -ItemType Directory -Force | Out-Null
+                Write-Host "✅ Dossier créé: $userFolder"
+                $folderCreated = $true
+            } else {
+                Write-Host "ℹ️  Le dossier existe déjà: $userFolder"
+            }
+
+            # Définir les permissions NTFS (l'utilisateur a le contrôle total sur son dossier)
+            try {
+                $acl = Get-Acl $userFolder
+
+                # Supprimer l'héritage pour contrôle total
+                $acl.SetAccessRuleProtection($true, $false)
+
+                # Ajouter les permissions pour l'utilisateur (SamAccountName ou Domain\\Username)
+                $userPrincipal = "$env:USERDOMAIN\\${escapeParam(username)}"
+                $userRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                    $userPrincipal,
+                    "FullControl",
+                    "ContainerInherit,ObjectInherit",
+                    "None",
+                    "Allow"
+                )
+                $acl.AddAccessRule($userRule)
+
+                # Ajouter les permissions pour les administrateurs
+                $adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                    "Administrators",
+                    "FullControl",
+                    "ContainerInherit,ObjectInherit",
+                    "None",
+                    "Allow"
+                )
+                $acl.AddAccessRule($adminRule)
+
+                # Appliquer les permissions
+                Set-Acl -Path $userFolder -AclObject $acl
+                Write-Host "✅ Permissions NTFS configurées (Contrôle total pour ${escapeParam(username)})"
+            } catch {
+                Write-Warning "⚠️  Erreur configuration permissions: $($_.Exception.Message)"
+            }
+
+            # Configurer le quota sur le volume (nécessite FSRM - File Server Resource Manager)
+            $quotaConfigured = $false
+            try {
+                Import-Module FileServerResourceManager -ErrorAction Stop
+
+                # Créer ou mettre à jour le quota
+                $quota = Get-FsrmQuota -Path $userFolder -ErrorAction SilentlyContinue
+                if ($quota) {
+                    Set-FsrmQuota -Path $userFolder -Size $quotaLimit -ErrorAction Stop
+                    Write-Host "✅ Quota mis à jour: ${quotaGB} GB"
+                } else {
+                    New-FsrmQuota -Path $userFolder -Size $quotaLimit -ErrorAction Stop
+                    Write-Host "✅ Quota créé: ${quotaGB} GB"
+                }
+                $quotaConfigured = $true
+            } catch {
+                Write-Warning "⚠️  FSRM non disponible ou erreur quota: $($_.Exception.Message)"
+                Write-Warning "Le quota ne sera pas appliqué. Installez FSRM sur le serveur de fichiers si nécessaire."
+            }
+
+            # Configurer le profil utilisateur AD pour mapper le lecteur réseau
+            try {
+                Set-ADUser${adParams} -Identity $user -HomeDirectory $userFolder -HomeDrive "${escapeParam(driveLetter)}" -ErrorAction Stop
+                Write-Host "✅ Lecteur réseau ${escapeParam(driveLetter)} configuré dans AD"
+            } catch {
+                Write-Warning "⚠️  Erreur configuration lecteur réseau: $($_.Exception.Message)"
+            }
+
+            $message = "Dossier utilisateur créé avec succès"
+            if ($folderCreated -eq $false) {
+                $message = "Dossier utilisateur déjà existant - Permissions et quota mis à jour"
+            }
+
+            @{
+                success = $true
+                message = $message
+                path = $userFolder
+                quota = if ($quotaConfigured) { "${quotaGB} GB" } else { "Non configuré (FSRM manquant)" }
+                drive = "${escapeParam(driveLetter)}"
+                permissions = "Contrôle total pour ${escapeParam(username)}"
+            } | ConvertTo-Json -Compress
+        } catch {
+            @{
+                success = $false
+                error = $_.Exception.Message
+            } | ConvertTo-Json -Compress
+        }
+    `;
+
+    try {
+        const result = await executeEncodedPowerShell(psScript, 30000);
+        const parsedResult = JSON.parse(result);
+        if (!parsedResult.success) {
+            parsedResult.error = parseAdError(parsedResult.error);
+        }
+        return parsedResult;
+    } catch (error) {
+        return { success: false, error: parseAdError(error.message) };
+    }
+}
+
 module.exports = {
     searchAdUsers,
     searchAdGroups, // ✅ EXPORT DE LA NOUVELLE FONCTION
@@ -404,6 +584,7 @@ module.exports = {
     enableAdUser,
     resetAdUserPassword,
     createAdUser,
+    createUserFolderWithQuota, // ✅ NOUVELLE FONCTION EXPORTÉE
     getAdOUs,
     getAdUsersInOU,
 };
@@ -434,3 +615,4 @@ async function getAdUsersInOU(ouDN) {
         return [];
     }
 }
+

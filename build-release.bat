@@ -61,7 +61,7 @@ if not exist node_modules (
 
 REM Build de l'application React
 echo.
-echo [5/7] Build de l'application React...
+echo [5/8] Build de l'application React...
 echo (Cela peut prendre 2-5 minutes)
 call npm run build
 if errorlevel 1 (
@@ -71,9 +71,20 @@ if errorlevel 1 (
 )
 echo ✓ Build React termine
 
+REM Rebuild des modules natifs pour Electron
+echo.
+echo [6/8] Rebuild des modules natifs (Electron)...
+call npm run rebuild:native
+if errorlevel 1 (
+    echo ERREUR: Echec du rebuild des modules natifs
+    pause
+    exit /b 1
+)
+echo V Rebuild natif termine
+
 REM Build de l'application Electron avec electron-builder
 echo.
-echo [6/7] Build de l'application Electron portable...
+echo [7/8] Build de l'application Electron portable...
 echo (Cela peut prendre 3-10 minutes selon votre machine)
 call npx electron-builder --config electron-builder-release.json --win portable --x64
 if errorlevel 1 (
@@ -85,7 +96,7 @@ echo ✓ Build Electron termine
 
 REM Afficher le résultat
 echo.
-echo [7/7] Generation terminee !
+echo [8/8] Generation terminee !
 echo.
 echo ========================================
 echo   Build Complete !

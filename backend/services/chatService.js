@@ -103,6 +103,89 @@ async function deleteMessage(messageId, channelId, author) {
     }
 }
 
+// --- MESSAGES PRIVÉS ---
+
+/**
+ * Crée ou récupère un canal de message privé entre deux utilisateurs
+ * @param {string} userId1 - ID du premier utilisateur
+ * @param {string} userId2 - ID du deuxième utilisateur
+ * @param {Object} user1 - Objet utilisateur 1 avec name, avatar
+ * @param {Object} user2 - Objet utilisateur 2 avec name, avatar
+ * @returns {Object} Canal privé créé ou existant
+ */
+async function getOrCreatePrivateChannel(userId1, userId2, user1, user2) {
+    const channelId = getDmChannelKey(userId1, userId2);
+    const now = new Date().toISOString();
+
+    try {
+        // Vérifier si le canal existe déjà
+        let channel = db.get('SELECT * FROM chat_channels WHERE id = ?', [channelId]);
+
+        if (channel) {
+            return {
+                success: true,
+                channel: {
+                    ...channel,
+                    participants: parseJSON(channel.participants, [])
+                },
+                isNew: false
+            };
+        }
+
+        // Créer nouveau canal privé
+        const participants = [
+            { id: userId1, name: user1.name, avatar: user1.avatar },
+            { id: userId2, name: user2.name, avatar: user2.avatar }
+        ];
+
+        const channelName = `DM: ${user1.name} ↔ ${user2.name}`;
+
+        db.run(
+            'INSERT INTO chat_channels (id, name, description, createdAt, createdBy, is_private, participants) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [channelId, channelName, 'Conversation privée', now, userId1, 1, stringifyJSON(participants)]
+        );
+
+        channel = db.get('SELECT * FROM chat_channels WHERE id = ?', [channelId]);
+
+        return {
+            success: true,
+            channel: {
+                ...channel,
+                participants: parseJSON(channel.participants, [])
+            },
+            isNew: true
+        };
+    } catch (error) {
+        console.error('[ChatService] Erreur création canal privé:', error);
+        throw error;
+    }
+}
+
+/**
+ * Récupère tous les canaux privés d'un utilisateur
+ * @param {string} userId - ID de l'utilisateur
+ * @returns {Array} Liste des canaux privés
+ */
+async function getPrivateChannels(userId) {
+    try {
+        const channels = db.all('SELECT * FROM chat_channels WHERE is_private = 1');
+
+        // Filtrer uniquement les canaux où l'utilisateur est participant
+        const userChannels = channels.filter(channel => {
+            const participants = parseJSON(channel.participants, []);
+            return participants.some(p => p.id === userId);
+        });
+
+        return userChannels.map(channel => ({
+            ...channel,
+            participants: parseJSON(channel.participants, [])
+        }));
+    } catch (error) {
+        console.error('[ChatService] Erreur récupération canaux privés:', error);
+        throw error;
+    }
+}
+
 // --- RÉACTIONS ---
 
 async function toggleReaction(messageId, channelId, emoji, userId) {
@@ -136,5 +219,7 @@ module.exports = {
     editMessage,
     deleteMessage,
     getDmChannelKey,
+    getOrCreatePrivateChannel,
+    getPrivateChannels,
     toggleReaction,
 };

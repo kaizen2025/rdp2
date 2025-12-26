@@ -7,7 +7,8 @@ import {
 } from '@mui/material';
 import {
     Edit as EditIcon, AssignmentReturn as AssignmentReturnIcon, Update as UpdateIcon,
-    Cancel as CancelIcon, History as HistoryIcon, FilterListOff as FilterListOffIcon
+    Cancel as CancelIcon, History as HistoryIcon, FilterListOff as FilterListOffIcon,
+    Warning as WarningIcon, Add as AddIcon, EventAvailable as ReserveIcon
 } from '@mui/icons-material';
 
 import { useApp } from '../../contexts/AppContext';
@@ -21,6 +22,7 @@ import LoanDialog from '../LoanDialog';
 import ReturnLoanDialog from '../ReturnLoanDialog';
 import ExtendLoanDialog from '../ExtendLoanDialog';
 import LoanHistoryDialog from '../LoanHistoryDialog';
+import CancelLoanDialog from '../CancelLoanDialog';
 
 const STATUS_CONFIG = {
     active: { label: 'Actif', color: 'success' },
@@ -37,19 +39,51 @@ const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString('fr-FR');
 const LoanRow = React.memo(({ loan, onReturn, onEdit, onExtend, onHistory, onCancel }) => {
     const config = STATUS_CONFIG[loan.status] || {};
 
+    // Calcul de l'urgence (retour prévu dans les 2 prochains jours)
+    const expectedReturn = new Date(loan.expectedReturnDate);
+    const today = new Date();
+    const daysUntilReturn = Math.ceil((expectedReturn - today) / (1000 * 60 * 60 * 24));
+    const isUrgent = daysUntilReturn <= 2 && daysUntilReturn >= 0 && ['active', 'reserved'].includes(loan.status);
+
+    // Statuts actifs qui permettent les actions
+    const isActiveStatus = ['active', 'overdue', 'critical', 'reserved'].includes(loan.status);
+
     return (
-        <TableRow key={loan.id} hover>
-            <TableCell><Chip label={config.label} color={config.color} size="small" /></TableCell>
+        <TableRow
+            key={loan.id}
+            hover
+            sx={{
+                bgcolor: loan.status === 'critical' ? 'error.lighter' :
+                    loan.status === 'overdue' ? 'warning.lighter' :
+                        isUrgent ? 'info.lighter' : 'inherit',
+                '&:hover': { opacity: 0.9 }
+            }}
+        >
+            <TableCell>
+                <Chip label={config.label} color={config.color} size="small" />
+                {isUrgent && <Chip label="Urgent" size="small" color="warning" sx={{ ml: 0.5 }} />}
+            </TableCell>
             <TableCell>{loan.computerName}</TableCell>
             <TableCell>{loan.userDisplayName || loan.userName}</TableCell>
             <TableCell>{formatDate(loan.loanDate)}</TableCell>
-            <TableCell>{formatDate(loan.expectedReturnDate)}</TableCell>
             <TableCell>
-                <Tooltip title="Retourner"><IconButton size="small" color="success" onClick={() => onReturn(loan)}><AssignmentReturnIcon /></IconButton></Tooltip>
-                <Tooltip title="Modifier"><IconButton size="small" color="primary" onClick={() => onEdit(loan)}><EditIcon /></IconButton></Tooltip>
-                <Tooltip title="Prolonger"><IconButton size="small" color="info" onClick={() => onExtend(loan)}><UpdateIcon /></IconButton></Tooltip>
-                <Tooltip title="Historique"><IconButton size="small" onClick={() => onHistory(loan)}><HistoryIcon /></IconButton></Tooltip>
-                <Tooltip title="Annuler"><IconButton size="small" color="error" onClick={() => onCancel(loan)}><CancelIcon /></IconButton></Tooltip>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    {formatDate(loan.expectedReturnDate)}
+                    {isUrgent && <Tooltip title={`Retour dans ${daysUntilReturn} jour(s)`}><WarningIcon fontSize="small" color="warning" /></Tooltip>}
+                </Box>
+            </TableCell>
+            <TableCell>
+                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'nowrap' }}>
+                    {isActiveStatus && (
+                        <>
+                            <Tooltip title="Retourner"><IconButton size="small" color="success" onClick={() => onReturn(loan)}><AssignmentReturnIcon fontSize="small" /></IconButton></Tooltip>
+                            <Tooltip title="Modifier"><IconButton size="small" color="primary" onClick={() => onEdit(loan)}><EditIcon fontSize="small" /></IconButton></Tooltip>
+                            <Tooltip title="Prolonger"><IconButton size="small" color="info" onClick={() => onExtend(loan)}><UpdateIcon fontSize="small" /></IconButton></Tooltip>
+                            <Tooltip title="Annuler"><IconButton size="small" color="error" onClick={() => onCancel(loan)}><CancelIcon fontSize="small" /></IconButton></Tooltip>
+                        </>
+                    )}
+                    <Tooltip title="Historique"><IconButton size="small" onClick={() => onHistory(loan)}><HistoryIcon fontSize="small" /></IconButton></Tooltip>
+                </Box>
             </TableCell>
         </TableRow>
     );
@@ -126,14 +160,15 @@ const LoanList = ({ preFilter }) => {
         finally { setDialog({ type: null, data: null }); }
     };
 
-    const handleCancelLoan = async (loan) => {
-        const reason = prompt('Raison de l\'annulation:');
-        if (reason) {
-            try {
-                await apiService.cancelLoan(loan.id, reason);
-                showNotification('success', 'Prêt annulé.');
-                await Promise.all([invalidate('loans'), invalidate('computers')]);
-            } catch (error) { showNotification('error', `Erreur: ${error.message}`); }
+    const handleCancelLoan = async (loan, reason) => {
+        try {
+            await apiService.cancelLoan(loan.id, reason);
+            showNotification('success', 'Prêt annulé.');
+            await Promise.all([invalidate('loans'), invalidate('computers')]);
+        } catch (error) {
+            showNotification('error', `Erreur: ${error.message}`);
+        } finally {
+            setDialog({ type: null, data: null });
         }
     };
 
@@ -148,7 +183,7 @@ const LoanList = ({ preFilter }) => {
                     <Grid item xs={12} sm={6}>
                         <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Rechercher un prêt..." />
                     </Grid>
-                    <Grid item xs={12} sm={4}>
+                    <Grid item xs={12} sm={3}>
                         <FormControl fullWidth size="small">
                             <InputLabel>Statut</InputLabel>
                             <Select value={statusFilter} label="Statut" onChange={(e) => setStatusFilter(e.target.value)}>
@@ -160,12 +195,36 @@ const LoanList = ({ preFilter }) => {
                             </Select>
                         </FormControl>
                     </Grid>
-                    <Grid item xs={12} sm={2}>
-                        <Button fullWidth startIcon={<FilterListOffIcon />} onClick={() => { setSearchTerm(''); setStatusFilter('active_ongoing'); }}>
-                            Effacer
-                        </Button>
+                    <Grid item xs={12} sm={3}>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Button
+                                fullWidth
+                                variant="contained"
+                                color="primary"
+                                startIcon={<AddIcon />}
+                                onClick={() => setDialog({ type: 'create', data: null })}
+                                sx={{ fontWeight: 600 }}
+                            >
+                                Nouveau Prêt
+                            </Button>
+                            <Button
+                                fullWidth
+                                variant="outlined"
+                                color="info"
+                                startIcon={<ReserveIcon />}
+                                onClick={() => setDialog({ type: 'reserve', data: null })}
+                                sx={{ fontWeight: 600 }}
+                            >
+                                Réserver
+                            </Button>
+                        </Box>
                     </Grid>
                 </Grid>
+                <Box sx={{ mt: 1 }}>
+                    <Button size="small" startIcon={<FilterListOffIcon />} onClick={() => { setSearchTerm(''); setStatusFilter('active_ongoing'); }}>
+                        Effacer les filtres
+                    </Button>
+                </Box>
             </Paper>
 
             {filteredLoans.length === 0 ? (
@@ -192,7 +251,7 @@ const LoanList = ({ preFilter }) => {
                                     onEdit={(loan) => setDialog({ type: 'edit', data: loan })}
                                     onExtend={(loan) => setDialog({ type: 'extend', data: loan })}
                                     onHistory={(loan) => setDialog({ type: 'history', data: loan })}
-                                    onCancel={handleCancelLoan}
+                                    onCancel={(loan) => setDialog({ type: 'cancel', data: loan })}
                                 />
                             ))}
                         </TableBody>
@@ -200,10 +259,16 @@ const LoanList = ({ preFilter }) => {
                 </TableContainer>
             )}
 
-            {dialog.type === 'edit' && <LoanDialog open={true} onClose={() => setDialog({ type: null, data: null })} loan={dialog.data} onSave={handleSaveLoan} computers={computers} users={users} itStaff={itStaff} />}
+            {/* ✅ Dialogue de création de prêt */}
+            {dialog.type === 'create' && <LoanDialog open={true} onClose={() => setDialog({ type: null, data: null })} loan={null} onSave={handleSaveLoan} computers={computers} users={users} itStaff={itStaff} existingLoans={loans} />}
+            {/* ✅ Dialogue de réservation */}
+            {dialog.type === 'reserve' && <LoanDialog open={true} onClose={() => setDialog({ type: null, data: null })} loan={null} isReservation={true} onSave={handleSaveLoan} computers={computers} users={users} itStaff={itStaff} existingLoans={loans} />}
+            {/* Dialogues existants */}
+            {dialog.type === 'edit' && <LoanDialog open={true} onClose={() => setDialog({ type: null, data: null })} loan={dialog.data} onSave={handleSaveLoan} computers={computers} users={users} itStaff={itStaff} existingLoans={loans} />}
             {dialog.type === 'return' && <ReturnLoanDialog open={true} onClose={() => setDialog({ type: null, data: null })} loan={dialog.data} onReturn={handleReturnLoan} />}
             {dialog.type === 'extend' && <ExtendLoanDialog open={true} onClose={() => setDialog({ type: null, data: null })} loan={dialog.data} onExtend={handleExtendLoan} />}
             {dialog.type === 'history' && <LoanHistoryDialog open={true} onClose={() => setDialog({ type: null, data: null })} loan={dialog.data} />}
+            {dialog.type === 'cancel' && <CancelLoanDialog open={true} onClose={() => setDialog({ type: null, data: null })} loan={dialog.data} onCancel={handleCancelLoan} />}
         </Box>
     );
 };

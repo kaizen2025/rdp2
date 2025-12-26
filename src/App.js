@@ -29,10 +29,19 @@ function AppContent() {
     const { currentTechnician, setCurrentTechnician } = useApp(); // ✅ Utiliser le contexte
 
     useEffect(() => {
+        const appStartTime = Date.now();
+        console.log('[App] 🚀 ===== DÉMARRAGE APPLICATION =====');
+        console.log('[App] 📅 Date:', new Date().toISOString());
+        console.log('[App] 🌐 URL:', window.location.href);
+        console.log('[App] 💻 Electron:', window.electronAPI ? 'OUI' : 'NON');
+
         const checkHealthAndAuth = async () => {
             try {
                 // Étape 1: Vérifier la santé du serveur avec retry automatique
+                console.log('[App] 🏥 Vérification santé serveur...');
+                const healthStart = Date.now();
                 await apiService.checkServerHealth();
+                console.log('[App] ✅ Serveur OK en', Date.now() - healthStart, 'ms');
                 setConfigError(null); // Si tout va bien, on s'assure qu'il n'y a pas de message d'erreur
                 setRetryCount(0); // Réinitialiser le compteur de retry
             } catch (error) {
@@ -40,22 +49,29 @@ function AppContent() {
                 const errorMessage = error.response?.data?.message || error.message || "Erreur de communication avec le serveur.";
 
                 // 🔄 RETRY AUTOMATIQUE: Réessayer toutes les 2 secondes pendant 30 secondes
-                if (retryCount < 15 && (error.code === 'ERR_NETWORK' || error.code === 'ERR_CONNECTION_REFUSED' || error.code === 'ERR_SOCKET_NOT_CONNECTED')) {
-                    console.log(`⏳ Backend non disponible, retry ${retryCount + 1}/15 dans 2s...`);
+                const needsRetry = error.message?.includes('Failed to fetch') ||
+                                   error.code === 'ERR_NETWORK' ||
+                                   error.code === 'ERR_CONNECTION_REFUSED';
+                console.log('[App] ❌ Erreur serveur:', error.message, '| Retry possible:', needsRetry);
+
+                if (retryCount < 15 && needsRetry) {
+                    console.log(`[App] ⏳ Backend non disponible, retry ${retryCount + 1}/15 dans 2s...`);
                     setConfigError(`⏳ Connexion au backend en cours... (tentative ${retryCount + 1}/15)`);
                     setTimeout(() => {
                         setRetryCount(prev => prev + 1);
                     }, 2000);
                     return; // Ne pas continuer le chargement
                 } else {
+                    console.error('[App] ❌ Échec définitif connexion serveur après', retryCount, 'tentatives');
                     setConfigError(errorMessage);
                 }
             }
 
             // Étape 2: Vérifier l'authentification locale et charger les données complètes
-            // ✅ NOUVEAU - Support pour les deux systèmes d'authentification
+            console.log('[App] 🔐 Vérification authentification...');
             const storedUserId = localStorage.getItem('currentUserId');
             const storedTechnicianId = localStorage.getItem('currentTechnicianId');
+            console.log('[App] 📦 StoredUserId:', storedUserId, '| StoredTechnicianId:', storedTechnicianId);
 
             if (storedUserId) {
                 // ✅ NOUVEAU SYSTÈME - app_users
@@ -110,6 +126,8 @@ function AppContent() {
                 }
             }
 
+            console.log('[App] ✅ Initialisation terminée en', Date.now() - appStartTime, 'ms');
+            console.log('[App] 🔓 Authentifié:', isAuthenticated ? 'OUI' : 'NON');
             setIsLoading(false);
         };
 

@@ -28,8 +28,7 @@ import {
     Speed as SpeedIcon
 } from '@mui/icons-material';
 import axios from 'axios';
-
-const API_BASE = 'http://localhost:3002/api/ai/config';
+import { getApiBaseUrl } from '../../services/backendConfig';
 
 function GeminiModelSelector({ apiKey, selectedModel, onModelChange, disabled }) {
     const [models, setModels] = useState([]);
@@ -55,7 +54,8 @@ function GeminiModelSelector({ apiKey, selectedModel, onModelChange, disabled })
 
             console.log('[GeminiModelSelector] Chargement des modèles...');
 
-            const response = await axios.get(`${API_BASE}/gemini/models`, {
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.get(`${apiBase}/ai/config/gemini/models`, {
                 params: { apiKey }
             });
 

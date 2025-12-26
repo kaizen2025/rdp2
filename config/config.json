@@ -12,7 +12,8 @@
         "SRV-RDS-1",
         "SRV-RDS-2",
         "SRV-RDS-3",
-        "SRV-RDS-4"
+        "SRV-RDS-4",
+        "SRV-AD-1"
     ],
     "server_groups": {
         "🏢 Infrastructure": [

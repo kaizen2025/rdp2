@@ -5,17 +5,31 @@
 
 const http = require('http');
 
+const fs = require('fs');
+const path = require('path');
+
 const MAX_RETRIES = 30; // 30 tentatives
 const RETRY_DELAY = 1000; // 1 seconde entre chaque tentative
-const BACKEND_PORT = 3002;
+const DEFAULT_BACKEND_PORT = 3002;
 
 let retryCount = 0;
 
-function checkBackend() {
+function getBackendPort() {
+    try {
+        const portsPath = path.join(process.cwd(), '.ports.json');
+        if (!fs.existsSync(portsPath)) return DEFAULT_BACKEND_PORT;
+        const ports = JSON.parse(fs.readFileSync(portsPath, 'utf8'));
+        return ports.http || DEFAULT_BACKEND_PORT;
+    } catch (error) {
+        return DEFAULT_BACKEND_PORT;
+    }
+}
+
+function checkBackend(port) {
     return new Promise((resolve, reject) => {
         const options = {
             hostname: 'localhost',
-            port: BACKEND_PORT,
+            port,
             path: '/api/health',
             method: 'GET',
             timeout: 2000
@@ -47,14 +61,15 @@ async function waitForBackend() {
 
     while (retryCount < MAX_RETRIES) {
         try {
-            await checkBackend();
+            const port = getBackendPort();
+            await checkBackend(port);
             console.log('✅ Backend prêt ! Démarrage d\'Electron...');
             process.exit(0);
         } catch (error) {
             retryCount++;
             if (retryCount >= MAX_RETRIES) {
                 console.error(`❌ Impossible de se connecter au backend après ${MAX_RETRIES} tentatives.`);
-                console.error('   Assurez-vous que le backend est en cours d\'exécution sur le port', BACKEND_PORT);
+                console.error('   Assurez-vous que le backend est en cours d\'exécution.');
                 process.exit(1);
             }
             process.stdout.write(`\r⏳ Tentative ${retryCount}/${MAX_RETRIES}...`);

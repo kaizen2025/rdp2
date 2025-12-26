@@ -3,7 +3,9 @@ const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
 const db = require('../databaseService');
-const aiService = require('./aiService');
+const aiDatabaseService = require('./aiDatabaseService');
+const AIService = require('./aiService');
+const aiService = new AIService(aiDatabaseService);
 
 // Function to calculate the SHA256 hash of a file
 const calculateHash = async (filePath) => {
@@ -65,37 +67,45 @@ const synchronizeDocuments = async (directory) => {
             return;
         }
 
+        try {
+            aiDatabaseService.initialize();
+        } catch (error) {
+            console.error('[DocSync] Initialisation IA impossible:', error.message);
+            return;
+        }
+
         const currentManifest = getDocumentManifest();
         const currentFiles = {};
 
         // Recursively scan the directory to get a flat list of all files
         await scanDirectoryRecursive(directory, currentFiles);
 
-    // Process all found files (new or modified)
-    for (const filePath in currentFiles) {
-        const fileInfo = currentFiles[filePath];
+        // Process all found files (new or modified)
+        for (const filePath in currentFiles) {
+            const fileInfo = currentFiles[filePath];
 
-        // If lastModified is the same, no need to re-calculate hash.
-        if (currentManifest[filePath] && currentManifest[filePath].lastModified === fileInfo.lastModified) {
-            continue;
+            // If lastModified is the same, no need to re-calculate hash.
+            if (currentManifest[filePath] && currentManifest[filePath].lastModified === fileInfo.lastModified) {
+                continue;
+            }
+
+            // File is new or modified, calculate hash
+            const hash = await calculateHash(filePath);
+
+            if (!currentManifest[filePath] || currentManifest[filePath].hash !== hash) {
+                console.log(`[DocSync] Detected new or updated file: ${filePath}`);
+                const fileBuffer = await fs.readFile(filePath);
+                const fileObject = {
+                    originalname: path.basename(filePath),
+                    buffer: fileBuffer,
+                    mimetype: 'application/octet-stream', // A library could be used for more accuracy
+                    size: fileInfo.stats.size,
+                    filepath: filePath
+                };
+                await aiService.uploadDocument(fileObject);
+                updateManifest(filePath, hash, fileInfo.lastModified);
+            }
         }
-
-        // File is new or modified, calculate hash
-        const hash = await calculateHash(filePath);
-
-        if (!currentManifest[filePath] || currentManifest[filePath].hash !== hash) {
-            console.log(`[DocSync] Detected new or updated file: ${filePath}`);
-            const fileBuffer = await fs.readFile(filePath);
-            const fileObject = {
-                originalname: path.basename(filePath),
-                buffer: fileBuffer,
-                mimetype: 'application/octet-stream', // A library could be used for more accuracy
-                size: fileInfo.stats.size
-            };
-            await aiService.uploadDocument(fileObject);
-            updateManifest(filePath, hash, fileInfo.lastModified);
-        }
-    }
 
         // Check for deleted files by comparing the manifest with the files found on disk
         for (const filePath in currentManifest) {
@@ -103,7 +113,7 @@ const synchronizeDocuments = async (directory) => {
                 console.log(`[DocSync] Detected deleted file: ${filePath}`);
                 try {
                     // Recherche du document dans la base de données via une requête SQL directe
-                    const document = db.get('SELECT * FROM ai_documents WHERE file_path = ?', [filePath]);
+                    const document = db.get('SELECT * FROM ai_documents WHERE filepath = ?', [filePath]);
                     if (document) {
                         await aiService.deleteDocument(document.id);
                     }

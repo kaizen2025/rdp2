@@ -18,6 +18,7 @@
     "backend/**/*",
     "config/**/*",
     "data/**/*",
+    "node_modules/**/*",
     "package.json",
     "!build/**/*.map",
     "!**/*.md",
@@ -44,16 +45,9 @@
   "asar": true,
   "asarUnpack": [
     "**/*.node",
-    "**/node_modules/bcrypt/**/*",
-    "**/node_modules/better-sqlite3/**/*",
-    "**/node_modules/@google/generative-ai/**/*",
-    "**/node_modules/express/**/*",
-    "**/node_modules/cors/**/*",
-    "**/node_modules/ws/**/*",
-    "**/node_modules/multer/**/*",
-    "**/node_modules/axios/**/*",
-    "**/backend/**/*",
-    "**/server/**/*"
+    "node_modules/**/*",
+    "backend/**/*",
+    "server/**/*"
   ],
   "win": {
     "target": [

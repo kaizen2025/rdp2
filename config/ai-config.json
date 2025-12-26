@@ -4,7 +4,7 @@
     "gemini": {
       "enabled": true,
       "priority": 1,
-      "apiKey": "STORED_IN_ENV_FILE",
+      "apiKey": "AIzaSyDPo6yXKEtESFWjLbLyk3MHpXehLsnMsgs",
       "models": {
         "text": "gemini-2.0-flash-exp",
         "vision": "gemini-2.0-flash-exp",
@@ -22,7 +22,19 @@
   },
   "ocr": {
     "enabled": true,
-    "languages": ["fr", "en", "es", "de", "it", "pt", "ru", "ja", "ko", "zh-cn", "zh-tw"],
+    "languages": [
+      "fr",
+      "en",
+      "es",
+      "de",
+      "it",
+      "pt",
+      "ru",
+      "ja",
+      "ko",
+      "zh-cn",
+      "zh-tw"
+    ],
     "confidence_threshold": 0.6,
     "gpu": false
   },

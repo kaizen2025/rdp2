@@ -58,8 +58,7 @@ import {
     Toggle
 } from '@mui/icons-material';
 import axios from 'axios';
-
-const API_BASE = 'http://localhost:3002/api/ai';
+import { getApiBaseUrl } from '../services/backendConfig';
 
 function AIConfigPage() {
     // State pour la configuration
@@ -91,7 +90,8 @@ function AIConfigPage() {
     const loadConfiguration = async () => {
         try {
             setLoading(true);
-            const response = await axios.get(`${API_BASE}/config`);
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.get(`${apiBase}/ai/config`);
             if (response.data.success) {
                 setConfig(response.data.config);
             } else {
@@ -108,7 +108,8 @@ function AIConfigPage() {
     // Charger les statistiques
     const loadStatistics = async () => {
         try {
-            const response = await axios.get(`${API_BASE}/statistics`);
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.get(`${apiBase}/ai/statistics`);
             if (response.data.success) {
                 setStatistics(response.data);
             }
@@ -121,7 +122,8 @@ function AIConfigPage() {
     const saveConfiguration = async () => {
         try {
             setSaving(true);
-            const response = await axios.put(`${API_BASE}/config`, config);
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.put(`${apiBase}/ai/config`, config);
             if (response.data.success) {
                 showMessage('Configuration sauvegardée avec succès', 'success');
                 await loadConfiguration(); // Recharger pour obtenir l'état à jour
@@ -142,7 +144,8 @@ function AIConfigPage() {
             setTesting({ ...testing, [providerName]: true });
             const provider = config.providers[providerName];
 
-            const response = await axios.post(`${API_BASE}/providers/${providerName}/test`, {
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.post(`${apiBase}/ai/providers/${providerName}/test`, {
                 apiKey: provider.apiKey,
                 model: provider.model
             });
@@ -174,7 +177,8 @@ function AIConfigPage() {
     // Activer/désactiver un provider
     const toggleProvider = async (providerName, enabled) => {
         try {
-            const response = await axios.post(`${API_BASE}/providers/${providerName}/toggle`, {
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.post(`${apiBase}/ai/providers/${providerName}/toggle`, {
                 enabled: enabled
             });
 

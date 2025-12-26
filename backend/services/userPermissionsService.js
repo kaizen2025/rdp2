@@ -16,29 +16,62 @@ class UserPermissionsService {
     }
 
     /**
+     * Test synchrone rapide d'accès réseau avec timeout
+     */
+    testNetworkAccessSync(networkPath) {
+        const { execSync } = require('child_process');
+        try {
+            execSync(`dir "${path.dirname(networkPath)}" /b`, { timeout: 3000, stdio: 'pipe' });
+            console.log('[UserPermissions] ✅ Réseau accessible');
+            return true;
+        } catch (error) {
+            console.log(`[UserPermissions] ⚠️ Réseau inaccessible: ${error.message}`);
+            return false;
+        }
+    }
+
+    /**
      * Obtenir la connexion à la base de données
-     * Utilise le chemin configuré dans config.json (base de PRODUCTION)
+     * ✅ OPTIMISATION: Test réseau avec timeout de 3s avant fallback local
      */
     getDb() {
         if (!this.db) {
-            // Utiliser le chemin de config.json (base de PRODUCTION)
-            let dbPath;
+            const os = require('os');
+            const startTime = Date.now();
+
+            const userDataPath = typeof configService.getUserDataPath === 'function'
+                ? configService.getUserDataPath()
+                : path.join(os.homedir(), 'AppData', 'Roaming', 'RDS Viewer');
+            const localDbPath = path.join(userDataPath, 'data', 'rds_viewer_data.sqlite');
+            let dbPath = localDbPath;
 
             if (configService.appConfig && configService.appConfig.databasePath) {
-                dbPath = configService.appConfig.databasePath;
-                console.log(`[UserPermissions] Utilisation base PRODUCTION: ${dbPath}`);
+                const configuredPath = configService.appConfig.databasePath;
+
+                if (configuredPath.startsWith('\\\\')) {
+                    // ✅ Chemin réseau: tester avec timeout de 3s
+                    console.log(`[UserPermissions] 🌐 Chemin réseau détecté: ${configuredPath}`);
+                    if (this.testNetworkAccessSync(configuredPath)) {
+                        dbPath = configuredPath;
+                    } else {
+                        console.log(`[UserPermissions] ⚡ Fallback vers base locale`);
+                        dbPath = localDbPath;
+                    }
+                } else if (!configuredPath.includes('CHEMIN_RESEAU') && !configuredPath.includes('VOTRE_')) {
+                    dbPath = configuredPath;
+                }
             } else {
-                // Fallback sur base locale si config non chargée
-                dbPath = path.join(__dirname, '../../data/rds_viewer_data.sqlite');
-                console.warn(`[UserPermissions] ⚠️  Config non chargée, utilisation base locale: ${dbPath}`);
+                console.log(`[UserPermissions] ⚠️ Config non chargée, utilisation base locale`);
             }
 
+            // Créer le dossier si nécessaire (chemins locaux uniquement)
             const dbDir = path.dirname(dbPath);
-
-            if (!fs.existsSync(dbDir)) {
+            if (!dbPath.startsWith('\\\\') && !fs.existsSync(dbDir)) {
                 fs.mkdirSync(dbDir, { recursive: true });
+                console.log(`[UserPermissions] 📁 Dossier créé: ${dbDir}`);
             }
 
+            console.log(`[UserPermissions] ✅ Connexion BDD en ${Date.now() - startTime}ms: ${dbPath}`);
             this.db = new Database(dbPath);
             this.db.pragma('journal_mode = WAL');
         }
@@ -47,17 +80,160 @@ class UserPermissionsService {
 
     /**
      * Initialise les tables utilisateurs et permissions
+     * Schéma intégré pour éviter les problèmes de fichier externe
      */
     initialize() {
         if (this.initialized) return;
 
         try {
-            const schemaPath = path.join(__dirname, '../schemas/users_permissions_schema.sql');
-            const schema = fs.readFileSync(schemaPath, 'utf-8');
-
-            // Exécuter le schéma
             const db = this.getDb();
+
+            // Schéma intégré directement dans le code
+            const schema = `
+                -- Table des utilisateurs de l'application
+                CREATE TABLE IF NOT EXISTS app_users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    display_name TEXT,
+                    position TEXT DEFAULT 'Utilisateur',
+                    password_hash TEXT NOT NULL,
+                    is_admin INTEGER DEFAULT 0,
+                    is_active INTEGER DEFAULT 1,
+                    must_change_password INTEGER DEFAULT 1,
+                    last_login TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+
+                -- Table des permissions
+                CREATE TABLE IF NOT EXISTS app_permissions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER UNIQUE NOT NULL,
+                    can_access_dashboard INTEGER DEFAULT 1,
+                    can_access_rds_sessions INTEGER DEFAULT 0,
+                    can_access_servers INTEGER DEFAULT 0,
+                    can_access_users INTEGER DEFAULT 0,
+                    can_access_ad_groups INTEGER DEFAULT 0,
+                    can_access_loans INTEGER DEFAULT 0,
+                    can_access_docucortex INTEGER DEFAULT 0,
+                    can_manage_users INTEGER DEFAULT 0,
+                    can_manage_permissions INTEGER DEFAULT 0,
+                    can_view_reports INTEGER DEFAULT 0,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES app_users(id) ON DELETE CASCADE
+                );
+
+                -- Table d'historique des connexions
+                CREATE TABLE IF NOT EXISTS app_login_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    ip_address TEXT,
+                    user_agent TEXT,
+                    login_timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
+                    success INTEGER DEFAULT 0,
+                    failure_reason TEXT,
+                    FOREIGN KEY (user_id) REFERENCES app_users(id) ON DELETE SET NULL
+                );
+
+                -- Index pour améliorer les performances
+                CREATE INDEX IF NOT EXISTS idx_app_users_username ON app_users(username);
+                CREATE INDEX IF NOT EXISTS idx_app_permissions_user_id ON app_permissions(user_id);
+                CREATE INDEX IF NOT EXISTS idx_app_login_history_user_id ON app_login_history(user_id);
+                CREATE INDEX IF NOT EXISTS idx_app_login_history_timestamp ON app_login_history(login_timestamp);
+            `;
+
             db.exec(schema);
+
+            // ✅ MIGRATION: Ajouter les colonnes manquantes si la base existait avant
+            try {
+                // Vérifier si les colonnes existent
+                const columns = db.prepare("PRAGMA table_info(app_users)").all();
+                const columnNames = columns.map(col => col.name);
+
+                const migrations = [
+                    { name: 'is_active', sql: "ALTER TABLE app_users ADD COLUMN is_active INTEGER DEFAULT 1" },
+                    { name: 'is_admin', sql: "ALTER TABLE app_users ADD COLUMN is_admin INTEGER DEFAULT 0" },
+                    { name: 'must_change_password', sql: "ALTER TABLE app_users ADD COLUMN must_change_password INTEGER DEFAULT 1" },
+                    { name: 'position', sql: "ALTER TABLE app_users ADD COLUMN position TEXT DEFAULT 'Utilisateur'" },
+                    { name: 'display_name', sql: "ALTER TABLE app_users ADD COLUMN display_name TEXT" },
+                    { name: 'last_login', sql: "ALTER TABLE app_users ADD COLUMN last_login TEXT" },
+                    { name: 'created_at', sql: "ALTER TABLE app_users ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP" },
+                    { name: 'updated_at', sql: "ALTER TABLE app_users ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP" },
+                    { name: 'password_hash', sql: "ALTER TABLE app_users ADD COLUMN password_hash TEXT" }
+                ];
+
+                for (const migration of migrations) {
+                    if (!columnNames.includes(migration.name)) {
+                        console.log(`📦 Migration: Ajout de la colonne ${migration.name}...`);
+                        db.exec(migration.sql);
+                    }
+                }
+            } catch (migrationError) {
+                console.warn('⚠️ Migration colonnes ignorée:', migrationError.message);
+            }
+
+            try {
+                // RESCUE: Vérifier les mots de passe NULL (cas migration colonne ajoutée)
+                const nullPwdCount = db.prepare("SELECT COUNT(*) as count FROM app_users WHERE password_hash IS NULL OR password_hash = ''").get().count;
+
+                if (nullPwdCount > 0) {
+                    console.log(`⚠️ ${nullPwdCount} utilisateurs avec mot de passe NULL détectés. Réinitialisation à '123456'...`);
+                    const defaultHash = bcrypt.hashSync('123456', this.SALT_ROUNDS);
+                    db.prepare("UPDATE app_users SET password_hash = ? WHERE password_hash IS NULL OR password_hash = ''").run(defaultHash);
+                    console.log('✅ Mots de passe réinitialisés.');
+                }
+
+                // Vérifier si des utilisateurs existent
+                const count = db.prepare("SELECT COUNT(*) as count FROM app_users").get().count;
+
+                if (count === 0) {
+                    console.log('⚠️ Table app_users vide. Tentative de récupération depuis la table users...');
+
+                    // Vérifier si la table users existe (ancienne table)
+                    const usersTableExists = db.prepare("SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='users'").get().count > 0;
+
+                    if (usersTableExists) {
+                        const existingUsers = db.prepare("SELECT * FROM users").all();
+                        if (existingUsers.length > 0) {
+                            console.log(`📦 Migration: Import de ${existingUsers.length} utilisateurs depuis la table legacy...`);
+
+                            const insertStmt = db.prepare(`
+                                INSERT INTO app_users (username, display_name, password_hash, is_active, is_admin, position)
+                                VALUES (?, ?, ?, 1, 0, 'Technicien')
+                            `);
+
+                            const defaultPasswordHash = bcrypt.hashSync('123456', this.SALT_ROUNDS); // Mot de passe par défaut pour migration
+
+                            const transaction = db.transaction((users) => {
+                                for (const user of users) {
+                                    // Détecter si admin
+                                    const isAdmin = user.username.toLowerCase().includes('admin') || user.username.toLowerCase() === 'kbivia';
+                                    insertStmt.run(user.username, user.displayName || user.username, defaultPasswordHash);
+                                    if (isAdmin) {
+                                        db.prepare("UPDATE app_users SET is_admin = 1 WHERE username = ?").run(user.username);
+                                    }
+                                }
+                            });
+
+                            transaction(existingUsers);
+                            console.log('✅ Import terminés. Mot de passe par défaut: 123456');
+                        } else {
+                            // Créer admin par défaut si aucun user legacy
+                            console.log('📦 Création admin par défaut (mot de passe: 123456)...');
+                            const hash = bcrypt.hashSync('123456', this.SALT_ROUNDS);
+                            db.prepare("INSERT INTO app_users (username, display_name, password_hash, is_admin, is_active, must_change_password, position) VALUES (?, ?, ?, 1, 1, 0, 'Administrateur IT')").run('admin', 'Administrateur', hash);
+                        }
+                    } else {
+                        // Créer admin par défaut
+                        console.log('📦 Création admin par défaut (mot de passe: 123456)...');
+                        const hash = bcrypt.hashSync('123456', this.SALT_ROUNDS);
+                        db.prepare("INSERT INTO app_users (username, display_name, password_hash, is_admin, is_active, must_change_password, position) VALUES (?, ?, ?, 1, 1, 0, 'Administrateur IT')").run('admin', 'Administrateur', hash);
+                    }
+                }
+            } catch (seedError) {
+                console.error('❌ Erreur seeding/rescue utilisateurs:', seedError);
+            }
 
             this.initialized = true;
             console.log('✅ Tables utilisateurs et permissions initialisées');
@@ -79,14 +255,13 @@ class UserPermissionsService {
 
         const stmt = this.getDb().prepare(`
             INSERT INTO app_users (
-                username, email, display_name, position,
+                username, display_name, position,
                 password_hash, is_admin, must_change_password
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?)
         `);
 
         const result = stmt.run(
             data.username,
-            data.email,
             data.display_name,
             data.position || 'Utilisateur',
             passwordHash,
@@ -242,10 +417,7 @@ class UserPermissionsService {
         const fields = [];
         const values = [];
 
-        if (data.email !== undefined) {
-            fields.push('email = ?');
-            values.push(data.email);
-        }
+        // Note: email supprimé car la colonne n'existe pas dans la table
         if (data.display_name !== undefined) {
             fields.push('display_name = ?');
             values.push(data.display_name);

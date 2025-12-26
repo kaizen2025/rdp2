@@ -229,6 +229,14 @@ module.exports = (broadcast) => {
     router.post('/ad/users/:username/disable', asyncHandler(async (req, res) => res.json(await adService.disableAdUser(req.params.username))));
     router.post('/ad/users/:username/reset-password', asyncHandler(async (req, res) => res.json(await adService.resetAdUserPassword(req.params.username, req.body.newPassword, req.body.mustChange))));
     router.post('/ad/users', asyncHandler(async (req, res) => res.json(await adService.createAdUser(req.body))));
+    // ✅ NOUVELLE ROUTE: Créer dossier utilisateur avec quota
+    router.post('/ad/users/:username/create-folder', asyncHandler(async (req, res) => {
+        const result = await adService.createUserFolderWithQuota({
+            username: req.params.username,
+            ...req.body  // Permet de passer fileServerPath, quotaGB, driveLetter
+        });
+        res.json(result);
+    }));
 
     router.get('/ad/ous', asyncHandler(async (req, res) => {
         const { parentId } = req.query; // parentId sera l'ID (DistinguishedName) de l'OU parente
@@ -289,6 +297,31 @@ module.exports = (broadcast) => {
         const result = await chatService.toggleReaction(messageId, channelId, emoji, getCurrentTechnician(req).id);
         broadcast({ type: 'chat_reaction_toggled', payload: { messageId, channelId } });
         res.json(result);
+    }));
+
+    // ✅ NOUVEAU - Routes pour messages privés
+    router.post('/chat/private', asyncHandler(async (req, res) => {
+        const { targetUserId, targetUser } = req.body;
+        const currentUser = getCurrentTechnician(req);
+
+        const result = await chatService.getOrCreatePrivateChannel(
+            currentUser.id,
+            targetUserId,
+            { name: currentUser.name, avatar: currentUser.avatar || currentUser.initials },
+            { name: targetUser.name, avatar: targetUser.avatar || targetUser.initials }
+        );
+
+        if (result.isNew) {
+            broadcast({ type: 'chat_private_channel_created', payload: result.channel });
+        }
+
+        res.json(result);
+    }));
+
+    router.get('/chat/private/channels', asyncHandler(async (req, res) => {
+        const currentUser = getCurrentTechnician(req);
+        const channels = await chatService.getPrivateChannels(currentUser.id);
+        res.json({ success: true, channels });
     }));
 
     // --- Natural Language Search ---

@@ -58,6 +58,7 @@ import {
 } from 'chart.js';
 import { Line, Bar, Pie, Doughnut } from 'react-chartjs-2';
 import axios from 'axios';
+import { getApiBaseUrl } from '../../services/backendConfig';
 
 // Enregistrement des composants Chart.js
 ChartJS.register(
@@ -72,8 +73,6 @@ ChartJS.register(
     Legend,
     Filler
 );
-
-const API_BASE = 'http://localhost:3002/api/ai';
 
 function DocumentAnalyticsDashboard() {
     // États
@@ -91,7 +90,8 @@ function DocumentAnalyticsDashboard() {
         try {
             setLoading(true);
 
-            const response = await axios.get(`${API_BASE}/analytics/documents`, {
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.get(`${apiBase}/ai/analytics/documents`, {
                 params: { timeRange }
             });
 
@@ -110,7 +110,8 @@ function DocumentAnalyticsDashboard() {
 
     const handleExport = async (format) => {
         try {
-            const response = await axios.get(`${API_BASE}/analytics/export`, {
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.get(`${apiBase}/ai/analytics/export`, {
                 params: { format, timeRange },
                 responseType: 'blob'
             });

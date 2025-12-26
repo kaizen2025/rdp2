@@ -39,8 +39,7 @@ import {
 } from '@mui/icons-material';
 
 import axios from 'axios';
-
-const API_BASE = '/api/ai';
+import { getApiBaseUrl } from '../../services/backendConfig';
 
 const ModelSelector = ({ provider, value, onChange, disabled }) => {
     const [models, setModels] = useState([]);
@@ -79,7 +78,8 @@ const ModelSelector = ({ provider, value, onChange, disabled }) => {
             setLoading(true);
             setError(null);
 
-            const response = await axios.get(`${API_BASE}/models/recommended`);
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.get(`${apiBase}/ai/models/recommended`);
 
             if (response.data.success) {
                 // Filtrer par provider
@@ -120,7 +120,8 @@ const ModelSelector = ({ provider, value, onChange, disabled }) => {
                 };
             }
 
-            const response = await axios.get(`${API_BASE}/providers/${provider}/models`, {
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.get(`${apiBase}/ai/providers/${provider}/models`, {
                 params
             });
 

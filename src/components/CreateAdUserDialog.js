@@ -21,7 +21,7 @@ import { useApp } from '../contexts/AppContext';
 import { useCache } from '../contexts/CacheContext';
 
 const Transition = React.forwardRef(function Transition(props, ref) {
-    return <Slide direction="up" ref={ref} {...props} />;
+    return <Slide direction="up" ref={ref} {...props} timeout={{ enter: 200, exit: 150 }} />;
 });
 
 // Sous-composant pour un champ de mot de passe amélioré (avec icônes)
@@ -88,7 +88,8 @@ const CreateAdUserDialog = ({ open, onClose, onSuccess, servers, defaultOU = "OU
             });
             setError(''); setSuccess(''); setFieldErrors({});
         }
-    }, [open, servers, defaultOU]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open]);
 
     useEffect(() => {
         if (formData.firstName && formData.lastName) {
@@ -159,6 +160,22 @@ const CreateAdUserDialog = ({ open, onClose, onSuccess, servers, defaultOU = "OU
             });
             if (!adResult.success) throw new Error(`Erreur AD: ${adResult.error}`);
             setSuccess(`Utilisateur ${formData.username} créé dans AD.`);
+
+            // ✅ NOUVEAU: Créer le dossier utilisateur sur le serveur de fichiers
+            try {
+                const folderResult = await apiService.createUserFolder({
+                    username: formData.username,
+                    fileServerPath: '\\\\192.168.1.230\\Utilisateurs'
+                });
+                if (folderResult.success) {
+                    setSuccess(prev => prev + ` Dossier créé: ${folderResult.path}`);
+                } else {
+                    showNotification('warning', `Utilisateur créé, mais erreur dossier: ${folderResult.error}`);
+                }
+            } catch (folderErr) {
+                showNotification('warning', `Utilisateur créé, mais erreur dossier: ${folderErr.message}`);
+            }
+
             if (formData.addToExcel) {
                 const excelResult = await apiService.saveUserToExcel({
                     user: {
@@ -188,10 +205,12 @@ const CreateAdUserDialog = ({ open, onClose, onSuccess, servers, defaultOU = "OU
         if (!firstName || !lastName) {
             showNotification('warning', 'Veuillez d\'abord saisir le prénom et le nom.'); return;
         }
-        const prenom = firstName.substring(0, 2).toLowerCase();
-        const nom = lastName.substring(0, 2).toLowerCase();
-        const digits = Math.floor(100 + Math.random() * 900);
-        const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', special = '!@#$%&';
+        // Format: 1ère lettre prénom + 1ère lettre nom + 4 chiffres + 2 majuscules + 1 symbole
+        // Exemple: Kevin BIVIA → kb3272XM&
+        const prenom = firstName.charAt(0).toLowerCase();
+        const nom = lastName.charAt(0).toLowerCase();
+        const digits = Math.floor(1000 + Math.random() * 9000); // 4 chiffres (1000-9999)
+        const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', special = '!@#$%&*+-=';
         const randomUpper = upper[Math.floor(Math.random() * upper.length)] + upper[Math.floor(Math.random() * upper.length)];
         const randomSpecial = special[Math.floor(Math.random() * special.length)];
         const pwd = `${prenom}${nom}${digits}${randomUpper}${randomSpecial}`;

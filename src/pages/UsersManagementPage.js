@@ -1,6 +1,6 @@
 // src/pages/UsersManagementPage.js - VERSION FINALE CORRIGÉE ET AMÉLIORÉE
 
-import React, { useState, useMemo, useCallback, memo, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, memo, useEffect, useRef } from 'react';
 import { Box, Paper, Typography, Button, IconButton, Tooltip, CircularProgress, FormControl, InputLabel, Select, MenuItem, Chip, Grid, Checkbox } from '@mui/material';
 import { PersonAdd as PersonAddIcon, Refresh as RefreshIcon, Clear as ClearIcon, Edit as EditIcon, Delete as DeleteIcon, Print as PrintIcon, VpnKey as VpnKeyIcon, Language as LanguageIcon, Settings as SettingsIcon, Person as PersonIcon, Dns as DnsIcon, Login as LoginIcon, Circle as CircleIcon } from '@mui/icons-material';
 
@@ -120,50 +120,95 @@ const UserRow = memo(({ user, isOdd, onEdit, onDelete, onConnectWithCredentials,
 });
 UserRow.displayName = 'UserRow';
 
-// 🛡️ LISTE SIMPLE SANS REACT-WINDOW - Plus robuste et sans dépendances problématiques
-const SimpleUserList = memo(({ users, vpnMembers, internetMembers, selectedUsernames, onEdit, onDelete, onConnectWithCredentials, onPrint, onOpenAdDialog, onMembershipChange, onSelect }) => {
-    console.log('[SimpleUserList] Rendering', { usersCount: users?.length });
+// 🚀 OPTIMISATION: Liste virtualisée avec rendu progressif pour performances optimales
+const VirtualizedUserList = memo(({ users, vpnMembers, internetMembers, selectedUsernames, onEdit, onDelete, onConnectWithCredentials, onPrint, onOpenAdDialog, onMembershipChange, onSelect }) => {
+    const [visibleRange, setVisibleRange] = useState({ start: 0, end: 50 });
+    const containerRef = useRef(null);
+    const ROW_HEIGHT = 72;
+    const BUFFER = 10;
+
+    // Gestionnaire de scroll optimisé avec throttle
+    const handleScroll = useCallback(() => {
+        if (!containerRef.current) return;
+
+        const { scrollTop, clientHeight } = containerRef.current;
+        const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER);
+        const visibleCount = Math.ceil(clientHeight / ROW_HEIGHT) + BUFFER * 2;
+        const end = Math.min(users.length, start + visibleCount);
+
+        setVisibleRange(prev => {
+            if (prev.start !== start || prev.end !== end) {
+                return { start, end };
+            }
+            return prev;
+        });
+    }, [users.length]);
+
+    // Throttle scroll pour éviter trop de re-renders
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        let ticking = false;
+        const throttledScroll = () => {
+            if (!ticking) {
+                requestAnimationFrame(() => {
+                    handleScroll();
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        };
+
+        container.addEventListener('scroll', throttledScroll);
+        handleScroll(); // Initial calculation
+        return () => container.removeEventListener('scroll', throttledScroll);
+    }, [handleScroll]);
 
     if (!Array.isArray(users) || users.length === 0) {
         return null;
     }
 
+    const totalHeight = users.length * ROW_HEIGHT;
+    const offsetY = visibleRange.start * ROW_HEIGHT;
+
     return (
-        <Box sx={{
-            maxHeight: 600,
-            overflow: 'auto',
-            '&::-webkit-scrollbar': {
-                width: '8px',
-            },
-            '&::-webkit-scrollbar-track': {
-                backgroundColor: 'grey.100',
-            },
-            '&::-webkit-scrollbar-thumb': {
-                backgroundColor: 'grey.400',
-                borderRadius: '4px',
-            },
-        }}>
-            {users.map((user, index) => (
-                <UserRow
-                    key={user?.username || `user-${index}`}
-                    user={user}
-                    isOdd={index % 2 === 1}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                    onConnectWithCredentials={onConnectWithCredentials}
-                    onPrint={onPrint}
-                    onOpenAdDialog={onOpenAdDialog}
-                    vpnMembers={vpnMembers}
-                    internetMembers={internetMembers}
-                    onMembershipChange={onMembershipChange}
-                    onSelect={onSelect}
-                    isSelected={selectedUsernames.has(user.username)}
-                />
-            ))}
+        <Box
+            ref={containerRef}
+            sx={{
+                height: 'calc(100vh - 380px)',
+                minHeight: 400,
+                overflow: 'auto',
+                '&::-webkit-scrollbar': { width: '8px' },
+                '&::-webkit-scrollbar-track': { backgroundColor: 'grey.100' },
+                '&::-webkit-scrollbar-thumb': { backgroundColor: 'grey.400', borderRadius: '4px' },
+            }}
+        >
+            <Box sx={{ height: totalHeight, position: 'relative' }}>
+                <Box sx={{ position: 'absolute', top: offsetY, left: 0, right: 0 }}>
+                    {users.slice(visibleRange.start, visibleRange.end).map((user, index) => (
+                        <UserRow
+                            key={user?.username || `user-${visibleRange.start + index}`}
+                            user={user}
+                            isOdd={(visibleRange.start + index) % 2 === 1}
+                            onEdit={onEdit}
+                            onDelete={onDelete}
+                            onConnectWithCredentials={onConnectWithCredentials}
+                            onPrint={onPrint}
+                            onOpenAdDialog={onOpenAdDialog}
+                            vpnMembers={vpnMembers}
+                            internetMembers={internetMembers}
+                            onMembershipChange={onMembershipChange}
+                            onSelect={onSelect}
+                            isSelected={selectedUsernames.has(user.username)}
+                        />
+                    ))}
+                </Box>
+            </Box>
         </Box>
     );
 });
-SimpleUserList.displayName = 'SimpleUserList';
+VirtualizedUserList.displayName = 'VirtualizedUserList';
 
 const UsersManagementPage = () => {
     const { showNotification } = useApp();
@@ -455,7 +500,7 @@ const UsersManagementPage = () => {
                                 <Box sx={{ flex: '0 0 auto', width: '180px' }}>ACTIONS</Box>
                             </Box>
                             <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                                <SimpleUserList
+                                <VirtualizedUserList
                                     users={filteredUsers}
                                     vpnMembers={vpnMembers}
                                     internetMembers={internetMembers}

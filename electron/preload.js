@@ -60,6 +60,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Obtenir la version de l'application
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
 
+    // Obtenir les ports backend (API + WebSocket)
+    getBackendInfo: () => ipcRenderer.invoke('get-backend-info'),
+
+    // ✅ NOUVEAU: Ouvrir DevTools manuellement
+    openDevTools: () => ipcRenderer.invoke('open-devtools'),
+
     // Listener pour les événements de mise à jour
     onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, ...args) => callback(...args)),
     onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', (event, ...args) => callback(...args)),

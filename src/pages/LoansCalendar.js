@@ -27,6 +27,21 @@ const STATUS_COLORS = {
     critical: { bg: '#d32f2f', text: 'white', label: 'Critique' }
 };
 
+// ✅ NOUVEAU: Palette de couleurs distinctes pour les matériels
+const MATERIAL_COLORS = [
+    '#1976d2', '#388e3c', '#9c27b0', '#f57c00', '#00796b',
+    '#c2185b', '#512da8', '#0288d1', '#689f38', '#e64a19',
+    '#5d4037', '#455a64', '#8e24aa', '#fbc02d', '#7b1fa2',
+    '#00acc1', '#43a047', '#d81b60', '#fb8c00', '#3949ab'
+];
+
+// ✅ NOUVEAU: Générer couleur unique basée sur l'ID du matériel
+const getComputerColor = (computerId) => {
+    if (!computerId) return MATERIAL_COLORS[0];
+    const hash = String(computerId).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return MATERIAL_COLORS[hash % MATERIAL_COLORS.length];
+};
+
 const getWeekDays = (currentDate) => {
     const startOfWeek = new Date(currentDate);
     const day = startOfWeek.getDay();
@@ -174,8 +189,8 @@ const LoansCalendar = () => {
     const isToday = (date) => {
         const today = new Date();
         return date.getDate() === today.getDate() &&
-               date.getMonth() === today.getMonth() &&
-               date.getFullYear() === today.getFullYear();
+            date.getMonth() === today.getMonth() &&
+            date.getFullYear() === today.getFullYear();
     };
 
     const handleDayClick = (dayInfo) => {
@@ -238,14 +253,15 @@ const LoansCalendar = () => {
                                     <Typography variant="body2" sx={{ fontWeight: isTodayDate ? 'bold' : 'normal', color: dayInfo.isCurrentMonth ? 'text.primary' : 'text.disabled' }}>{dayInfo.day}</Typography>
                                     <Box sx={{ mt: 0.5, width: '100%' }}>
                                         {dayLoans.slice(0, 2).map((loan) => (
-                                            <Tooltip key={loan.id} title={`Détails: ${loan.computerName} prêté à ${loan.userDisplayName || loan.userName}`}>
+                                            <Tooltip key={loan.id} title={`${loan.computerName} → ${loan.userDisplayName || loan.userName} (${STATUS_COLORS[loan.status]?.label || loan.status})`}>
                                                 <Box sx={{
                                                     fontSize: '0.65rem',
-                                                    bgcolor: STATUS_COLORS[loan.status]?.bg || '#grey',
-                                                    color: STATUS_COLORS[loan.status]?.text || 'white',
+                                                    bgcolor: getComputerColor(loan.computerId),
+                                                    color: 'white',
                                                     borderRadius: 1, px: 0.5, py: 0.3, mb: 0.5,
                                                     overflow: 'hidden',
-                                                    width: '100%'
+                                                    width: '100%',
+                                                    borderLeft: `3px solid ${STATUS_COLORS[loan.status]?.bg || '#888'}`
                                                 }}>
                                                     <Typography variant="caption" noWrap sx={{ fontWeight: 600, display: 'block', fontSize: '0.65rem', lineHeight: 1.2 }}>
                                                         {loan.computerName}
@@ -266,9 +282,25 @@ const LoansCalendar = () => {
             )}
 
             {view === 'week' && <WeekView currentDate={currentDate} loans={loans} />}
-            <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
-                <Typography variant="caption" sx={{ fontWeight: 'bold', mr: 1 }}>Légende:</Typography>
+            {/* Légende des statuts (bordure gauche) */}
+            <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center' }}>
+                <Typography variant="caption" sx={{ fontWeight: 'bold', mr: 1 }}>Statuts (bordure):</Typography>
                 {Object.entries(STATUS_COLORS).map(([status, config]) => (<Chip key={status} label={config.label} size="small" sx={{ bgcolor: config.bg, color: config.text }} />))}
+            </Box>
+            {/* Légende dynamique des matériels (couleur de fond) */}
+            <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center' }}>
+                <Typography variant="caption" sx={{ fontWeight: 'bold', mr: 1 }}>Matériels:</Typography>
+                {[...new Map(loans.map(l => [l.computerId, l])).values()].slice(0, 10).map(loan => (
+                    <Chip
+                        key={loan.computerId}
+                        label={loan.computerName}
+                        size="small"
+                        sx={{ bgcolor: getComputerColor(loan.computerId), color: 'white', fontSize: '0.7rem' }}
+                    />
+                ))}
+                {[...new Set(loans.map(l => l.computerId))].length > 10 && (
+                    <Typography variant="caption" color="text.secondary">+{[...new Set(loans.map(l => l.computerId))].length - 10} autres</Typography>
+                )}
             </Box>
             <Dialog open={detailDialogOpen} onClose={() => setDetailDialogOpen(false)} maxWidth="md" fullWidth>
                 <DialogTitle>

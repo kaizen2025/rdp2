@@ -65,6 +65,7 @@ const ChatInterfaceDocuCortex = ({ sessionId, onMessageSent }) => {
     const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false); // ✅ NOUVEAU
     const [allConversations, setAllConversations] = useState([]); // ✅ NOUVEAU
     const [isDragging, setIsDragging] = useState(false); // ✅ NOUVEAU - Drag & Drop
+    const [apiStatus, setApiStatus] = useState({ isOnline: false, lastCheck: null, checking: true }); // ✅ NOUVEAU - Statut API
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
     const dropZoneRef = useRef(null); // ✅ NOUVEAU
@@ -180,6 +181,35 @@ const ChatInterfaceDocuCortex = ({ sessionId, onMessageSent }) => {
             dropZone.removeEventListener('drop', handleDrop);
         };
     }, [handleDragEnter, handleDragLeave, handleDragOver, handleDrop]);
+
+    // ✅ NOUVEAU - Vérifier le statut de l'API IA
+    const checkApiStatus = useCallback(async () => {
+        try {
+            setApiStatus(prev => ({ ...prev, checking: true }));
+            // Tentative d'envoi d'un message simple pour tester l'API
+            const response = await apiService.sendAIMessage(sessionId, 'ping', []);
+            setApiStatus({
+                isOnline: true,
+                lastCheck: new Date(),
+                checking: false
+            });
+        } catch (error) {
+            console.error('API IA hors ligne:', error);
+            setApiStatus({
+                isOnline: false,
+                lastCheck: new Date(),
+                checking: false,
+                error: error.message
+            });
+        }
+    }, [sessionId]);
+
+    // Vérifier le statut de l'API au chargement et toutes les 2 minutes
+    useEffect(() => {
+        checkApiStatus();
+        const interval = setInterval(checkApiStatus, 120000); // Toutes les 2 minutes
+        return () => clearInterval(interval);
+    }, [checkApiStatus]);
 
     // ✅ NOUVEAU - Charger toutes les conversations pour l'historique
     const loadAllConversations = useCallback(async () => {
@@ -664,88 +694,61 @@ Je suis là pour **simplifier votre travail quotidien** et vous faire gagner du 
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            {/* Header */}
+            {/* ✅ OPTIMISATION: Toolbar compacte (en-tête principal dans AIAssistantPage) */}
             <Box sx={{
-                p: 2,
-                borderBottom: '1px solid #e0e0e0',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white'
+                px: 2,
+                py: 1,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'grey.50',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
             }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <BotIcon sx={{ fontSize: 32 }} />
-                        <Box>
-                            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                                DocuCortex
-                            </Typography>
-                            <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                                Le Cortex de vos Documents
-                            </Typography>
-                        </Box>
-                    </Box>
-
-                    {/* ✅ NOUVEAU - Toolbar Actions */}
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Tooltip title="Historique des conversations">
-                            <IconButton
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    {/* Indicateur de statut API */}
+                    {apiStatus.checking ? (
+                        <CircularProgress size={16} />
+                    ) : (
+                        <Tooltip
+                            title={
+                                apiStatus.isOnline
+                                    ? `API IA fonctionnelle`
+                                    : `API IA hors ligne - ${apiStatus.error || 'Veuillez vérifier la configuration'}`
+                            }
+                        >
+                            <Chip
+                                label={apiStatus.isOnline ? 'IA En ligne' : 'IA Hors ligne'}
                                 size="small"
-                                onClick={() => setHistoryDrawerOpen(true)}
-                                sx={{
-                                    color: 'white',
-                                    bgcolor: 'rgba(255,255,255,0.2)',
-                                    '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' }
-                                }}
-                            >
-                                <HistoryIcon />
-                            </IconButton>
+                                color={apiStatus.isOnline ? 'success' : 'error'}
+                                sx={{ height: 24, fontWeight: 600 }}
+                            />
                         </Tooltip>
+                    )}
+                </Box>
 
-                        <Tooltip title="Uploader un document">
-                            <Button
-                                variant="contained"
-                                size="small"
-                                startIcon={<UploadIcon />}
-                                onClick={handleUploadClick}
-                                sx={{
-                                    bgcolor: 'rgba(255,255,255,0.2)',
-                                    color: 'white',
-                                    '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' },
-                                    textTransform: 'none',
-                                    fontWeight: 600
-                                }}
-                            >
-                                Upload
-                            </Button>
-                        </Tooltip>
-
-                        <Tooltip title="Nouvelle conversation">
-                            <IconButton
-                                size="small"
-                                onClick={handleNewConversation}
-                                sx={{
-                                    color: 'white',
-                                    bgcolor: 'rgba(255,255,255,0.2)',
-                                    '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' }
-                                }}
-                            >
-                                <NewConversationIcon />
-                            </IconButton>
-                        </Tooltip>
-
-                        <Tooltip title="Effacer l'historique">
-                            <IconButton
-                                size="small"
-                                onClick={handleClearHistory}
-                                sx={{
-                                    color: 'white',
-                                    bgcolor: 'rgba(255,255,255,0.2)',
-                                    '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' }
-                                }}
-                            >
-                                <DeleteIcon />
-                            </IconButton>
-                        </Tooltip>
-                    </Box>
+                {/* Actions rapides */}
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    <Tooltip title="Historique">
+                        <IconButton size="small" onClick={() => setHistoryDrawerOpen(true)}>
+                            <HistoryIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Upload">
+                        <IconButton size="small" onClick={handleUploadClick} color="primary">
+                            <UploadIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Nouvelle conversation">
+                        <IconButton size="small" onClick={handleNewConversation}>
+                            <NewConversationIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Effacer">
+                        <IconButton size="small" onClick={handleClearHistory}>
+                            <DeleteIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
                 </Box>
             </Box>
 

@@ -1,4 +1,4 @@
-// src/pages/DashboardPage.js - VERSION REFONDEE AVEC SUPERVISION SERVEURS COMPLETE
+// src/pages/DashboardPage.js - VERSION COMPACTE ET OPTIMISEE
 
 import React, { memo, useMemo, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -6,7 +6,7 @@ import {
     Box, Grid, Paper, Typography, List, ListItem, ListItemText, ListItemAvatar,
     Tooltip, Chip, Avatar, CircularProgress, IconButton, LinearProgress,
     Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField,
-    Divider, Alert
+    Divider, Alert, Collapse
 } from '@mui/material';
 
 // Icons
@@ -17,7 +17,6 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import PeopleIcon from '@mui/icons-material/People';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import HistoryIcon from '@mui/icons-material/History';
-import SmartToyIcon from '@mui/icons-material/SmartToy';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import WarningIcon from '@mui/icons-material/Warning';
@@ -30,6 +29,10 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import MemoryIcon from '@mui/icons-material/Memory';
 import StorageIcon from '@mui/icons-material/Storage';
 import SpeedIcon from '@mui/icons-material/Speed';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ComputerIcon from '@mui/icons-material/Computer';
+import GroupsIcon from '@mui/icons-material/Groups';
 
 import { useCache } from '../contexts/CacheContext';
 import apiService from '../services/apiService';
@@ -39,173 +42,140 @@ import StatCard from '../components/common/StatCard';
 import LoadingScreen from '../components/common/LoadingScreen';
 
 // ===============================================
-// COMPOSANT DE CARTE SERVEUR AMELIORE
+// COMPOSANT DE CARTE SERVEUR COMPACT
 // ===============================================
-const ServerCard = memo(({ server, status, thresholds, onAnalyze }) => {
-    const getCpuColor = (percent) => {
+const ServerCard = memo(({ server, status, thresholds, sessions = 0 }) => {
+    const getColor = (percent, isInverse = false) => {
         if (!percent && percent !== 0) return 'default';
+        if (isInverse) {
+            if (percent > 30) return 'success';
+            if (percent > 10) return 'warning';
+            return 'error';
+        }
         if (percent < 60) return 'success';
         if (percent < (thresholds?.cpuPercent || 85)) return 'warning';
-        return 'error';
-    };
-
-    const getMemoryColor = (percent) => {
-        if (!percent && percent !== 0) return 'default';
-        if (percent < 60) return 'success';
-        if (percent < (thresholds?.memoryPercent || 85)) return 'warning';
-        return 'error';
-    };
-
-    const getDiskColor = (freePercent) => {
-        if (!freePercent && freePercent !== 0) return 'default';
-        if (freePercent > 30) return 'success';
-        if (freePercent > 10) return 'warning';
         return 'error';
     };
 
     const formatBytes = (bytes) => {
         if (!bytes || bytes === 0) return '0 GB';
         const gb = bytes / (1024 * 1024 * 1024);
-        return `${gb.toFixed(1)} GB`;
+        return `${gb.toFixed(0)} GB`;
     };
 
     const isOnline = status?.online;
     const cpuUsage = status?.cpu?.usage || 0;
-    const ramTotal = status?.storage?.total || 0;
-    const ramFree = status?.storage?.free || 0;
+    const ramTotal = status?.memory?.total || 0;
+    const ramFree = status?.memory?.free || 0;
     const ramUsedPercent = ramTotal > 0 ? ((ramTotal - ramFree) / ramTotal) * 100 : 0;
-    const diskFreePercent = ramTotal > 0 ? (ramFree / ramTotal) * 100 : 0;
+    const diskTotal = status?.storage?.total || 0;
+    const diskFree = status?.storage?.free || 0;
+    const diskFreePercent = diskTotal > 0 ? (diskFree / diskTotal) * 100 : 0;
+    const diskUsedPercent = 100 - diskFreePercent;
 
-    // Calculer les alertes
     const hasAlerts = (
         cpuUsage > (thresholds?.cpuPercent || 85) ||
         ramUsedPercent > (thresholds?.memoryPercent || 85) ||
         diskFreePercent < 15
     );
 
+    const MetricBar = ({ icon: Icon, label, value, percent, color, suffix = '%' }) => (
+        <Box sx={{ mb: 0.75 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.25 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Icon sx={{ fontSize: 14, color: `${color}.main` }} />
+                    <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>{label}</Typography>
+                </Box>
+                <Typography variant="caption" fontWeight={600} color={`${color}.main`} sx={{ fontSize: '0.7rem' }}>
+                    {value}{suffix}
+                </Typography>
+            </Box>
+            <LinearProgress
+                variant="determinate"
+                value={Math.min(percent, 100)}
+                color={color}
+                sx={{ height: 6, borderRadius: 3 }}
+            />
+        </Box>
+    );
+
     return (
         <Paper
-            elevation={2}
+            elevation={1}
             sx={{
-                p: 2,
-                height: '100%',
+                p: 1.25,
                 borderRadius: 2,
                 border: hasAlerts ? '2px solid' : '1px solid',
                 borderColor: hasAlerts ? 'error.main' : isOnline ? 'success.light' : 'grey.300',
-                bgcolor: isOnline ? 'background.paper' : 'grey.50',
-                transition: 'all 0.3s ease'
+                bgcolor: isOnline ? 'background.paper' : 'grey.100',
+                transition: 'all 0.2s ease',
+                minHeight: 160
             }}
         >
-            {/* Header */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <DnsIcon sx={{ fontSize: 20, color: isOnline ? 'primary.main' : 'grey.400' }} />
-                    <Typography variant="subtitle2" fontWeight={700} sx={{ textTransform: 'uppercase' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                    <DnsIcon sx={{ fontSize: 18, color: isOnline ? 'primary.main' : 'grey.400' }} />
+                    <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: '0.8rem' }}>
                         {server}
                     </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    {hasAlerts && (
-                        <Tooltip title="Alertes actives">
-                            <WarningIcon sx={{ fontSize: 18, color: 'error.main' }} />
-                        </Tooltip>
-                    )}
+                    {hasAlerts && <WarningIcon sx={{ fontSize: 14, color: 'error.main' }} />}
                     <Chip
-                        icon={isOnline ? <CheckCircleIcon /> : <CancelIcon />}
-                        label={isOnline ? 'En ligne' : 'Hors ligne'}
                         size="small"
+                        label={isOnline ? 'OK' : 'OFF'}
                         color={isOnline ? 'success' : 'error'}
-                        variant={isOnline ? 'filled' : 'outlined'}
-                        sx={{ height: 22, fontSize: '0.7rem' }}
+                        sx={{ height: 18, fontSize: '0.65rem', '& .MuiChip-label': { px: 0.75 } }}
                     />
                 </Box>
             </Box>
 
             {isOnline ? (
                 <>
-                    {/* CPU */}
-                    <Box sx={{ mb: 1.5 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <SpeedIcon sx={{ fontSize: 16, color: getCpuColor(cpuUsage) + '.main' }} />
-                                <Typography variant="caption" fontWeight={600}>CPU</Typography>
-                            </Box>
-                            <Typography variant="caption" fontWeight={700} color={getCpuColor(cpuUsage) + '.main'}>
-                                {cpuUsage.toFixed(1)}%
-                            </Typography>
-                        </Box>
-                        <LinearProgress
-                            variant="determinate"
-                            value={Math.min(cpuUsage, 100)}
-                            color={getCpuColor(cpuUsage)}
-                            sx={{ height: 8, borderRadius: 4 }}
-                        />
-                    </Box>
-
-                    {/* RAM */}
-                    <Box sx={{ mb: 1.5 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <MemoryIcon sx={{ fontSize: 16, color: getMemoryColor(ramUsedPercent) + '.main' }} />
-                                <Typography variant="caption" fontWeight={600}>RAM</Typography>
-                            </Box>
-                            <Typography variant="caption" fontWeight={700} color={getMemoryColor(ramUsedPercent) + '.main'}>
-                                {ramUsedPercent.toFixed(1)}%
-                            </Typography>
-                        </Box>
-                        <LinearProgress
-                            variant="determinate"
-                            value={Math.min(ramUsedPercent, 100)}
-                            color={getMemoryColor(ramUsedPercent)}
-                            sx={{ height: 8, borderRadius: 4 }}
-                        />
+                    <MetricBar
+                        icon={SpeedIcon}
+                        label="CPU"
+                        value={cpuUsage.toFixed(0)}
+                        percent={cpuUsage}
+                        color={getColor(cpuUsage)}
+                    />
+                    <MetricBar
+                        icon={MemoryIcon}
+                        label="RAM"
+                        value={ramUsedPercent.toFixed(0)}
+                        percent={ramUsedPercent}
+                        color={getColor(ramUsedPercent)}
+                    />
+                    <MetricBar
+                        icon={StorageIcon}
+                        label="Disque"
+                        value={diskUsedPercent.toFixed(0)}
+                        percent={diskUsedPercent}
+                        color={getColor(diskFreePercent, true)}
+                    />
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5, pt: 0.5, borderTop: '1px solid', borderColor: 'divider' }}>
                         <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
-                            {formatBytes(ramTotal - ramFree)} / {formatBytes(ramTotal)}
+                            RAM: {formatBytes(ramTotal - ramFree)}/{formatBytes(ramTotal)}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                            {formatBytes(diskFree)} libre
                         </Typography>
                     </Box>
-
-                    {/* Stockage */}
-                    <Box sx={{ mb: 1 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <StorageIcon sx={{ fontSize: 16, color: getDiskColor(diskFreePercent) + '.main' }} />
-                                <Typography variant="caption" fontWeight={600}>Stockage</Typography>
-                            </Box>
-                            <Typography variant="caption" fontWeight={700} color={getDiskColor(diskFreePercent) + '.main'}>
-                                {formatBytes(ramFree)} libre
+                    {sessions > 0 && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5, justifyContent: 'center' }}>
+                            <GroupsIcon sx={{ fontSize: 12, color: 'info.main' }} />
+                            <Typography variant="caption" color="info.main" sx={{ fontSize: '0.65rem', fontWeight: 600 }}>
+                                {sessions} session(s)
                             </Typography>
                         </Box>
-                        <LinearProgress
-                            variant="determinate"
-                            value={Math.min(100 - diskFreePercent, 100)}
-                            color={getDiskColor(diskFreePercent)}
-                            sx={{ height: 8, borderRadius: 4 }}
-                        />
-                    </Box>
-
-                    {/* Bouton analyse IA */}
-                    {onAnalyze && (
-                        <Button
-                            size="small"
-                            variant="outlined"
-                            startIcon={<SmartToyIcon />}
-                            onClick={() => onAnalyze(server, status)}
-                            sx={{ mt: 1, width: '100%', fontSize: '0.7rem' }}
-                        >
-                            Analyser avec IA
-                        </Button>
                     )}
                 </>
             ) : (
-                <Box sx={{ textAlign: 'center', py: 2 }}>
-                    <Typography variant="caption" color="error">
-                        Serveur inaccessible
+                <Box sx={{ textAlign: 'center', py: 1.5 }}>
+                    <CancelIcon sx={{ fontSize: 24, color: 'grey.400', mb: 0.5 }} />
+                    <Typography variant="caption" color="error" sx={{ display: 'block', fontSize: '0.7rem' }}>
+                        Inaccessible
                     </Typography>
-                    {status?.message && (
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontSize: '0.65rem' }}>
-                            {status.message}
-                        </Typography>
-                    )}
                 </Box>
             )}
         </Paper>
@@ -213,15 +183,16 @@ const ServerCard = memo(({ server, status, thresholds, onAnalyze }) => {
 });
 
 // ===============================================
-// COMPOSANT DE SUPERVISION SERVEURS COMPLET
+// COMPOSANT DE SUPERVISION SERVEURS OPTIMISE
 // ===============================================
-const ServerMonitoringSection = memo(({ onAnalyzeServer }) => {
+const ServerMonitoringSection = memo(() => {
     const { cache } = useCache();
     const [statuses, setStatuses] = useState({});
     const [isLoading, setIsLoading] = useState(true);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [serverList, setServerList] = useState([]);
     const [newServer, setNewServer] = useState('');
+    const [lastUpdate, setLastUpdate] = useState(null);
     const [thresholds, setThresholds] = useState({
         cpuPercent: 85,
         memoryPercent: 85,
@@ -229,6 +200,15 @@ const ServerMonitoringSection = memo(({ onAnalyzeServer }) => {
     });
 
     const serversToPing = useMemo(() => cache.config?.rds_servers || [], [cache.config]);
+    const rdsSessions = useMemo(() => cache.rds_sessions || [], [cache.rds_sessions]);
+
+    // Compter les sessions par serveur
+    const sessionsByServer = useMemo(() => {
+        return rdsSessions.reduce((acc, session) => {
+            acc[session.server] = (acc[session.server] || 0) + 1;
+            return acc;
+        }, {});
+    }, [rdsSessions]);
 
     const fetchStatuses = useCallback(async () => {
         if (serversToPing.length === 0) {
@@ -245,6 +225,7 @@ const ServerMonitoringSection = memo(({ onAnalyzeServer }) => {
                     online: res.success,
                     message: res.output,
                     cpu: res.cpu,
+                    memory: res.memory,
                     storage: res.storage
                 };
             } catch (err) {
@@ -257,11 +238,13 @@ const ServerMonitoringSection = memo(({ onAnalyzeServer }) => {
                 online: curr.online,
                 message: curr.message,
                 cpu: curr.cpu,
+                memory: curr.memory,
                 storage: curr.storage
             };
             return acc;
         }, {});
         setStatuses(newStatuses);
+        setLastUpdate(new Date());
         setIsLoading(false);
     }, [serversToPing]);
 
@@ -274,12 +257,20 @@ const ServerMonitoringSection = memo(({ onAnalyzeServer }) => {
 
     const handleAddServer = async () => {
         if (!newServer.trim()) return;
+        const serverName = newServer.trim().toUpperCase();
+
+        // Vérifier si le serveur existe déjà
+        if (serverList.includes(serverName)) {
+            console.warn(`Le serveur ${serverName} existe déjà`);
+            return;
+        }
+
         try {
-            const updatedList = [...serverList, newServer.trim().toUpperCase()];
+            const updatedList = [...serverList, serverName];
             await apiService.updateConfig({ rds_servers: updatedList });
             setServerList(updatedList);
             setNewServer('');
-            // Rafraichir les statuts
+            // Forcer un rafraîchissement immédiat pour le nouveau serveur
             setTimeout(fetchStatuses, 500);
         } catch (error) {
             console.error('Erreur ajout serveur:', error);
@@ -287,104 +278,140 @@ const ServerMonitoringSection = memo(({ onAnalyzeServer }) => {
     };
 
     const handleDeleteServer = async (serverName) => {
+        if (!window.confirm(`Voulez-vous vraiment retirer ${serverName} de la supervision ?`)) {
+            return;
+        }
         try {
             const updatedList = serverList.filter(s => s !== serverName);
             await apiService.updateConfig({ rds_servers: updatedList });
             setServerList(updatedList);
+            // Nettoyer le statut du serveur supprimé
+            setStatuses(prev => {
+                const newStatuses = { ...prev };
+                delete newStatuses[serverName];
+                return newStatuses;
+            });
         } catch (error) {
             console.error('Erreur suppression serveur:', error);
         }
     };
 
-    const alertCount = useMemo(() => {
-        return Object.values(statuses).reduce((count, status) => {
-            if (!status.online) return count + 1;
-            let alerts = 0;
-            if (status.cpu?.usage > thresholds.cpuPercent) alerts++;
-            if (status.storage) {
-                const usedPercent = ((status.storage.total - status.storage.free) / status.storage.total) * 100;
-                if (usedPercent > thresholds.memoryPercent) alerts++;
+    const { alertCount, onlineCount } = useMemo(() => {
+        let alerts = 0;
+        let online = 0;
+        Object.values(statuses).forEach(status => {
+            if (!status.online) {
+                alerts++;
+            } else {
+                online++;
+                if (status.cpu?.usage > thresholds.cpuPercent) alerts++;
+                const ramTotal = status.memory?.total || 0;
+                const ramFree = status.memory?.free || 0;
+                const ramUsedPercent = ramTotal > 0 ? ((ramTotal - ramFree) / ramTotal) * 100 : 0;
+                if (ramUsedPercent > thresholds.memoryPercent) alerts++;
+                const diskTotal = status.storage?.total || 0;
+                const diskFree = status.storage?.free || 0;
+                const diskFreePercent = diskTotal > 0 ? (diskFree / diskTotal) * 100 : 0;
+                if (diskFreePercent < 15) alerts++;
             }
-            return count + alerts;
-        }, 0);
+        });
+        return { alertCount: alerts, onlineCount: online };
     }, [statuses, thresholds]);
+
+    const totalSessions = rdsSessions.length;
 
     return (
         <>
-            <Paper elevation={3} sx={{ p: 2.5, borderRadius: 3, mb: 2.5 }}>
-                {/* Header */}
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <DnsIcon sx={{ fontSize: 28, color: 'primary.main' }} />
-                        <Box>
-                            <Typography variant="h6" fontWeight={700}>
-                                Supervision Serveurs RDS
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                                Monitoring en temps réel - Actualisation automatique
-                            </Typography>
-                        </Box>
-                    </Box>
+            <Paper elevation={2} sx={{ p: 1.5, borderRadius: 2, mb: 2 }}>
+                {/* Header compact */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <DnsIcon sx={{ fontSize: 22, color: 'primary.main' }} />
+                        <Typography variant="subtitle1" fontWeight={700}>
+                            Supervision RDS
+                        </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                         <Chip
-                            label={`${serversToPing.length} serveur(s)`}
                             size="small"
-                            color="primary"
-                            sx={{ fontWeight: 600 }}
+                            label={`${onlineCount}/${serversToPing.length}`}
+                            color={onlineCount === serversToPing.length ? 'success' : 'warning'}
+                            sx={{ height: 22, fontSize: '0.7rem' }}
                         />
-                        {alertCount > 0 && (
+                        {totalSessions > 0 && (
                             <Chip
-                                icon={<WarningIcon />}
-                                label={`${alertCount} alerte(s)`}
                                 size="small"
-                                color="error"
-                                sx={{ fontWeight: 600 }}
+                                icon={<GroupsIcon sx={{ fontSize: '14px !important' }} />}
+                                label={totalSessions}
+                                color="info"
+                                sx={{ height: 22, fontSize: '0.7rem' }}
                             />
                         )}
-                        <Tooltip title="Configurer les serveurs">
-                            <IconButton onClick={() => setSettingsOpen(true)} color="primary">
-                                <SettingsIcon />
+                        {alertCount > 0 && (
+                            <Chip
+                                size="small"
+                                icon={<WarningIcon sx={{ fontSize: '14px !important' }} />}
+                                label={alertCount}
+                                color="error"
+                                sx={{ height: 22, fontSize: '0.7rem' }}
+                            />
+                        )}
+                        <Tooltip title="Configurer">
+                            <IconButton size="small" onClick={() => setSettingsOpen(true)} color="primary">
+                                <SettingsIcon sx={{ fontSize: 18 }} />
                             </IconButton>
                         </Tooltip>
-                        <Tooltip title="Rafraichir">
-                            <IconButton onClick={fetchStatuses} disabled={isLoading}>
-                                <RefreshIcon sx={{ animation: isLoading ? 'spin 1s linear infinite' : 'none' }} />
+                        <Tooltip title="Actualiser">
+                            <IconButton size="small" onClick={fetchStatuses} disabled={isLoading}>
+                                <RefreshIcon sx={{ fontSize: 18, animation: isLoading ? 'spin 1s linear infinite' : 'none' }} />
                             </IconButton>
                         </Tooltip>
                     </Box>
                 </Box>
 
-                {/* Grille des serveurs */}
+                {/* Grille des serveurs - Layout dynamique adapté au nombre de serveurs */}
                 {isLoading && serversToPing.length === 0 ? (
-                    <Box sx={{ textAlign: 'center', py: 4 }}>
-                        <CircularProgress size={32} />
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                            Chargement des serveurs...
-                        </Typography>
+                    <Box sx={{ textAlign: 'center', py: 3 }}>
+                        <CircularProgress size={28} />
                     </Box>
                 ) : serversToPing.length === 0 ? (
-                    <Alert severity="info" sx={{ mb: 2 }}>
-                        Aucun serveur configuré. Cliquez sur l'engrenage pour ajouter des serveurs RDS.
+                    <Alert severity="info" sx={{ py: 0.5 }}>
+                        Aucun serveur configuré. Cliquez sur l'engrenage pour ajouter des serveurs.
                     </Alert>
                 ) : (
-                    <Grid container spacing={2}>
-                        {serversToPing.map(server => (
-                            <Grid item xs={12} sm={6} md={3} key={server}>
-                                <ServerCard
-                                    server={server}
-                                    status={statuses[server]}
-                                    thresholds={thresholds}
-                                    onAnalyze={onAnalyzeServer}
-                                />
-                            </Grid>
-                        ))}
+                    <Grid container spacing={1}>
+                        {serversToPing.map(server => {
+                            // Calcul dynamique de la largeur des colonnes selon le nombre de serveurs
+                            const serverCount = serversToPing.length;
+                            let gridSize = { xs: 12, sm: 6, md: 4, lg: 3, xl: 2 };
+
+                            // Adapter la grille pour un affichage optimal
+                            if (serverCount === 1) gridSize = { xs: 12, sm: 12, md: 12 };
+                            else if (serverCount === 2) gridSize = { xs: 12, sm: 6, md: 6 };
+                            else if (serverCount === 3) gridSize = { xs: 12, sm: 6, md: 4 };
+                            else if (serverCount <= 6) gridSize = { xs: 12, sm: 6, md: 4, lg: 3 };
+                            else gridSize = { xs: 12, sm: 6, md: 4, lg: 3, xl: 2 };
+
+                            return (
+                                <Grid item {...gridSize} key={server}>
+                                    <ServerCard
+                                        server={server}
+                                        status={statuses[server]}
+                                        thresholds={thresholds}
+                                        sessions={sessionsByServer[server] || 0}
+                                    />
+                                </Grid>
+                            );
+                        })}
                     </Grid>
                 )}
 
                 {/* Footer */}
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2, textAlign: 'right' }}>
-                    Derniere mise a jour: {new Date().toLocaleTimeString('fr-FR')}
-                </Typography>
+                {lastUpdate && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, textAlign: 'right', fontSize: '0.65rem' }}>
+                        Maj: {lastUpdate.toLocaleTimeString('fr-FR')}
+                    </Typography>
+                )}
             </Paper>
 
             {/* Dialog de configuration */}
@@ -392,15 +419,14 @@ const ServerMonitoringSection = memo(({ onAnalyzeServer }) => {
                 <DialogTitle sx={{ pb: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <SettingsIcon color="primary" />
-                        <Typography variant="h6">Configuration des Serveurs RDS</Typography>
+                        <Typography variant="h6">Configuration Serveurs RDS</Typography>
                     </Box>
                 </DialogTitle>
                 <DialogContent>
-                    {/* Seuils d'alerte */}
                     <Typography variant="subtitle2" gutterBottom sx={{ mt: 1, fontWeight: 600 }}>
                         Seuils d'Alerte
                     </Typography>
-                    <Grid container spacing={2} sx={{ mb: 3 }}>
+                    <Grid container spacing={2} sx={{ mb: 2 }}>
                         <Grid item xs={4}>
                             <TextField
                                 fullWidth
@@ -416,7 +442,7 @@ const ServerMonitoringSection = memo(({ onAnalyzeServer }) => {
                             <TextField
                                 fullWidth
                                 size="small"
-                                label="Memoire (%)"
+                                label="RAM (%)"
                                 type="number"
                                 value={thresholds.memoryPercent}
                                 onChange={(e) => setThresholds({ ...thresholds, memoryPercent: parseInt(e.target.value) || 85 })}
@@ -438,55 +464,45 @@ const ServerMonitoringSection = memo(({ onAnalyzeServer }) => {
 
                     <Divider sx={{ my: 2 }} />
 
-                    {/* Liste des serveurs */}
                     <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
-                        Serveurs a Monitorer
+                        Serveurs ({serverList.length})
                     </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                    <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
                         <TextField
                             fullWidth
                             size="small"
-                            placeholder="Nom du serveur (ex: SRV-RDS-5)"
+                            placeholder="Ex: SRV-RDS-5"
                             value={newServer}
                             onChange={(e) => setNewServer(e.target.value.toUpperCase())}
                             onKeyPress={(e) => e.key === 'Enter' && handleAddServer()}
                         />
-                        <Button
-                            variant="contained"
-                            startIcon={<AddIcon />}
-                            onClick={handleAddServer}
-                            disabled={!newServer.trim()}
-                        >
-                            Ajouter
+                        <Button variant="contained" size="small" onClick={handleAddServer} disabled={!newServer.trim()}>
+                            <AddIcon />
                         </Button>
                     </Box>
 
-                    <List dense sx={{ maxHeight: 200, overflow: 'auto', bgcolor: 'grey.50', borderRadius: 1 }}>
+                    <List dense sx={{ maxHeight: 180, overflow: 'auto', bgcolor: 'grey.50', borderRadius: 1 }}>
                         {serverList.map((server, idx) => (
-                            <ListItem key={idx} divider sx={{ py: 1 }}>
+                            <ListItem key={idx} divider sx={{ py: 0.5 }}>
                                 <ListItemAvatar>
-                                    <Avatar sx={{ bgcolor: statuses[server]?.online ? 'success.main' : 'grey.400', width: 32, height: 32 }}>
-                                        <DnsIcon sx={{ fontSize: 18 }} />
+                                    <Avatar sx={{ bgcolor: statuses[server]?.online ? 'success.main' : 'grey.400', width: 28, height: 28 }}>
+                                        <DnsIcon sx={{ fontSize: 16 }} />
                                     </Avatar>
                                 </ListItemAvatar>
                                 <ListItemText
                                     primary={server}
-                                    secondary={statuses[server]?.online ? 'En ligne' : 'Hors ligne'}
-                                    primaryTypographyProps={{ fontWeight: 600 }}
+                                    secondary={statuses[server]?.online ? `En ligne - ${sessionsByServer[server] || 0} sessions` : 'Hors ligne'}
+                                    primaryTypographyProps={{ fontWeight: 600, fontSize: '0.85rem' }}
+                                    secondaryTypographyProps={{ fontSize: '0.7rem' }}
                                 />
-                                <IconButton
-                                    edge="end"
-                                    size="small"
-                                    onClick={() => handleDeleteServer(server)}
-                                    color="error"
-                                >
+                                <IconButton size="small" onClick={() => handleDeleteServer(server)} color="error">
                                     <DeleteIcon fontSize="small" />
                                 </IconButton>
                             </ListItem>
                         ))}
                         {serverList.length === 0 && (
                             <Typography variant="caption" color="text.secondary" sx={{ p: 2, display: 'block', textAlign: 'center' }}>
-                                Aucun serveur configure
+                                Aucun serveur
                             </Typography>
                         )}
                     </List>
@@ -496,7 +512,6 @@ const ServerMonitoringSection = memo(({ onAnalyzeServer }) => {
                 </DialogActions>
             </Dialog>
 
-            {/* Keyframes pour l'animation de refresh */}
             <style>{`
                 @keyframes spin {
                     from { transform: rotate(0deg); }
@@ -508,47 +523,36 @@ const ServerMonitoringSection = memo(({ onAnalyzeServer }) => {
 });
 
 // ===============================================
-// COMPOSANTS SECONDAIRES
+// COMPOSANTS SECONDAIRES COMPACTS
 // ===============================================
 const ConnectedTechniciansWidget = memo(() => {
     const { cache } = useCache();
     const technicians = useMemo(() => cache.technicians || [], [cache.technicians]);
 
-    const calculateConnectionTime = (loginTime) => {
-        if (!loginTime) return 'Recent';
-        const diffMins = Math.floor((new Date() - new Date(loginTime)) / 60000);
-        if (diffMins < 1) return "A l'instant";
-        if (diffMins < 60) return `${diffMins} min`;
-        return `${Math.floor(diffMins / 60)}h ${diffMins % 60}min`;
-    };
-
     return (
-        <Paper elevation={2} sx={{ p: 2, height: '100%', borderRadius: 2 }}>
-            <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center', fontWeight: 600, mb: 1.5 }}>
-                <PeopleIcon sx={{ mr: 1, fontSize: 20, color: 'secondary.main' }} />
-                Techniciens Connectes ({technicians.length})
-            </Typography>
-            <List dense disablePadding sx={{ maxHeight: 200, overflowY: 'auto' }}>
+        <Paper elevation={1} sx={{ p: 1.25, height: '100%', borderRadius: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <PeopleIcon sx={{ fontSize: 16, color: 'secondary.main' }} />
+                    <Typography variant="caption" fontWeight={600}>Techniciens</Typography>
+                </Box>
+                <Chip size="small" label={technicians.length} color="secondary" sx={{ height: 18, fontSize: '0.65rem' }} />
+            </Box>
+            <List dense disablePadding sx={{ maxHeight: 100, overflowY: 'auto' }}>
                 {technicians.length > 0 ? technicians.map(tech => (
-                    <ListItem key={tech.id} disableGutters sx={{ py: 0.5 }}>
-                        <ListItemAvatar sx={{ minWidth: 36 }}>
-                            <Avatar sx={{ width: 30, height: 30, fontSize: '0.8rem', bgcolor: 'secondary.main' }}>
+                    <ListItem key={tech.id} disableGutters sx={{ py: 0.25 }}>
+                        <ListItemAvatar sx={{ minWidth: 28 }}>
+                            <Avatar sx={{ width: 22, height: 22, fontSize: '0.65rem', bgcolor: 'secondary.main' }}>
                                 {tech.name?.charAt(0) || '?'}
                             </Avatar>
                         </ListItemAvatar>
                         <ListItemText
-                            primary={<Typography variant="body2" fontWeight={500}>{tech.name}</Typography>}
-                            secondary={
-                                <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                    <AccessTimeIcon sx={{ fontSize: 12 }} />
-                                    <Typography variant="caption">{calculateConnectionTime(tech.loginTime)}</Typography>
-                                </Box>
-                            }
+                            primary={<Typography variant="caption" sx={{ fontSize: '0.7rem' }}>{tech.name}</Typography>}
                         />
                     </ListItem>
                 )) : (
-                    <Typography variant="caption" color="text.secondary" sx={{ py: 2, textAlign: 'center', display: 'block' }}>
-                        Aucun technicien connecte
+                    <Typography variant="caption" color="text.secondary" sx={{ py: 1, textAlign: 'center', display: 'block', fontSize: '0.7rem' }}>
+                        Aucun connecte
                     </Typography>
                 )}
             </List>
@@ -561,32 +565,78 @@ const RecentActivityWidget = memo(() => {
     const activities = cache.loan_history || [];
 
     const getActivityIcon = (e) => ({
-        created: <AssignmentIcon color="success" fontSize="small" />,
-        returned: <CheckCircleIcon color="primary" fontSize="small" />,
-        extended: <TrendingUpIcon color="info" fontSize="small" />,
-        cancelled: <CancelIcon color="error" fontSize="small" />
-    }[e] || <HistoryIcon fontSize="small" />);
+        created: <AssignmentIcon sx={{ fontSize: 14, color: 'success.main' }} />,
+        returned: <CheckCircleIcon sx={{ fontSize: 14, color: 'primary.main' }} />,
+        extended: <TrendingUpIcon sx={{ fontSize: 14, color: 'info.main' }} />,
+        cancelled: <CancelIcon sx={{ fontSize: 14, color: 'error.main' }} />
+    }[e] || <HistoryIcon sx={{ fontSize: 14 }} />);
 
-    const getActivityText = (act) => `${({ created: 'Pret', returned: 'Retour', extended: 'Prolong.', cancelled: 'Annul.' }[act.eventType] || 'Action')}: ${act.computerName || 'N/A'}`;
+    const getLabel = (t) => ({ created: 'Pret', returned: 'Retour', extended: 'Prolong.', cancelled: 'Annul.' }[t] || 'Action');
 
     return (
-        <Paper elevation={2} sx={{ p: 2, height: '100%', borderRadius: 2 }}>
-            <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center', fontWeight: 600, mb: 1.5 }}>
-                <HistoryIcon sx={{ mr: 1, fontSize: 20, color: 'info.main' }} />
-                Activite Recente
-            </Typography>
-            <List dense disablePadding sx={{ maxHeight: 200, overflowY: 'auto' }}>
-                {activities.length > 0 ? activities.slice(0, 6).map(act => (
-                    <ListItem key={act.id} disableGutters sx={{ py: 0.5 }}>
-                        <ListItemAvatar sx={{ minWidth: 32 }}>{getActivityIcon(act.eventType)}</ListItemAvatar>
+        <Paper elevation={1} sx={{ p: 1.25, height: '100%', borderRadius: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.75 }}>
+                <HistoryIcon sx={{ fontSize: 16, color: 'info.main' }} />
+                <Typography variant="caption" fontWeight={600}>Activite Recente</Typography>
+            </Box>
+            <List dense disablePadding sx={{ maxHeight: 100, overflowY: 'auto' }}>
+                {activities.length > 0 ? activities.slice(0, 5).map(act => (
+                    <ListItem key={act.id} disableGutters sx={{ py: 0.25 }}>
+                        <ListItemAvatar sx={{ minWidth: 22 }}>{getActivityIcon(act.eventType)}</ListItemAvatar>
                         <ListItemText
-                            primary={<Typography variant="caption">{getActivityText(act)}</Typography>}
-                            secondary={<Typography variant="caption" sx={{ fontSize: '0.65rem' }}>Par {act.by || 'Syst.'}</Typography>}
+                            primary={
+                                <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
+                                    <strong>{getLabel(act.eventType)}</strong> {act.computerName || 'N/A'}
+                                </Typography>
+                            }
                         />
                     </ListItem>
                 )) : (
-                    <Typography variant="caption" color="text.secondary" sx={{ py: 2, textAlign: 'center', display: 'block' }}>
-                        Aucune activite recente
+                    <Typography variant="caption" color="text.secondary" sx={{ py: 1, textAlign: 'center', display: 'block', fontSize: '0.7rem' }}>
+                        Aucune activite
+                    </Typography>
+                )}
+            </List>
+        </Paper>
+    );
+});
+
+const OverdueLoansWidget = memo(({ loans, onClick }) => {
+    return (
+        <Paper elevation={1} sx={{ p: 1.25, height: '100%', borderRadius: 2, borderLeft: loans.length > 0 ? '3px solid' : 'none', borderColor: 'error.main' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <WarningIcon sx={{ fontSize: 16, color: loans.length > 0 ? 'error.main' : 'text.secondary' }} />
+                    <Typography variant="caption" fontWeight={600} color={loans.length > 0 ? 'error.main' : 'text.primary'}>
+                        Retards
+                    </Typography>
+                </Box>
+                <Chip
+                    size="small"
+                    label={loans.length}
+                    color={loans.length > 0 ? 'error' : 'default'}
+                    sx={{ height: 18, fontSize: '0.65rem' }}
+                />
+            </Box>
+            <List dense disablePadding sx={{ maxHeight: 100, overflowY: 'auto' }}>
+                {loans.length > 0 ? loans.slice(0, 5).map(l => (
+                    <ListItem key={l.id} disableGutters sx={{ py: 0.25, cursor: 'pointer' }} onClick={onClick}>
+                        <ListItemText
+                            primary={
+                                <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
+                                    <strong>{l.computerName}</strong>
+                                </Typography>
+                            }
+                            secondary={
+                                <Typography variant="caption" color="error" sx={{ fontSize: '0.65rem' }}>
+                                    {l.userDisplayName} - {new Date(l.expectedReturnDate).toLocaleDateString('fr-FR')}
+                                </Typography>
+                            }
+                        />
+                    </ListItem>
+                )) : (
+                    <Typography variant="caption" color="text.secondary" sx={{ py: 1, textAlign: 'center', display: 'block', fontSize: '0.7rem' }}>
+                        Aucun retard
                     </Typography>
                 )}
             </List>
@@ -595,7 +645,72 @@ const RecentActivityWidget = memo(() => {
 });
 
 // ===============================================
-// COMPOSANT PRINCIPAL DASHBOARD
+// MINI STAT CARD MODERNE ET ATTRAYANT
+// ===============================================
+const MiniStatCard = memo(({ title, value, subtitle, icon: Icon, color, onClick }) => (
+    <Paper
+        elevation={2}
+        onClick={onClick}
+        sx={{
+            p: 2.5,
+            borderRadius: 3,
+            cursor: onClick ? 'pointer' : 'default',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            background: `linear-gradient(135deg, ${color === 'primary' ? '#667eea 0%, #764ba2 100%' :
+                color === 'info' ? '#4facfe 0%, #00f2fe 100%' :
+                color === 'error' ? '#f093fb 0%, #f5576c 100%' :
+                '#43e97b 0%, #38f9d7 100%'})`,
+            color: 'white',
+            position: 'relative',
+            overflow: 'hidden',
+            '&:hover': onClick ? {
+                transform: 'translateY(-8px) scale(1.02)',
+                boxShadow: 8,
+                '&::before': {
+                    opacity: 1
+                }
+            } : {},
+            '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%)',
+                opacity: 0,
+                transition: 'opacity 0.3s'
+            }
+        }}
+    >
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
+            <Box>
+                <Typography variant="h3" fontWeight={800} sx={{ textShadow: '2px 2px 4px rgba(0,0,0,0.2)' }}>
+                    {value}
+                </Typography>
+                <Typography variant="body1" fontWeight={700} sx={{ mt: 0.5, opacity: 0.95 }}>
+                    {title}
+                </Typography>
+                {subtitle && (
+                    <Typography variant="caption" sx={{ display: 'block', mt: 0.5, opacity: 0.85 }}>
+                        {subtitle}
+                    </Typography>
+                )}
+            </Box>
+            <Avatar sx={{
+                bgcolor: 'rgba(255, 255, 255, 0.25)',
+                width: 64,
+                height: 64,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+            }}>
+                <Icon sx={{ fontSize: 36, color: 'white' }} />
+            </Avatar>
+        </Box>
+    </Paper>
+));
+
+// ===============================================
+// COMPOSANT PRINCIPAL DASHBOARD COMPACT
 // ===============================================
 const DashboardPage = ({ onAnalyzeServer }) => {
     const navigate = useNavigate();
@@ -603,7 +718,7 @@ const DashboardPage = ({ onAnalyzeServer }) => {
 
     const { loans = [], computers = [], loan_history = [] } = cache;
 
-    const { activeLoans, overdueLoans, stats } = useMemo(() => {
+    const { overdueLoans, stats } = useMemo(() => {
         const active = loans.filter(l => l.status === 'active');
         const overdue = loans.filter(l => l.status === 'overdue' || l.status === 'critical');
         const statistics = {
@@ -621,129 +736,107 @@ const DashboardPage = ({ onAnalyzeServer }) => {
                 totalLoans: loan_history.filter(h => h.eventType === 'created').length,
             }
         };
-        return { activeLoans: active, overdueLoans: overdue, stats: statistics };
+        return { overdueLoans: overdue, stats: statistics };
     }, [loans, computers, loan_history]);
-
-    const handleAnalyzeServer = (server, status) => {
-        const prompt = `J'aimerais une analyse du serveur RDS "${server}". Voici les metriques actuelles :
-- Utilisation CPU : ${status?.cpu?.usage?.toFixed(2) || 'N/A'}%
-- Stockage total : ${status?.storage?.total || 'N/A'}
-- Stockage libre : ${status?.storage?.free || 'N/A'}
-
-Peux-tu me donner un diagnostic et des pistes d'optimisation ?`;
-        if (onAnalyzeServer) {
-            onAnalyzeServer(prompt);
-        }
-    };
 
     if (isLoading) {
         return <LoadingScreen type="dashboard" />;
     }
 
     return (
-        <Box sx={{ p: { xs: 1.5, sm: 2.5 }, maxHeight: '100vh', overflow: 'auto' }}>
-            <PageHeader
-                title="Tableau de Bord"
-                subtitle="Vue d'ensemble de l'activite RDS et gestion des prets"
-                icon={DashboardIcon}
-            />
+        <Box sx={{ p: { xs: 1, sm: 2 }, maxHeight: '100vh', overflow: 'auto' }}>
+            {/* Header moderne avec gradient */}
+            <Box sx={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                p: 3,
+                borderRadius: 3,
+                color: 'white',
+                mb: 3,
+                boxShadow: '0 8px 32px rgba(102, 126, 234, 0.3)',
+                position: 'relative',
+                overflow: 'hidden',
+                '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'radial-gradient(circle at top right, rgba(255,255,255,0.1) 0%, transparent 60%)',
+                }
+            }}>
+                <Box sx={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <DashboardIcon sx={{ fontSize: 48, opacity: 0.9 }} />
+                    <Box>
+                        <Typography variant="h4" fontWeight={800} sx={{ textShadow: '2px 2px 4px rgba(0,0,0,0.2)' }}>
+                            Tableau de Bord RDS
+                        </Typography>
+                        <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.5 }}>
+                            Supervision complète et gestion des ressources
+                        </Typography>
+                    </Box>
+                </Box>
+            </Box>
 
-            {/* Section Stats principales */}
-            <Grid container spacing={2} sx={{ mb: 2.5 }}>
-                <Grid item xs={12} sm={6} md={3}>
-                    <StatCard
-                        title="Materiel Total"
+            {/* Stats modernes avec gradients */}
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={6} sm={3}>
+                    <MiniStatCard
+                        title="Materiel"
                         value={stats.computers.total}
-                        subtitle={`${stats.computers.available} disponibles`}
+                        subtitle={`${stats.computers.available} dispo`}
                         icon={LaptopChromebookIcon}
                         color="primary"
-                        loading={isLoading}
-                        onClick={() => navigate('/loans', { state: { initialTab: 1 }})}
-                        tooltip="Stock total d'ordinateurs et disponibilite"
+                        onClick={() => navigate('/loans', { state: { initialTab: 1 } })}
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <StatCard
+                <Grid item xs={6} sm={3}>
+                    <MiniStatCard
                         title="Prets Actifs"
                         value={stats.loans.active}
                         subtitle={`${stats.loans.reserved} reserves`}
                         icon={AssignmentIcon}
                         color="info"
-                        loading={isLoading}
-                        onClick={() => navigate('/loans', { state: { initialTab: 0 }})}
-                        tooltip="Prets en cours et reservations"
+                        onClick={() => navigate('/loans', { state: { initialTab: 0 } })}
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <StatCard
+                <Grid item xs={6} sm={3}>
+                    <MiniStatCard
                         title="En Retard"
                         value={stats.loans.overdue + stats.loans.critical}
                         subtitle={`${stats.loans.critical} critiques`}
                         icon={ErrorOutlineIcon}
                         color="error"
-                        loading={isLoading}
-                        onClick={() => navigate('/loans', { state: { initialTab: 0, preFilter: 'overdue' }})}
-                        tooltip="Prets en retard necessitant une action"
+                        onClick={() => navigate('/loans', { state: { initialTab: 0, preFilter: 'overdue' } })}
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <StatCard
-                        title="Historique Total"
+                <Grid item xs={6} sm={3}>
+                    <MiniStatCard
+                        title="Historique"
                         value={stats.history.totalLoans}
                         icon={HistoryIcon}
                         color="secondary"
-                        loading={isLoading}
-                        onClick={() => navigate('/loans', { state: { initialTab: 3 }})}
-                        tooltip="Nombre total de prets effectues"
+                        onClick={() => navigate('/loans', { state: { initialTab: 3 } })}
                     />
                 </Grid>
             </Grid>
 
-            {/* Section Supervision Serveurs RDS - AMELIOREE */}
-            <ServerMonitoringSection onAnalyzeServer={handleAnalyzeServer} />
+            {/* Supervision Serveurs RDS */}
+            <ServerMonitoringSection />
 
-            {/* Section secondaire */}
-            <Grid container spacing={2}>
-                {/* Techniciens connectes */}
-                <Grid item xs={12} md={4}>
+            {/* Section secondaire compacte */}
+            <Grid container spacing={1}>
+                <Grid item xs={12} sm={4}>
                     <ConnectedTechniciansWidget />
                 </Grid>
-
-                {/* Activite recente */}
-                <Grid item xs={12} md={4}>
+                <Grid item xs={12} sm={4}>
                     <RecentActivityWidget />
                 </Grid>
-
-                {/* Prets en retard */}
-                <Grid item xs={12} md={4}>
-                    <Paper elevation={2} sx={{ p: 2, height: '100%', borderRadius: 2 }}>
-                        <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center', fontWeight: 600, mb: 1.5, color: overdueLoans.length > 0 ? 'error.main' : 'text.primary' }}>
-                            <WarningIcon sx={{ mr: 1, fontSize: 20, color: 'warning.main' }} />
-                            Prets en Retard ({overdueLoans.length})
-                        </Typography>
-                        <List dense disablePadding sx={{ maxHeight: 200, overflowY: 'auto' }}>
-                            {overdueLoans.length > 0 ? overdueLoans.slice(0, 6).map(l => (
-                                <ListItem key={l.id} disableGutters sx={{ py: 0.5 }}>
-                                    <ListItemText
-                                        primary={<Typography variant="body2" fontWeight={500}>{l.computerName}</Typography>}
-                                        secondary={
-                                            <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                <Typography variant="caption">{l.userDisplayName}</Typography>
-                                                <Typography variant="caption">-</Typography>
-                                                <Typography variant="caption" color="error">
-                                                    {new Date(l.expectedReturnDate).toLocaleDateString('fr-FR')}
-                                                </Typography>
-                                            </Box>
-                                        }
-                                    />
-                                </ListItem>
-                            )) : (
-                                <Typography variant="caption" color="text.secondary" sx={{ py: 2, textAlign: 'center', display: 'block' }}>
-                                    Aucun pret en retard
-                                </Typography>
-                            )}
-                        </List>
-                    </Paper>
+                <Grid item xs={12} sm={4}>
+                    <OverdueLoansWidget
+                        loans={overdueLoans}
+                        onClick={() => navigate('/loans', { state: { initialTab: 0, preFilter: 'overdue' } })}
+                    />
                 </Grid>
             </Grid>
         </Box>

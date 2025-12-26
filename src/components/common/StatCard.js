@@ -79,18 +79,18 @@ const StatCard = ({
             }}
             onClick={onClick}
         >
-            <CardContent sx={{ pt: 2.5 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+            <CardContent sx={{ pt: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
                     {Icon && (
                         <Avatar
                             sx={{
                                 background: getGradient(color),
-                                width: 48,
-                                height: 48,
+                                width: 40,
+                                height: 40,
                                 boxShadow: '0px 4px 12px rgba(0,0,0,0.15)',
                             }}
                         >
-                            <Icon sx={{ color: 'white', fontSize: 24 }} />
+                            <Icon sx={{ color: 'white', fontSize: 20 }} />
                         </Avatar>
                     )}
                     {tooltip && (

@@ -36,9 +36,39 @@ const ChatDialog = lazy(() => import('../pages/ChatPage'));
 const NotificationsPanel = lazy(() => import('../components/NotificationsPanel'));
 const AppUsersManagementPage = lazy(() => import('../pages/AppUsersManagementPage'));
 
+// ✅ OPTIMISATION: Préchargement des pages et composants les plus utilisés
+const preloadCriticalPages = () => {
+    console.log('[MainLayout] 🚀 Préchargement des pages critiques...');
+    // Précharger en arrière-plan après le premier rendu
+    setTimeout(() => {
+        console.log('[MainLayout] 📦 Préchargement: UsersManagementPage, SessionsPage');
+        import('../pages/UsersManagementPage');
+        import('../pages/SessionsPage');
+    }, 1000);
+
+    // Précharger les dialogs fréquemment utilisés après 2 secondes
+    setTimeout(() => {
+        console.log('[MainLayout] 📦 Préchargement: Dialogs (UserDialog, CreateAdUserDialog, LoanDialog)');
+        import('../components/UserDialog');
+        import('../components/CreateAdUserDialog');
+        import('../components/LoanDialog');
+        import('../components/AdActionsDialog');
+    }, 2000);
+};
+
 const LoadingFallback = () => (
-    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 180px)' }}>
-        <CircularProgress />
+    <Box sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: 'calc(100vh - 180px)',
+        flexDirection: 'column',
+        gap: 2
+    }}>
+        <CircularProgress size={40} thickness={4} />
+        <Typography variant="body2" color="text.secondary">
+            Chargement...
+        </Typography>
     </Box>
 );
 
@@ -130,6 +160,10 @@ function MainLayout({ onLogout, currentTechnician, onChatClick }) {
         refreshData();
         const interval = setInterval(refreshData, 30000);
         const unsubscribe = events.on('data_updated', refreshData);
+
+        // ✅ OPTIMISATION: Précharger les pages critiques après le premier rendu
+        preloadCriticalPages();
+
         return () => { clearInterval(interval); unsubscribe(); };
     }, [refreshData, events]);
 

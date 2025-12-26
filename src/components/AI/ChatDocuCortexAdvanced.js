@@ -61,8 +61,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
-
-const API_BASE = '/api/ai';
+import { getApiBaseUrl } from '../../services/backendConfig';
 
 const ChatDocuCortexAdvanced = () => {
     const [messages, setMessages] = useState([]);
@@ -97,7 +96,8 @@ const ChatDocuCortexAdvanced = () => {
 
     const loadConversations = async () => {
         try {
-            const response = await axios.get(`${API_BASE}/conversations`);
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.get(`${apiBase}/ai/conversations`);
             setConversations(response.data.conversations || []);
         } catch (error) {
             console.error('Erreur chargement conversations:', error);
@@ -106,7 +106,8 @@ const ChatDocuCortexAdvanced = () => {
 
     const loadProviderStatus = async () => {
         try {
-            const response = await axios.get(`${API_BASE}/status`);
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.get(`${apiBase}/ai/status`);
             setProviderStatus(response.data);
             setActiveProvider(response.data.activeProvider || 'gemini');
         } catch (error) {
@@ -186,7 +187,8 @@ const ChatDocuCortexAdvanced = () => {
                 formData.append(`files`, fileObj.file);
             });
 
-            const response = await axios.post(`${API_BASE}/chat`, formData, {
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.post(`${apiBase}/ai/chat`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
                 onUploadProgress: (progressEvent) => {
                     const percentCompleted = Math.round(
@@ -232,7 +234,8 @@ const ChatDocuCortexAdvanced = () => {
 
     const handleLoadConversation = async (conversationId) => {
         try {
-            const response = await axios.get(`${API_BASE}/conversations/${conversationId}`);
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.get(`${apiBase}/ai/conversations/${conversationId}`);
             setMessages(response.data.messages || []);
             setCurrentConversationId(conversationId);
             setHistoryOpen(false);
@@ -243,7 +246,8 @@ const ChatDocuCortexAdvanced = () => {
 
     const handleDeleteConversation = async (conversationId) => {
         try {
-            await axios.delete(`${API_BASE}/conversations/${conversationId}`);
+            const apiBase = await getApiBaseUrl();
+            await axios.delete(`${apiBase}/ai/conversations/${conversationId}`);
             loadConversations();
             if (currentConversationId === conversationId) {
                 handleNewConversation();
@@ -256,7 +260,8 @@ const ChatDocuCortexAdvanced = () => {
     const handlePurgeAll = async () => {
         if (window.confirm('Êtes-vous sûr de vouloir supprimer TOUTES les conversations?')) {
             try {
-                await axios.delete(`${API_BASE}/conversations`);
+                const apiBase = await getApiBaseUrl();
+                await axios.delete(`${apiBase}/ai/conversations`);
                 loadConversations();
                 handleNewConversation();
             } catch (error) {
@@ -267,7 +272,8 @@ const ChatDocuCortexAdvanced = () => {
 
     const handleTestProvider = async (provider) => {
         try {
-            const response = await axios.post(`${API_BASE}/providers/${provider}/test`);
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.post(`${apiBase}/ai/providers/${provider}/test`);
             setProviderStatus({
                 ...providerStatus,
                 [provider]: response.data.success ? 'connected' : 'error'
@@ -282,7 +288,8 @@ const ChatDocuCortexAdvanced = () => {
 
     const handleDownloadFile = async (fileData) => {
         try {
-            const response = await axios.get(`${API_BASE}/files/${fileData.id}`, {
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.get(`${apiBase}/ai/files/${fileData.id}`, {
                 responseType: 'blob'
             });
             const url = window.URL.createObjectURL(new Blob([response.data]));

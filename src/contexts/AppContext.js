@@ -1,7 +1,8 @@
 // src/contexts/AppContext.js - VERSION CORRIGÉE POUR WEBSOCKET ET STRICT MODE
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import apiService from '../services/apiService'; 
+import apiService from '../services/apiService';
+import { getWsUrl } from '../services/backendConfig';
 
 const AppContext = createContext();
 
@@ -9,7 +10,6 @@ export { AppContext }; // ✅ EXPORT AJOUTÉ pour usePermissions
 export const useApp = () => useContext(AppContext);
 
 // ✅ CORRECTION: Utiliser localhost explicitement pour éviter une URL invalide dans Electron
-const WS_URL = `ws://localhost:3003`;
 
 /**
  * Adaptateur pour convertir l'objet app_users en format compatible avec l'ancien système
@@ -125,12 +125,18 @@ export const AppProvider = ({ children }) => {
         }));
     }, []);
 
-    const connectWebSocket = useCallback(() => {
+    const connectWebSocket = useCallback(async () => {
         if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
             return;
         }
 
-        wsRef.current = new WebSocket(WS_URL);
+        try {
+            const wsUrl = await getWsUrl();
+            wsRef.current = new WebSocket(wsUrl);
+        } catch (error) {
+            console.error('Erreur initialisation WebSocket:', error);
+            return;
+        }
         const ws = wsRef.current;
 
         ws.onopen = () => {

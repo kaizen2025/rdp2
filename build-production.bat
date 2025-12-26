@@ -6,7 +6,7 @@ echo ================================================
 echo.
 
 REM Nettoyage complet
-echo [1/3] Nettoyage dossiers build/dist...
+echo [1/4] Nettoyage dossiers build/dist...
 if exist dist (
     echo Suppression dist...
     rmdir /s /q dist
@@ -23,7 +23,7 @@ echo Nettoyage termine!
 echo.
 
 REM Build React
-echo [2/3] Build React optimise...
+echo [2/4] Build React optimise...
 call npm run build
 if %errorlevel% neq 0 (
     echo ERREUR lors du build React!
@@ -33,8 +33,17 @@ if %errorlevel% neq 0 (
 echo Build React termine!
 echo.
 
+REM Rebuild des modules natifs pour Electron
+echo [3/4] Rebuild des modules natifs (Electron)...
+call npm run rebuild:native
+if %errorlevel% neq 0 (
+    echo ERREUR lors du rebuild des modules natifs!
+    pause
+    exit /b 1
+)
+
 REM Package Electron (electron-builder inclut automatiquement seulement prod deps)
-echo [3/3] Package Electron portable...
+echo [4/4] Package Electron portable...
 echo electron-builder va inclure seulement les production dependencies
 call npx electron-builder --config electron-builder-optimized.json --win portable --x64
 if %errorlevel% neq 0 (

@@ -5,11 +5,11 @@ echo ================================================
 echo.
 
 REM Nettoyer
-echo [1/5] Nettoyage...
+echo [1/6] Nettoyage...
 if exist dist\win-unpacked rmdir /s /q dist\win-unpacked
 if exist build rmdir /s /q build
 
-echo [2/5] Build React optimise...
+echo [2/6] Build React optimise...
 call npm run build
 if %errorlevel% neq 0 (
     echo ERREUR lors du build React!
@@ -17,7 +17,15 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo [3/5] Package Electron (sans portable)...
+echo [3/6] Rebuild des modules natifs (Electron)...
+call npm run rebuild:native
+if %errorlevel% neq 0 (
+    echo ERREUR lors du rebuild des modules natifs!
+    pause
+    exit /b 1
+)
+
+echo [4/6] Package Electron (sans portable)...
 call electron-builder --win dir --x64 --config electron-builder-optimized.json
 if %errorlevel% neq 0 (
     echo ERREUR lors du packaging Electron!
@@ -25,11 +33,11 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo [4/5] Creation portable manuel...
+echo [5/6] Creation portable manuel...
 if exist "dist\RDS-Viewer-Portable" rmdir /s /q "dist\RDS-Viewer-Portable"
 xcopy "dist\win-unpacked" "dist\RDS-Viewer-Portable\" /E /I /Q /Y
 
-echo [5/5] Creation lanceur...
+echo [6/6] Creation lanceur...
 (
 echo @echo off
 echo cd /d "%%~dp0"

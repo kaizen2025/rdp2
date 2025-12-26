@@ -268,7 +268,7 @@ class AIService {
     async loadDocumentsToIndex() {
         try {
             const documents = this.db.getAllAIDocuments();
-            
+
             documents.forEach(doc => {
                 vectorSearchService.indexDocument(
                     doc.id,
@@ -295,7 +295,8 @@ class AIService {
     async uploadDocument(file) {
         try {
             const { originalname, buffer, mimetype, size } = file;
-            
+            const filepath = file.filepath || file.path || file.originalPath || null;
+
             console.log(`Upload document: ${originalname} (${size} bytes)`);
 
             // Parser le document
@@ -314,7 +315,7 @@ class AIService {
 
             // Nettoyer le texte
             const cleanedText = documentParserService.cleanText(parseResult.text);
-            
+
             // Detecter la langue
             const language = documentParserService.detectLanguage(cleanedText);
 
@@ -332,12 +333,13 @@ class AIService {
                     keywords: keywords,
                     wordCount: cleanedText.split(/\s+/).length
                 }),
-                language: language
+                language: language,
+                filepath: filepath
             });
 
             // Creer les chunks et les indexer
             const chunks = documentParserService.chunkText(cleanedText);
-            
+
             chunks.forEach(chunk => {
                 this.db.createAIDocumentChunk({
                     document_id: documentId,
@@ -671,12 +673,12 @@ ${contextDocs}
         try {
             // Supprimer de la DB
             const deleted = this.db.deleteAIDocument(documentId);
-            
+
             if (deleted) {
                 // Supprimer de l'index vectoriel
                 vectorSearchService.removeDocument(documentId);
                 this.stats.totalDocuments--;
-                
+
                 return { success: true };
             }
 
@@ -721,7 +723,7 @@ ${contextDocs}
 
             settings.forEach(setting => {
                 let value = setting.setting_value;
-                
+
                 // Convertir les types
                 if (value === 'true') value = true;
                 else if (value === 'false') value = false;
@@ -789,10 +791,10 @@ ${contextDocs}
         try {
             // Supprimer tous les documents de la DB
             this.db.deleteAllAIDocuments();
-            
+
             // Reinitialiser l'index vectoriel
             vectorSearchService.clearIndex();
-            
+
             // Reinitialiser les stats
             this.stats = {
                 totalDocuments: 0,
@@ -823,7 +825,7 @@ ${contextDocs}
             }
 
             const result = await ollamaService.analyzeSentiment(text);
-            
+
             if (result.success) {
                 console.log(`💭 Analyse sentiment: ${result.sentiment} (${Math.round(result.confidence * 100)}%)`);
             }
@@ -855,7 +857,7 @@ ${contextDocs}
             }
 
             const result = await ollamaService.summarizeText(text, maxLength);
-            
+
             if (result.success) {
                 console.log(`📝 Résumé généré: ${result.compression}% de compression`);
             }
@@ -881,14 +883,14 @@ ${contextDocs}
                     .replace(/[^\w\s]/g, ' ')
                     .split(/\s+/)
                     .filter(w => w.length > 3);
-                
+
                 const frequency = {};
                 words.forEach(word => {
                     frequency[word] = (frequency[word] || 0) + 1;
                 });
-                
+
                 const keywords = Object.entries(frequency)
-                    .sort(([,a], [,b]) => b - a)
+                    .sort(([, a], [, b]) => b - a)
                     .slice(0, maxKeywords)
                     .map(([word]) => word);
 
@@ -900,7 +902,7 @@ ${contextDocs}
             }
 
             const result = await ollamaService.extractKeywords(text, maxKeywords);
-            
+
             if (result.success) {
                 console.log(`🏷️ Mots-clés extraits: ${result.keywords.join(', ')}`);
             }
@@ -929,7 +931,7 @@ ${contextDocs}
             }
 
             const result = await ollamaService.translateText(text, targetLanguage);
-            
+
             if (result.success) {
                 console.log(`🌐 Traduction vers ${targetLanguage} réussie`);
             }
@@ -950,7 +952,7 @@ ${contextDocs}
     async answerQuestion(documentId, question) {
         try {
             const document = this.db.getAIDocumentById(documentId);
-            
+
             if (!document) {
                 return {
                     success: false,
@@ -967,7 +969,7 @@ ${contextDocs}
             }
 
             const result = await ollamaService.answerQuestion(document.content, question);
-            
+
             if (result.success) {
                 console.log(`❓ Q&A sur document ${document.filename}: ${question.substring(0, 50)}...`);
             }
@@ -995,7 +997,7 @@ ${contextDocs}
             }
 
             const result = await ollamaService.setModel(modelName);
-            
+
             if (result.success) {
                 console.log(`🔄 Modèle Ollama changé vers: ${modelName}`);
             }
@@ -1016,7 +1018,7 @@ ${contextDocs}
     getOllamaInfo() {
         const modelInfo = ollamaService.getModelInfo();
         const ollamaStats = ollamaService.getStatistics();
-        
+
         return {
             enabled: this.ollamaEnabled,
             provider: this.aiProvider,
@@ -1049,15 +1051,15 @@ ${contextDocs}
     async scanAndIndexNetwork() {
         try {
             console.log('🔍 Démarrage scan réseau...');
-            
+
             const scanResult = await networkDocumentService.fullScan();
-            
+
             if (!scanResult.success) {
                 return scanResult;
             }
 
             console.log(`📄 ${scanResult.files.length} fichiers trouvés, début indexation...`);
-            
+
             let indexed = 0;
             let errors = 0;
 
@@ -1065,7 +1067,7 @@ ${contextDocs}
                 try {
                     // Lire le fichier
                     const readResult = await networkDocumentService.readFile(file.path);
-                    
+
                     if (!readResult.success) {
                         errors++;
                         continue;
@@ -1174,10 +1176,10 @@ ${contextDocs}
      */
     async startNetworkWatching() {
         const self = this;
-        
+
         await networkDocumentService.startWatching(async (file) => {
             console.log(`📢 Nouveau fichier détecté: ${file.name}`);
-            
+
             try {
                 // Indexer automatiquement
                 const readResult = await networkDocumentService.readFile(file.path);
@@ -1323,7 +1325,7 @@ ${contextDocs}
     async prepareDocumentPreview(documentId) {
         try {
             const doc = this.db.getAIDocumentById(documentId);
-            
+
             if (!doc) {
                 return { success: false, error: 'Document introuvable' };
             }
@@ -1356,7 +1358,7 @@ ${contextDocs}
     async prepareDocumentDownload(documentId) {
         try {
             const doc = this.db.getAIDocumentById(documentId);
-            
+
             if (!doc) {
                 return { success: false, error: 'Document introuvable' };
             }
@@ -1392,7 +1394,7 @@ ${contextDocs}
     async searchNetworkDocuments(query, options = {}) {
         try {
             console.log(`🔍 Recherche réseau pour: "${query}"`);
-            
+
             // Recherche vectorielle optimisée pour les documents réseau
             const searchOptions = {
                 limit: options.limit || 20,
@@ -1472,7 +1474,7 @@ ${contextDocs}
             console.log(`📄 Récupération contexte document: ${fileId}`);
 
             const doc = this.db.getAIDocumentById(fileId);
-            
+
             if (!doc) {
                 return { success: false, error: 'Document introuvable' };
             }
@@ -1794,7 +1796,7 @@ ${contextDocs}
      */
     _getNetworkDocumentAccessibility(doc) {
         if (!doc.filepath) return 'local';
-        
+
         const path = doc.filepath.toLowerCase();
         if (path.includes('public') || path.includes('shared')) return 'public';
         if (path.includes('private') || path.includes('restricted')) return 'restricted';
@@ -1951,7 +1953,7 @@ ${contextDocs}
 
         const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 10);
         const summarySentences = sentences.slice(0, maxSentences);
-        
+
         return summarySentences.join('. ') + '.';
     }
 
@@ -2057,7 +2059,7 @@ ${contextDocs}
         // Ajouter une section sources
         if (sources.length > 0) {
             enhanced += '\n\n**Sources de documents réseau:**\n\n';
-            
+
             sources.slice(0, 3).forEach(source => {
                 enhanced += `• [${source.filename}](${source.networkPath}) - ${source.category} (Score: ${Math.round(source.relevanceScore * 100)}%)\n`;
                 if (source.snippet) {
@@ -2115,7 +2117,7 @@ ${contextDocs}
         sources.forEach(source => {
             const sourceText = `${source.filename} ${source.category} ${source.tags.join(' ')}`.toLowerCase();
             const matchedWords = queryWords.filter(word => sourceText.includes(word));
-            
+
             matches.push({
                 documentId: source.id,
                 matchedWords: matchedWords.length,
@@ -2137,7 +2139,7 @@ ${contextDocs}
     _analyzeNetworkPaths(sources) {
         const paths = sources.map(s => s.relativePath).filter(Boolean);
         const commonPrefixes = this._findCommonPrefixes(paths);
-        
+
         return {
             totalPaths: paths.length,
             uniqueDirectories: new Set(paths.map(p => p.split('/').slice(0, -1).join('/'))).size,
@@ -2152,17 +2154,17 @@ ${contextDocs}
      */
     _findCommonPrefixes(paths) {
         if (paths.length === 0) return [];
-        
+
         const prefixes = [];
         const firstPath = paths[0].split('/');
-        
+
         for (let i = 1; i < firstPath.length; i++) {
             const prefix = firstPath.slice(0, i).join('/');
             if (paths.every(p => p.startsWith(prefix))) {
                 prefixes.push(prefix);
             }
         }
-        
+
         return prefixes;
     }
 
@@ -2187,12 +2189,12 @@ ${contextDocs}
      */
     async _getNetworkDocumentSiblings(doc) {
         if (!doc.relativePath) return [];
-        
+
         const parentDir = this._getParentDirectory(doc.filepath);
         const siblings = this.db.getAIDocumentsByDirectory(parentDir)
             .filter(sibling => sibling.id !== doc.id)
             .slice(0, 5);
-            
+
         return siblings.map(sibling => ({
             id: sibling.id,
             filename: sibling.filename,
@@ -2205,11 +2207,11 @@ ${contextDocs}
      */
     async _getNetworkRelatedDocuments(doc) {
         if (!doc.category) return [];
-        
+
         const related = this.db.getAIDocumentsByCategory(doc.category)
             .filter(relatedDoc => relatedDoc.id !== doc.id)
             .slice(0, 5);
-            
+
         return related.map(relatedDoc => ({
             id: relatedDoc.id,
             filename: relatedDoc.filename,
@@ -2238,12 +2240,12 @@ ${contextDocs}
     async initializeOCR() {
         try {
             console.log('🔧 Initialisation du service OCR EasyOCR...');
-            
+
             const result = await ocrService.initialize();
-            
+
             if (result.success) {
                 console.log('✅ Service OCR EasyOCR initialisé avec succès');
-                
+
                 // Notifier via WebSocket
                 return {
                     success: true,
@@ -2280,7 +2282,7 @@ ${contextDocs}
             } = options;
 
             let ocrResult;
-            
+
             // Si c'est un fichier uploadé (multer)
             if (imageFile.buffer) {
                 // Détection automatique de langue si demandée
@@ -2416,7 +2418,7 @@ ${contextDocs}
 
             // Créer les chunks
             const chunks = documentParserService.chunkText(ocrResult.extractedText);
-            
+
             chunks.forEach((chunk, index) => {
                 this.db.createAIDocumentChunk({
                     document_id: documentId,
@@ -2508,14 +2510,14 @@ ${contextDocs}
 
                 for (let i = 0; i < batchResult.results.length; i++) {
                     const result = batchResult.results[i];
-                    
+
                     if (result.success && result.text && result.text.length >= 10) {
                         try {
                             const docResult = await this.processImageDocument(
                                 imageFiles[i],
                                 { languages, enhanceImage, confidenceThreshold }
                             );
-                            
+
                             if (docResult.success) {
                                 indexedDocuments.push(docResult);
                             } else {
@@ -2719,49 +2721,109 @@ ${contextDocs}
     }
 
     async _orchestrateQuery(query) {
-        // Détection simplifiée sans appel IA (pour éviter les erreurs si aucun provider n'est configuré)
-        const lowerQuery = query.toLowerCase();
+        // ✅ OPTIMISÉ: Détection intelligente pour réponses rapides Gemini
+        const lowerQuery = query.toLowerCase().trim();
 
-        // Mots-clés pour recherche web
-        const webKeywords = ['météo', 'temps qu\'il fait', 'actualité', 'news', 'prix de', 'combien coûte',
-            'qui est', 'dernières nouvelles', 'aujourd\'hui', 'cette semaine'];
+        // =====================================================
+        // QUESTIONS GÉNÉRALES → GEMINI DIRECT (réponse rapide)
+        // =====================================================
 
-        // Mots-clés pour commandes de l'application
-        const appKeywords = ['trouve', 'affiche', 'liste', 'montre', 'pc', 'ordinateur', 'prêt',
-            'retard', 'disponible', 'loué', 'réservé', 'stock', 'matériel'];
+        // Patterns de questions générales (regex)
+        const generalQuestionPatterns = [
+            /^(quelle?|quel|quels|quelles)\s+(est|sont|heure|jour|date|temps|température)/i,
+            /^(qui est|qui a|qui était|c'est qui)/i,
+            /^(qu'est-ce que|qu'est ce que|c'est quoi)/i,
+            /^(combien|comment|pourquoi|où)\s+/i,
+            /^(explique|définis|définition|raconte|donne.moi)/i,
+            /^(calcule|convertis|traduis|résume)/i,
+            /(en quelle année|depuis quand|jusqu'à quand)/i,
+            /\d+\s*[\+\-\*\/\%\^]\s*\d+/,  // Calculs mathématiques
+        ];
 
-        // Détecter le type de requête
-        for (const kw of webKeywords) {
-            if (lowerQuery.includes(kw)) {
-                return 'web_search';
-            }
+        // Mots-clés questions générales
+        const generalKeywords = [
+            'météo', 'meteo', 'temperature', 'temps qu\'il fait', 'pleut', 'soleil',
+            'actualité', 'news', 'nouvelles',
+            'heure', 'date', 'jour', 'année',
+            'prix', 'coûte', 'coute', 'tarif', 'euro',
+            'capitale', 'président', 'population', 'superficie',
+            'distance', 'durée', 'trajet',
+            'recette', 'ingrédient', 'cuisine',
+            'définition', 'signifie', 'veut dire',
+            'traduire', 'traduction', 'anglais', 'espagnol',
+            'calculer', 'calcul', 'addition', 'multiplication',
+            'pourcentage', 'moyenne', 'total',
+            'code', 'programmer', 'javascript', 'python',
+            'santé', 'symptôme', 'maladie',
+            'histoire', 'géographie', 'science',
+            'sport', 'match', 'score', 'résultat',
+            'film', 'acteur', 'musique', 'artiste',
+            'conseil', 'astuce', 'recommandation'
+        ];
+
+        // Anti-patterns: mots qui forcent la recherche documentaire locale
+        const documentKeywords = [
+            'document', 'fichier', 'dossier', 'rapport', 'procédure', 'procedure',
+            'pdf', 'excel', 'word', 'facture', 'contrat', 'devis',
+            'serveur', 'réseau', 'partage', 'ged',
+            'indexé', 'uploadé', 'nos documents', 'notre documentation'
+        ];
+
+        // Vérifier si c'est une question documentaire (priorité)
+        const isDocumentQuery = documentKeywords.some(kw => lowerQuery.includes(kw));
+        if (isDocumentQuery) {
+            console.log('📄 [Orchestrator] Requête documentaire détectée');
+            return 'local_search';
         }
 
-        // Pour les commandes app, on cherche des termes spécifiques au contexte de gestion
+        // Vérifier patterns de questions générales
+        const matchesGeneralPattern = generalQuestionPatterns.some(pattern => pattern.test(lowerQuery));
+        const hasGeneralKeyword = generalKeywords.some(kw => lowerQuery.includes(kw));
+
+        if (matchesGeneralPattern || hasGeneralKeyword) {
+            console.log('⚡ [Orchestrator] Question générale → Gemini direct');
+            return 'web_search'; // Utilise _performWebSearch qui appelle Gemini
+        }
+
+        // Commandes applicatives (prêts, ordinateurs, etc.)
+        const appKeywords = ['trouve', 'affiche', 'liste', 'montre', 'pc', 'ordinateur', 'prêt',
+            'retard', 'disponible', 'loué', 'réservé', 'stock', 'matériel'];
         const hasAppKeyword = appKeywords.some(kw => lowerQuery.includes(kw));
         const hasFindVerb = ['trouve', 'affiche', 'liste', 'montre', 'cherche'].some(v => lowerQuery.includes(v));
 
         if (hasAppKeyword && hasFindVerb) {
+            console.log('📱 [Orchestrator] Commande applicative');
             return 'app_command';
         }
 
-        // Par défaut, recherche documentaire locale
-        return 'local_search';
+        // ✅ PAR DÉFAUT: Gemini répond à TOUT (chatbot universel)
+        // La recherche documentaire n'est utilisée que si mots-clés explicites
+        console.log('⚡ [Orchestrator] Chatbot Gemini → réponse directe');
+        return 'web_search';
     }
 
     async _performWebSearch(query) {
-        // La recherche web n'est pas configurée dans cette version
-        // Retourner un message informatif
-        return `Je suis DocuCortex, votre assistant de gestion documentaire interne.
+        // ✅ CHATBOT GEMINI UNIVERSEL
+        console.log('⚡ [Gemini] Réponse directe');
 
-Je ne peux pas effectuer de recherches web (météo, actualités, etc.) car cette fonctionnalité n'est pas configurée.
+        try {
+            if (this.providers.gemini?.enabled) {
+                const result = await geminiService.generateText(
+                    `Tu es DocuCortex, assistant IA polyvalent. Réponds naturellement et utilement.
 
-**Ce que je peux faire :**
-- Rechercher dans vos documents internes
-- Vous aider avec la gestion des prêts de matériel
-- Analyser vos fichiers et documents
+Question: ${query}
 
-Pour des questions comme la météo ou les actualités, veuillez utiliser un navigateur web ou un assistant externe.`;
+(Sois concis mais complet, ton professionnel et amical)`,
+                    []
+                );
+                if (result.success) return result.response;
+            }
+
+            return `Je suis DocuCortex. Pour cette question, consultez une source spécialisée.\n\n**Mes spécialités:** 📄 Documents GED | 💻 Gestion prêts | 🔍 Analyse fichiers`;
+        } catch (error) {
+            console.error('❌ [Gemini]:', error.message);
+            return `Désolé, une erreur s'est produite. Veuillez réessayer.`;
+        }
     }
 
     // ==================== NOUVELLES MÉTHODES DOCUCORTEX GED ====================

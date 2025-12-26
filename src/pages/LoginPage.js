@@ -35,23 +35,38 @@ const LoginPage = ({ onLoginSuccess }) => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loggedUser, setLoggedUser] = useState(null);
 
-    // Charger les utilisateurs depuis app_users
+    // Charger les utilisateurs depuis app_users avec debug complet
     useEffect(() => {
         const loadUsers = async () => {
+            console.log('[LoginPage] 🚀 Démarrage chargement utilisateurs...');
+            const startTime = Date.now();
             setLoadingUsers(true);
             try {
+                console.log('[LoginPage] 📡 Appel API getAllAppUsers...');
                 const response = await apiService.getAllAppUsers();
+                console.log('[LoginPage] ✅ Réponse API reçue en', Date.now() - startTime, 'ms:', response);
+
                 if (response.success && response.users) {
                     // Filtrer uniquement les utilisateurs actifs
                     const activeUsers = response.users.filter(u => u.is_active === 1);
+                    console.log('[LoginPage] 👥 Utilisateurs actifs trouvés:', activeUsers.length);
                     setUsers(activeUsers);
+
+                    if (activeUsers.length === 0) {
+                        console.warn('[LoginPage] ⚠️ Aucun utilisateur actif trouvé!');
+                        setError('Aucun utilisateur actif trouvé. Vérifiez la base de données.');
+                    }
                 } else {
+                    console.warn('[LoginPage] ⚠️ Réponse API invalide:', response);
                     setUsers([]);
+                    setError(response.error || 'Erreur lors du chargement des utilisateurs');
                 }
             } catch (error) {
-                console.error('Erreur chargement utilisateurs:', error);
-                setError('Impossible de charger la liste des utilisateurs');
+                console.error('[LoginPage] ❌ ERREUR chargement utilisateurs:', error);
+                console.error('[LoginPage] ❌ Stack:', error.stack);
+                setError(`Impossible de charger la liste des utilisateurs: ${error.message}`);
             } finally {
+                console.log('[LoginPage] ⏱️ Chargement terminé en', Date.now() - startTime, 'ms');
                 setLoadingUsers(false);
             }
         };
@@ -87,6 +102,20 @@ const LoginPage = ({ onLoginSuccess }) => {
                 // Connexion réussie
                 setCurrentTechnician(result.user);
                 localStorage.setItem('currentUserId', result.user.id.toString());
+
+                // ✅ Enregistrer la présence du technicien pour qu'il apparaisse dans le dashboard
+                try {
+                    await apiService.registerTechnicianLogin({
+                        id: result.user.id,
+                        name: result.user.display_name || result.user.username,
+                        avatar: result.user.display_name ? result.user.display_name.substring(0, 2).toUpperCase() : 'TC',
+                        position: result.user.position || 'Technicien'
+                    });
+                    console.log('✅ Présence technicien enregistrée');
+                } catch (presenceError) {
+                    console.warn('⚠️ Erreur enregistrement présence (non bloquant):', presenceError);
+                }
+
                 onLoginSuccess(result.user);
             } else {
                 setError(result.error || 'Erreur de connexion');
@@ -118,6 +147,20 @@ const LoginPage = ({ onLoginSuccess }) => {
                 const updatedUser = { ...loggedUser, must_change_password: 0 };
                 setCurrentTechnician(updatedUser);
                 localStorage.setItem('currentUserId', updatedUser.id.toString());
+
+                // ✅ Enregistrer la présence du technicien
+                try {
+                    await apiService.registerTechnicianLogin({
+                        id: updatedUser.id,
+                        name: updatedUser.display_name || updatedUser.username,
+                        avatar: updatedUser.display_name ? updatedUser.display_name.substring(0, 2).toUpperCase() : 'TC',
+                        position: updatedUser.position || 'Technicien'
+                    });
+                    console.log('✅ Présence technicien enregistrée');
+                } catch (presenceError) {
+                    console.warn('⚠️ Erreur enregistrement présence (non bloquant):', presenceError);
+                }
+
                 onLoginSuccess(updatedUser);
             } else {
                 setError(result.error || 'Erreur lors du changement de mot de passe');
@@ -376,7 +419,7 @@ const LoginPage = ({ onLoginSuccess }) => {
 
                                         <Box sx={{ mt: 2, textAlign: 'center' }}>
                                             <Typography variant="caption" color="text.secondary">
-                                                Mot de passe par défaut : admin
+                                                Mot de passe par défaut : 123456
                                             </Typography>
                                         </Box>
                                     </Box>

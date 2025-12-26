@@ -1,6 +1,6 @@
 // src/pages/SessionsPage.js - VERSION FINALE CORRIGÉE
 
-import React, { useState, useMemo, useCallback, memo } from 'react';
+import React, { useState, useMemo, useCallback, memo, useRef, useEffect } from 'react';
 import { Box, Paper, Typography, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Chip, Tooltip, IconButton, FormControl, InputLabel, Select, MenuItem, Switch, FormControlLabel } from '@mui/material';
 import { Person as PersonIcon, Dns as DnsIcon, Timer as TimerIcon, ScreenShare as ScreenShareIcon, Computer as ComputerIcon, Message as MessageIcon, Info as InfoIcon, Refresh as RefreshIcon, Announcement as AnnouncementIcon, CheckCircle as CheckCircleIcon, RadioButtonUnchecked as RadioButtonUncheckedIcon, Cancel as CancelIcon } from '@mui/icons-material';
 
@@ -61,6 +61,105 @@ const GroupedUserRow = memo(({ user, sessions, onSendMessage, onShowInfo, onShad
         </TableRow>
     );
 });
+
+// 🚀 OPTIMISATION: Table virtualisée pour les sessions
+const VirtualizedSessionsTable = memo(({ groupedSessions, onSendMessage, onShowInfo, onShadow, onConnect, getUserInfo }) => {
+    const [visibleRange, setVisibleRange] = useState({ start: 0, end: 30 });
+    const containerRef = useRef(null);
+    const ROW_HEIGHT = 52;
+    const BUFFER = 5;
+
+    const handleScroll = useCallback(() => {
+        if (!containerRef.current) return;
+
+        const { scrollTop, clientHeight } = containerRef.current;
+        const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER);
+        const visibleCount = Math.ceil(clientHeight / ROW_HEIGHT) + BUFFER * 2;
+        const end = Math.min(groupedSessions.length, start + visibleCount);
+
+        setVisibleRange(prev => {
+            if (prev.start !== start || prev.end !== end) {
+                return { start, end };
+            }
+            return prev;
+        });
+    }, [groupedSessions.length]);
+
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        let ticking = false;
+        const throttledScroll = () => {
+            if (!ticking) {
+                requestAnimationFrame(() => {
+                    handleScroll();
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        };
+
+        container.addEventListener('scroll', throttledScroll);
+        handleScroll();
+        return () => container.removeEventListener('scroll', throttledScroll);
+    }, [handleScroll]);
+
+    if (groupedSessions.length === 0) return null;
+
+    const totalHeight = groupedSessions.length * ROW_HEIGHT;
+    const offsetY = visibleRange.start * ROW_HEIGHT;
+
+    return (
+        <TableContainer
+            component={Paper}
+            elevation={2}
+            sx={{ borderRadius: 2, maxHeight: 'calc(100vh - 320px)' }}
+            ref={containerRef}
+        >
+            <Table size="small" stickyHeader>
+                <TableHead>
+                    <TableRow>
+                        <TableCell>Nom Complet</TableCell>
+                        <TableCell>Utilisateur</TableCell>
+                        <TableCell>Serveurs</TableCell>
+                        <TableCell>État</TableCell>
+                        <TableCell>Durée</TableCell>
+                        <TableCell>Heure Connexion</TableCell>
+                        <TableCell>Actions</TableCell>
+                    </TableRow>
+                </TableHead>
+                <TableBody>
+                    {/* Spacer pour les éléments au-dessus */}
+                    {visibleRange.start > 0 && (
+                        <TableRow>
+                            <TableCell colSpan={7} sx={{ height: offsetY, p: 0, border: 'none' }} />
+                        </TableRow>
+                    )}
+                    {groupedSessions.slice(visibleRange.start, visibleRange.end).map(([user, userSessions]) => (
+                        <GroupedUserRow
+                            key={user}
+                            user={user}
+                            sessions={userSessions}
+                            onSendMessage={onSendMessage}
+                            onShowInfo={onShowInfo}
+                            onShadow={onShadow}
+                            onConnect={onConnect}
+                            getUserInfo={getUserInfo}
+                        />
+                    ))}
+                    {/* Spacer pour les éléments en-dessous */}
+                    {visibleRange.end < groupedSessions.length && (
+                        <TableRow>
+                            <TableCell colSpan={7} sx={{ height: totalHeight - (visibleRange.end * ROW_HEIGHT), p: 0, border: 'none' }} />
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+        </TableContainer>
+    );
+});
+VirtualizedSessionsTable.displayName = 'VirtualizedSessionsTable';
 
 const SessionsPage = () => {
     const { showNotification } = useApp();
@@ -237,31 +336,14 @@ const SessionsPage = () => {
                     />
                 </Paper>
             ) : (
-                <TableContainer component={Paper} elevation={2} sx={{ borderRadius: 2 }}>
-                    <Table size="small" stickyHeader>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>Nom Complet</TableCell>
-                                <TableCell>Utilisateur</TableCell>
-                                <TableCell>Serveurs</TableCell>
-                                <TableCell>État</TableCell>
-                                <TableCell>Durée</TableCell>
-                                <TableCell>Heure Connexion</TableCell>
-                                <TableCell>Actions</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {groupedSessions.map(([user, userSessions]) => (
-                                <GroupedUserRow
-                                    key={user} user={user} sessions={userSessions}
-                                    onSendMessage={(s) => setDialogState({ type: 'sendMessage', data: s })}
-                                    onShowInfo={(s, ui) => setDialogState({ type: 'userInfo', data: { ...s, userInfo: ui } })}
-                                    onShadow={handleLaunchShadow} onConnect={handleLaunchConnect} getUserInfo={getUserInfo}
-                                />
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                <VirtualizedSessionsTable
+                    groupedSessions={groupedSessions}
+                    onSendMessage={(s) => setDialogState({ type: 'sendMessage', data: s })}
+                    onShowInfo={(s, ui) => setDialogState({ type: 'userInfo', data: { ...s, userInfo: ui } })}
+                    onShadow={handleLaunchShadow}
+                    onConnect={handleLaunchConnect}
+                    getUserInfo={getUserInfo}
+                />
             )}
             {dialogState.type === 'sendMessage' && <SendMessageDialog open={true} onClose={() => setDialogState({ type: null })} selectedSessions={[`${dialogState.data.server}-${dialogState.data.sessionId}`]} sessions={sessions} />}
             {dialogState.type === 'userInfo' && <UserInfoDialog open={true} onClose={() => setDialogState({ type: null })} user={dialogState.data} />}

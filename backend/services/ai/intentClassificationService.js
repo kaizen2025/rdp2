@@ -23,15 +23,19 @@ class IntentClassificationService {
             },
             document_search: {
                 description: "Recherche de documents dans le système GED",
-                keywords: ['trouve', 'cherche', 'recherche', 'affiche', 'montre', 'liste', 'voir'],
+                keywords: ['trouve', 'cherche', 'recherche', 'affiche', 'montre', 'liste', 'voir', 'procédure', 'document', 'fichier'],
                 patterns: [
                     /(trouve|cherche|recherche|affiche|montre).*\b(document|fichier|rapport|pdf|excel|word|dossier)\b/i,
                     /\b(dans|sur)\s+(le|la|les)?\s*(serveur|réseau|dossier|répertoire|drive)/i,
                     /(rapport|facture|contrat|devis|compte-rendu|procès-verbal).*\b(de|du|des)\b/i,
-                    /\b(pdf|xlsx?|docx?|pptx?).*\b(de|du|des|contenant)\b/i
+                    /\b(pdf|xlsx?|docx?|pptx?).*\b(de|du|des|contenant)\b/i,
+                    // ✅ NOUVEAU: Patterns pour procédures et tutoriels
+                    /(procédure|procedure|comment faire|tutoriel|guide|mode d'emploi|marche à suivre)/i,
+                    /(où trouver|où est|existe.+document|documentation)/i,
+                    /(formation|manuel|instructions?|étapes?)/i
                 ],
-                documentTypes: ['pdf', 'xlsx', 'docx', 'rapport', 'facture', 'contrat', 'devis'],
-                weight: 1.2 // Prioritaire pour DocuCortex
+                documentTypes: ['pdf', 'xlsx', 'docx', 'rapport', 'facture', 'contrat', 'devis', 'procedure', 'guide'],
+                weight: 1.3 // Prioritaire pour DocuCortex - augmenté
             },
             document_analysis: {
                 description: "Analyse ou résumé d'un document spécifique",

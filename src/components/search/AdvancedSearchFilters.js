@@ -48,8 +48,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { fr } from 'date-fns/locale';
 import axios from 'axios';
-
-const API_BASE = 'http://localhost:3002/api/ai';
+import { getApiBaseUrl } from '../../services/backendConfig';
 
 function AdvancedSearchFilters({ onSearch, onSaveSearch, initialFilters = {} }) {
     // États des filtres
@@ -136,7 +135,8 @@ function AdvancedSearchFilters({ onSearch, onSaveSearch, initialFilters = {} }) 
 
     const loadSavedSearches = async () => {
         try {
-            const response = await axios.get(`${API_BASE}/advanced-search/saved`, {
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.get(`${apiBase}/ai/advanced-search/saved`, {
                 params: { userId: 'current' } // À remplacer par l'ID utilisateur réel
             });
 
@@ -210,7 +210,8 @@ function AdvancedSearchFilters({ onSearch, onSaveSearch, initialFilters = {} }) 
 
             console.log('[AdvancedSearch] Recherche avec filtres:', filters);
 
-            const response = await axios.post(`${API_BASE}/advanced-search`, {
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.post(`${apiBase}/ai/advanced-search`, {
                 query,
                 filters
             });
@@ -239,7 +240,8 @@ function AdvancedSearchFilters({ onSearch, onSaveSearch, initialFilters = {} }) 
         try {
             const filters = buildFilters();
 
-            const response = await axios.post(`${API_BASE}/advanced-search/save`, {
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.post(`${apiBase}/ai/advanced-search/save`, {
                 userId: 'current', // À remplacer
                 name: savedSearchName,
                 filters

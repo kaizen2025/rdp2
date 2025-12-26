@@ -38,11 +38,11 @@ import BulkActionsToolbar from '../components/BulkActionsToolbar';
 
 
 const STATUS_CONFIG = {
-    available: { label: 'Disponible', color: 'success', icon: <CheckCircleIcon sx={{fontSize: 16}} /> },
-    loaned: { label: 'Prêté', color: 'info', icon: <AssignmentIcon sx={{fontSize: 16}} /> },
-    reserved: { label: 'Réservé', color: 'warning', icon: <WarningIcon sx={{fontSize: 16}} /> },
-    maintenance: { label: 'Maintenance', color: 'warning', icon: <BuildIcon sx={{fontSize: 16}} /> },
-    retired: { label: 'Retiré', color: 'error', icon: <ErrorIcon sx={{fontSize: 16}} /> }
+    available: { label: 'Disponible', color: 'success', icon: <CheckCircleIcon sx={{ fontSize: 16 }} /> },
+    loaned: { label: 'Prêté', color: 'info', icon: <AssignmentIcon sx={{ fontSize: 16 }} /> },
+    reserved: { label: 'Réservé', color: 'warning', icon: <WarningIcon sx={{ fontSize: 16 }} /> },
+    maintenance: { label: 'Maintenance', color: 'warning', icon: <BuildIcon sx={{ fontSize: 16 }} /> },
+    retired: { label: 'Retiré', color: 'error', icon: <ErrorIcon sx={{ fontSize: 16 }} /> }
 };
 
 // --- VUE CARTE (COMPACTÉE) ---
@@ -91,7 +91,7 @@ const ComputerListItem = ({ computer, onEdit, onLoan, onSelect, isSelected }) =>
 
     return (
         <ListItem
-            hover
+            sx={{ '&:hover': { bgcolor: 'action.hover' } }}
             onClick={(event) => onSelect(event, computer.id)}
             role="checkbox"
             aria-checked={isSelected}
@@ -102,7 +102,16 @@ const ComputerListItem = ({ computer, onEdit, onLoan, onSelect, isSelected }) =>
             secondaryAction={
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     {computer.status === 'available' && (
-                        <Button size="small" variant="outlined" startIcon={<AssignmentIcon />} onClick={(e) => { e.stopPropagation(); onLoan(computer); }}>Prêter</Button>
+                        <Button
+                            size="small"
+                            variant="contained"
+                            color="success"
+                            startIcon={<AssignmentIcon />}
+                            onClick={(e) => { e.stopPropagation(); onLoan(computer); }}
+                            sx={{ minWidth: 100 }}
+                        >
+                            Prêter
+                        </Button>
                     )}
                     <Tooltip title="Modifier">
                         <IconButton size="small" onClick={(e) => { e.stopPropagation(); onEdit(computer); }}><EditIcon /></IconButton>
@@ -132,7 +141,7 @@ const ComputerListItem = ({ computer, onEdit, onLoan, onSelect, isSelected }) =>
 const ComputersPage = () => {
     const { showNotification } = useApp();
     const { cache, invalidate, isLoading } = useCache();
-    
+
     const [view, setView] = useState('list'); // 'grid', 'list' - Vue liste par défaut
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
@@ -412,7 +421,7 @@ const ComputersPage = () => {
             <ComputerDialog open={dialog.type === 'computer'} onClose={() => setDialog({ type: null })} computer={dialog.data} onSave={handleSaveComputer} />
             <ComputerHistoryDialog open={dialog.type === 'history'} onClose={() => setDialog({ type: null })} computer={dialog.data} />
             <MaintenanceDialog open={dialog.type === 'maintenance'} onClose={() => setDialog({ type: null })} computer={dialog.data} onSave={handleSaveMaintenance} />
-            <LoanDialog open={dialog.type === 'loan'} onClose={() => setDialog({ type: null })} computer={dialog.data} users={users} itStaff={itStaff} computers={computers} loans={loans} onSave={handleCreateLoan} />
+            <LoanDialog open={dialog.type === 'loan'} onClose={() => setDialog({ type: null })} computer={dialog.data} users={users} itStaff={itStaff} computers={computers} existingLoans={loans} onSave={handleCreateLoan} />
             <Dialog open={dialog.type === 'accessories'} onClose={() => setDialog({ type: null })} maxWidth="lg" fullWidth><AccessoriesManagement /></Dialog>
 
             {/* Bulk Edit Dialog */}

@@ -38,8 +38,7 @@ import {
 import { useApp } from '../../contexts/AppContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import axios from 'axios';
-
-const API_BASE = '/api/ai';
+import { getApiBaseUrl } from '../../services/backendConfig';
 
 // Liste des modèles Gemini disponibles
 const GEMINI_MODELS = {
@@ -105,7 +104,8 @@ const AISettingsPanel = () => {
     const loadConfiguration = useCallback(async () => {
         try {
             setIsLoading(true);
-            const response = await axios.get(`${API_BASE}/config`);
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.get(`${apiBase}/ai/config`);
             if (response.data.success && response.data.config) {
                 // Fusionner avec les valeurs par défaut
                 const loadedConfig = response.data.config;
@@ -152,7 +152,8 @@ const AISettingsPanel = () => {
             setError(null);
             setSuccess(null);
 
-            const response = await axios.put(`${API_BASE}/config`, aiConfig);
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.put(`${apiBase}/ai/config`, aiConfig);
 
             if (response.data.success) {
                 setSuccess('Configuration IA sauvegardée avec succès');
@@ -171,7 +172,8 @@ const AISettingsPanel = () => {
             setIsTesting(true);
             setConnectionStatus(null);
 
-            const response = await axios.post(`${API_BASE}/providers/gemini/test`, {
+            const apiBase = await getApiBaseUrl();
+            const response = await axios.post(`${apiBase}/ai/providers/gemini/test`, {
                 apiKey: aiConfig.providers.gemini.apiKey,
                 model: aiConfig.providers.gemini.models?.text || 'gemini-2.0-flash-exp'
             });
