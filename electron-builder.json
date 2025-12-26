@@ -46,9 +46,8 @@
   "asar": true,
   "asarUnpack": [
     "**/*.node",
-    "node_modules/**/*",
-    "server/**/*",
-    "backend/**/*"
+    "**/node_modules/bcrypt/**/*",
+    "**/node_modules/better-sqlite3/**/*"
   ],
   "win": {
     "target": [
@@ -86,7 +85,8 @@
     "menuCategory": true,
     "displayLanguageSelector": true,
     "perMachine": false,
-    "packElevateHelper": false
+    "packElevateHelper": false,
+    "differentialPackage": true
   },
   "portable": {
     "artifactName": "${productName}-${version}-Portable.${ext}",
